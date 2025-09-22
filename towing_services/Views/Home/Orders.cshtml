@@ -1,0 +1,27 @@
+﻿@model List<Dal.Order>
+
+<div class="order-list">
+    @foreach (var order in Model)
+    {
+        <div class="order-item">
+            <p>Order ID: @order.OrderId</p>
+            <p>Status: @order.Status</p>
+
+            @if (order.Status == "In progress")
+            {
+                <form method="post" asp-action="AcceptOrder">
+                    <input type="hidden" name="orderId" value="@order.OrderId" />
+                    <button type="submit" class="btn btn-success">Accept</button>
+                </form>
+            }
+
+            @if (order.Status == "Truck on the way")
+            {
+                <form method="post" asp-action="CompleteOrder">
+                    <input type="hidden" name="orderId" value="@order.OrderId" />
+                    <button type="submit" class="btn btn-info">Complete</button>
+                </form>
+            }
+        </div>
+    }
+</div>

@@ -1,0 +1,993 @@
+﻿<title>About Us | Strong Towing</title>
+
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+
+<style>
+    :root {
+        --primary-blue: #174d65;
+        --dark-blue: #226a9c;
+        --light-blue: #0084b4;
+        --primary-orange: #faa74a;
+        --orange-hover: #ec971f;
+        --light-gray: #f8f9fa;
+        --medium-gray: #e9ecef;
+        --dark-gray: #343a40;
+        --white: #ffffff;
+        --black: #000000;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        line-height: 1.5;
+        font-weight: 400;
+        background-color: var(--white);
+        color: var(--dark-gray);
+        font-synthesis: none;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        overflow-x: hidden;
+    }
+    body {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        overflow-x: hidden;
+    }
+
+    #app {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+
+    a {
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .container {
+        width: 100%;
+        max-width: 1350px;
+        margin: 0 auto;
+        padding: 0 16px;
+    }
+
+    .title-hero-container {
+        width: 100%;
+/*         max-width: 1350px;
+ */    }
+
+    .title-hero {
+        padding: 4.5rem 0;
+        text-align: center;
+        margin: 0px;
+        width: 100%;
+        background-color: var(--primary-blue);
+        position: relative;
+    }
+
+    .start-dots {
+        position: absolute;
+        top: 15px;
+        left: 10px;
+    }
+
+    .end-dots {
+        position: absolute;
+        bottom: 15px;
+        right: 10px;
+    }
+
+    .section-label {
+        color: var(--primary-orange);
+        font-size: 16px;
+        font-weight: 600;
+        display: flex;
+    }
+
+    .center-label {
+        justify-content: center;
+        justify-items: center;
+    }
+
+    .divider-label {
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+        .divider-label::before {
+            content: "";
+            height: 2px;
+            background-color: var(--primary-orange);
+            width: 24px;
+            margin: 0 12px;
+        }
+
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 16px;
+        border-radius: 4px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: none;
+        text-align: center;
+    }
+
+    .btn-primary {
+        background-color: var(--primary-blue);
+        color: var(--white);
+    }
+
+        .btn-primary:hover {
+            background-color: var(--dark-blue);
+        }
+
+    .btn-orange {
+        background-color: var(--primary-orange);
+        color: var(--white);
+    }
+
+        .btn-orange:hover {
+            background-color: var(--orange-hover);
+        }
+
+    .btn-outline {
+        background-color: transparent;
+        border: 1px solid var(--white);
+        color: var(--white);
+    }
+
+        .btn-outline:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+    .social-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 16px;
+        color: inherit;
+        font-size: 18px;
+    }
+
+    .arrow-icon {
+        margin-left: 8px;
+    }
+
+    .fa,
+    .fa-brands,
+    .fa-classic,
+    .fa-regular,
+    .fa-sharp,
+    .fa-solid,
+    .fab,
+    .far,
+    .fas {
+        line-height: normal;
+    }
+
+    /* Floating Actions */
+    .floating-actions {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        z-index: 1000;
+    }
+
+    .floating-btn {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 24px;
+        border-radius: 50px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+        .floating-btn i {
+            transition: transform 0.3s ease;
+        }
+
+        .floating-btn:hover i {
+            transform: translateX(4px);
+        }
+
+    .find-offers {
+        background-color: #1e6888;
+        color: var(--white);
+    }
+
+        .find-offers:hover {
+            background-color: var(--dark-blue);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+        }
+
+    .find-offers-arrow {
+        background-color: white;
+        color: #1e6888;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        margin: auto;
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+    }
+
+    .request-service {
+        background-color: var(--primary-orange);
+        color: var(--white);
+    }
+
+        .request-service:hover {
+            background-color: var(--orange-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+        }
+
+    .request-service-arrow {
+        background-color: white;
+        color: #faa74a;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        margin: auto;
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+    }
+
+    .contact-us-btn, .all-other-services-btn {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 24px;
+        border-radius: 50px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        background-color: var(--primary-orange);
+        color: var(--white);
+        width: fit-content;
+    }
+
+        .contact-us-btn i, .all-other-services-btn i {
+            transition: transform 0.3s ease;
+        }
+
+        .contact-us-btn:hover i, .all-other-services-btn:hover i {
+            transform: translateX(4px);
+        }
+
+        .contact-us-btn:hover, .all-other-services-btn:hover {
+            background-color: var(--orange-hover);
+            transform: translateX(4px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+        }
+
+    .contact-arrow, .all-other-services-arrow {
+        background-color: white;
+        color: #faa74a;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        margin: auto;
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+    }
+
+    .divider {
+        border: 0;
+        border-top: 1px solid #cccccc;
+        margin: 24px 0;
+    }
+
+    @@media (min-width: 1600px) {
+        .title-hero-container
+
+    {
+        margin: 0 auto;
+    }
+
+    }
+    @@media (max-width: 768px) {
+        .container
+
+    {
+/*         padding: 0 12px;
+ */    }
+
+    .title-hero {
+        width: 100%;
+    }
+
+    .floating-actions {
+        bottom: 20px;
+        right: 10px;
+    }
+
+    .floating-btn {
+        padding: 10px 20px;
+        font-size: 14px;
+    }
+
+    }
+
+    @@media (max-width: 576px) {
+        .floating-actions
+
+    {
+        bottom: 16px;
+        right: 5px;
+    }
+
+    .floating-btn {
+        width: fit-content;
+        justify-content: center;
+    }
+
+    }
+
+    /*2*/
+    .about-hero {
+        background-color: var(--primary-blue);
+        padding: 40px 0;
+        text-align: center;
+    }
+
+    .about-title {
+        color: var(--white);
+        font-size: 36px ;
+        font-weight: 700;
+        margin: 0;
+    }
+
+    .about-section {
+        display: flex;
+        align-items: center;
+        gap: 40px;
+        padding: 60px 16px;
+        max-width: 1350px;
+        margin: 0 auto;
+    }
+
+    .about-content {
+        flex: 1;
+    }
+
+    .about-heading {
+        font-size: 32px;
+        font-weight: 700;
+        color: var(--dark-gray);
+        margin-bottom: 20px;
+    }
+
+    .about-text {
+        color: var(--dark-gray);
+        line-height: 1.6;
+        margin-bottom: 24px;
+    }
+
+    .about-image {
+        flex: 1;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+        .about-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+    .quality-section,
+    .expertise-section {
+        background: var(--primary-blue);
+    }
+
+    .quality-content,
+    .expertise-content {
+        max-width: 1350px;
+        margin: 0 auto;
+        display: flex;
+        padding: 60px 16px;
+        align-items: center;
+        gap: 40px;
+    }
+
+    .quality-image,
+    .expertise-image {
+        flex: 1;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+        .quality-image img,
+        .expertise-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+    .quality-text,
+    .expertise-text {
+        flex: 1;
+    }
+
+    .quality-heading,
+    .expertise-heading {
+        font-size: 32px;
+        font-weight: 700;
+        color: var(--white);
+        margin-bottom: 20px;
+        text-transform: uppercase;
+    }
+
+    .quality-description,
+    .expertise-description {
+        color: var(--white);
+        line-height: 1.6;
+        margin-bottom: 24px;
+    }
+
+    .team-section {
+        padding: 60px 16px;
+        max-width: 1350px;
+        margin: 0 auto;
+    }
+
+    .team-heading {
+        font-size: 32px;
+        font-weight: 700;
+        color: var(--dark-gray);
+        margin-bottom: 40px;
+        text-align: center;
+    }
+
+    .team-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 24px;
+    }
+
+    .team-member {
+        text-align: left;
+    }
+
+    .member-image {
+        width: 100%;
+        height: 200px;
+        border-radius: 12px;
+        margin: 0 auto 8px;
+        overflow: hidden;
+    }
+
+        .member-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center center;
+        }
+
+    .member-name {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--dark-gray);
+        margin-bottom: 8px;
+    }
+
+    .member-role {
+        color: var(--dark-gray);
+        opacity: 0.8;
+        font-size: 14px;
+    }
+
+    .features-section {
+        padding: 60px 16px;
+        max-width: 1350px;
+        margin: 0 auto;
+    }
+
+    .features-heading {
+        font-size: 32px;
+        font-weight: 700;
+        color: var(--dark-gray);
+        text-transform: uppercase;
+    }
+
+    .features-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 2.5rem;
+    }
+
+    .features-grid {
+        padding: 2rem 0;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 24px;
+    }
+
+    .feature-item {
+        background-color: #fafafa;
+        text-align: left;
+        border: 1px solid #e1e1e1;
+        border-radius: 16px;
+        padding: 2.5rem 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .feature-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 8px;
+        background: #ffffff;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+        .feature-icon i {
+            font-size: 24px;
+            color: var(--primary-orange);
+        }
+
+    .feature-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--dark-gray);
+        margin-bottom: 8px;
+    }
+
+    .feature-description {
+        color: var(--dark-gray);
+        opacity: 0.8;
+        font-size: 14px;
+        line-height: 1.6;
+    }
+
+    .learn-more-link {
+        display: flex;
+        align-items: center;
+        justify-items: center;
+        color: var(--primary-orange);
+        font-weight: 500;
+        text-decoration: none;
+        font-size: 14px;
+    }
+
+        .learn-more-link a {
+            display: flex;
+            align-items: center;
+            justify-items: center;
+            gap: 8px;
+        }
+
+        .learn-more-link:hover {
+            text-decoration: underline;
+        }
+
+    .operate-section {
+        padding: 60px 16px;
+        text-align: center;
+        background-color: var(--primary-blue);
+    }
+
+    .operate-container {
+        max-width: 1350px;
+        margin: 0 auto;
+        display: flex;
+        gap: 1.25rem;
+        flex-direction: row;
+    }
+
+    .operate-image {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+        .operate-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+    .operate-content {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+        color: var(--white);
+        text-align: start;
+        justify-content: start;
+    }
+
+    .operate-heading {
+        font-size: 32px;
+        font-weight: 700;
+    }
+
+    .operate-text {
+        font-size: 16px;
+        color: #cccccc;
+        opacity: 0.8;
+        line-height: 1.6;
+    }
+
+    .operate-list-container {
+        padding: 2rem 0;
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        gap: 2rem;
+    }
+
+    .states-box {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .states-number {
+        font-size: 36px;
+        font-weight: 700;
+        color: var(--white);
+    }
+
+    .states-text {
+        font-size: 16px;
+        color: #cccccc;
+        opacity: 0.8;
+    }
+
+    .map-section {
+        padding: 60px 16px;
+        text-align: center;
+        color: var(--black);
+    }
+
+    .map-heading {
+        font-size: 32px;
+        font-weight: 700;
+        margin-bottom: 40px;
+    }
+
+    .map-container {
+        max-width: 1350px;
+        margin: 0 auto;
+    }
+
+        .map-container iframe {
+            width: 100%;
+            height: 400px;
+            border: none;
+            border-radius: 8px;
+        }
+
+    @@media (max-width: 992px) {
+        .team-grid
+
+    {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .features-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .features-header {
+        flex-direction: column;
+        align-items: start;
+    }
+
+    .operate-container {
+        flex-direction: column;
+    }
+
+    }
+
+    @@media (max-width: 768px) {
+        .about-section, .quality-content, .expertise-content
+
+    {
+        flex-direction: column;
+    }
+
+    .map-stats {
+        flex-direction: column;
+        gap: 24px;
+    }
+
+    .about-heading,
+    .quality-heading,
+    .expertise-heading,
+    .features-heading,
+    .map-heading {
+        font-size: 28px;
+    }
+
+    .stat-number {
+        font-size: 36px;
+    }
+
+    }
+
+    @@media (max-width: 576px) {
+        .team-grid, .features-grid
+
+    {
+        grid-template-columns: 1fr;
+    }
+
+    }
+</style>
+
+
+
+    <div class="title-hero-container ">
+        <div class="title-hero">
+            <img src="/public/images/dots.png" alt="" class="start-dots" />
+            <h1 class="about-title">ABOUT US</h1>
+            <img src="/public/images/dots.png" alt="" class="end-dots" />
+        </div>
+    </div>
+    <section class="about-section">
+        <div class="about-image">
+            <img src="/public/images/about_us_thumbnail.png"
+                 alt="Towing Professional" />
+        </div>
+        <div class="about-content">
+            <div class="section-label">
+                <span class="divider-label">Who We Are</span>
+            </div>
+            <h2 class="about-heading">Trusted Professionals for Over a Decade</h2>
+            <p class="about-text">
+                At Strong Towing, we’ve got your back — anytime, anywhere. Whether
+                you’re stuck on the highway or just need a quick jump-start, our
+                crew’s ready to roll. Fast, friendly, and always reliable, we make
+                sure you’re never left hanging. Because with us, you're not just
+                another call — you're part of the road family.
+            </p>
+
+        <a asp-controller="Home" asp-action="Contact" class="contact-us-btn">
+                Contact Us
+                <span class="contact-arrow">
+                    <i class="fas fa-arrow-right"></i>
+                </span>
+            </a>
+        </div>
+    </section>
+
+    <section class="quality-section">
+        <div class="quality-content">
+            <div class="quality-text">
+                <div class="section-label">
+                    <span class="divider-label">Our Mission</span>
+                </div>
+                <h2 class="quality-heading">Quality Work, Customer-First Approach</h2>
+                <span class="quality-description">
+                    Our mission is to deliver high-quality electrical services with a
+                    focus on trust and transparency. From start to finish, we’re
+                    committed to providing solutions tailored to your needs, done right
+                    the first time.
+                </span>
+            </div>
+            <div class="quality-image">
+                <img src="/public/images/our_mission.png" alt="Quality Work" />
+            </div>
+        </div>
+    </section>
+
+    <section class="team-section">
+        <div class="section-label center-label">
+            <span class="divider-label">Our team</span>
+        </div>
+        <h2 class="team-heading">TEAM OF TRUSTED SPECIALISTS</h2>
+        <div class="team-grid">
+            <div class="team-member">
+                <div class="member-image">
+                    <img src="https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg"
+                         alt="Sarah Thompson" />
+                </div>
+                <h3 class="member-name">Sarah Thompson</h3>
+                <p class="member-role">Operations Manager</p>
+            </div>
+
+            <div class="team-member">
+                <div class="member-image">
+                    <img src="https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg"
+                         alt="Mike Anderson" />
+                </div>
+                <h3 class="member-name">Mike Anderson</h3>
+                <p class="member-role">Lead Technician</p>
+            </div>
+
+            <div class="team-member">
+                <div class="member-image">
+                    <img src="https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg"
+                         alt="David Chen" />
+                </div>
+                <h3 class="member-name">David Chen</h3>
+                <p class="member-role">Service Coordinator</p>
+            </div>
+
+            <div class="team-member">
+                <div class="member-image">
+                    <img src="https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg"
+                         alt="Maria Garcia" />
+                </div>
+                <h3 class="member-name">Maria Garcia</h3>
+                <p class="member-role">Customer Support</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="expertise-section">
+        <div class="expertise-content">
+            <div class="expertise-text">
+                <div class="section-label">
+                    <span class="divider-label">About us</span>
+                </div>
+                <h2 class="expertise-heading">proven Expertise You Can Trust</h2>
+                <p class="expertise-description">
+                    With over 15 years of getting drivers back on track, we’ve mastered
+                    the road game. From fast towing to on-the-spot roadside help, Strong
+                    Towing delivers top-tier service that goes beyond expectations. We
+                    handle everything from cars and motorcycles to RVs and commercial
+                    fleets — serving Virginia, Washington D.C., and surrounding areas.
+                </p>
+                <p class="expertise-description">
+                    Our team is made up of trained pros who care about your safety and
+                    time. At Strong Towing, our vision is simple: to be the go-to name
+                    for reliable, friendly, and fast roadside support — anytime,
+                    anywhere.
+                </p>
+            </div>
+            <div class="expertise-image">
+                <img src="/public/images/expertise_about_us.png" alt="Expertise" />
+            </div>
+        </div>
+    </section>
+
+    <section class="features-section">
+        <div class="features-header">
+            <div class="">
+                <div class="section-label">
+                    <span class="divider-label">Why us?</span>
+                </div>
+                <h2 class="features-heading">Reliable and Efficient</h2>
+            </div>
+            <div class="">
+                We understand that when you're stuck on the road, you need fast and
+                reliable help.
+                Our skilled team delivers professional towing and
+                roadside services with a strong focus on safety, speed, and quality —
+                so you can get back on track without the stress.
+            </div>
+        </div>
+        <div class="features-grid">
+            <div class="feature-item">
+                <div class="feature-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <h3 class="feature-title">Swift Response</h3>
+                <p class="feature-description">
+                    Count on us for prompt service when you need it most.
+                </p>
+                <div class="learn-more-link">
+                    <a href="/#"> Learn More <i class="fas fa-arrow-right"></i></a>
+                </div>
+            </div>
+
+            <div class="feature-item">
+                <div class="feature-icon">
+                    <i class="fas fa-tools"></i>
+                </div>
+                <h3 class="feature-title">Trusted Experts</h3>
+                <p class="feature-description">
+                    Our electricians are certified and experienced, ensuring top-
+                    quality work.
+                </p>
+                <div class="learn-more-link">
+                    <a href="/#"> Learn More <i class="fas fa-arrow-right"></i></a>
+                </div>
+            </div>
+
+            <div class="feature-item">
+                <div class="feature-icon">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <div class="feature-title">Safety First</div>
+                <p class="feature-description">
+                    We prioritize safety in every project, keeping your home or business
+                    secure.
+                </p>
+                <div class="learn-more-link">
+                    <a href="/#"> Learn More <i class="fas fa-arrow-right"></i></a>
+                </div>
+            </div>
+
+            <div class="feature-item">
+                <div class="feature-icon">
+                    <i class="fa-solid fa-wallet"></i>
+                </div>
+                <h3 class="feature-title">Affordable Solutions</h3>
+                <p class="feature-description">
+                    High-quality service at prices that work for you.
+                </p>
+                <div class="learn-more-link">
+                    <a href="/#"> Learn More <i class="fas fa-arrow-right"></i></a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="operate-section">
+        <div class="operate-container">
+            <div class="operate-image">
+                <img src="/public/images/operate_section_image.png"
+                     alt="Operate Section Image" />
+            </div>
+            <div class="operate-content">
+                <div class="section-label">
+                    <span class="divider-label">Area</span>
+                </div>
+                <h2 class="operate-heading">Where we operate</h2>
+                <p class="operate-text">
+                    We provide expert towing services across three states and over 100
+                    cities. From small repairs to large projects, we deliver reliable
+                    and efficient solutions wherever you need us.
+                </p>
+                <div class="operate-list-container">
+                    <div class="states-box">
+                        <span class="states-number">3</span>
+                        <span class="states-text">States we operate in</span>
+                    </div>
+                    <div class="states-box">
+                        <span class="states-number">100+</span>
+                        <span class="states-text">Cities in our service area</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <section class="map-section">
+        <div class="section-label center-label">
+            <span class="divider-label">Location</span>
+        </div>
+        <h2 class="map-heading">Where to find us</h2>
+        <div class="map-container">
+            <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3107.4816959089744!2d-77.13373492346847!3d38.83332035701!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x89b7b3c8e2f1f6a7%3A0x7c3c4d4d4d4d4d4d!2s5021%20Seminary%20Rd%2C%20Alexandria%2C%20VA%2022311!5e0!3m2!1sen!2sus!4v1620000000000!5m2!1sen!2sus"
+                    allowfullscreen=""
+                    loading="lazy"></iframe>
+        </div>
+    </section>
+

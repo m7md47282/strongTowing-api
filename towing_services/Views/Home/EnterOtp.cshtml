@@ -1,0 +1,1188 @@
+﻿@using towing_services.Models
+@model OtpVerificationViewModel
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+<style>
+    :root {
+        --primary-blue: #174d65;
+        --dark-blue: #226a9c;
+        --light-blue: #0084b4;
+        --primary-orange: #faa74a;
+        --orange-hover: #ec971f;
+        --light-gray: #f8f9fa;
+        --medium-gray: #e9ecef;
+        --dark-gray: #343a40;
+        --white: #ffffff;
+        --black: #000000;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        line-height: 1.5;
+        font-weight: 400;
+        background-color: var(--white);
+        color: var(--dark-gray);
+        font-synthesis: none;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        overflow-x: hidden;
+    }
+
+    body {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        overflow-x: hidden;
+    }
+
+    #app {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+
+    a {
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .container {
+        width: 100%;
+        max-width: 1350px;
+        margin: 0 auto;
+        padding: 0 16px;
+    }
+
+    .title-hero-container {
+        width: 100%;
+        max-width: 1350px;
+    }
+
+    .title-hero {
+        padding: 4.5rem 0;
+        text-align: center;
+        margin: 0px;
+        width: 80%;
+        background-color: var(--primary-blue);
+        position: relative;
+    }
+
+    .start-dots {
+        position: absolute;
+        top: 15px;
+        left: 10px;
+    }
+
+    .end-dots {
+        position: absolute;
+        bottom: 15px;
+        right: 10px;
+    }
+
+    .section-label {
+        color: var(--primary-orange);
+        font-size: 16px;
+        font-weight: 600;
+        display: flex;
+    }
+
+    .center-label {
+        justify-content: center;
+        justify-items: center;
+    }
+
+    .divider-label {
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+        .divider-label::before {
+            content: "";
+            height: 2px;
+            background-color: var(--primary-orange);
+            width: 24px;
+            margin: 0 12px;
+        }
+
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 16px;
+        border-radius: 4px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: none;
+        text-align: center;
+    }
+
+    .btn-primary {
+        background-color: var(--primary-blue);
+        color: var(--white);
+    }
+
+        .btn-primary:hover {
+            background-color: var(--dark-blue);
+        }
+
+    .btn-orange {
+        background-color: var(--primary-orange);
+        color: var(--white);
+    }
+
+        .btn-orange:hover {
+            background-color: var(--orange-hover);
+        }
+
+    .btn-outline {
+        background-color: transparent;
+        border: 1px solid var(--white);
+        color: var(--white);
+    }
+
+        .btn-outline:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+    .social-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 16px;
+        color: inherit;
+        font-size: 18px;
+    }
+
+    .arrow-icon {
+        margin-left: 8px;
+    }
+
+    .fa,
+    .fa-brands,
+    .fa-classic,
+    .fa-regular,
+    .fa-sharp,
+    .fa-solid,
+    .fab,
+    .far,
+    .fas {
+        line-height: normal;
+    }
+
+    /* Floating Actions */
+    .floating-actions {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        z-index: 1000;
+    }
+
+    .floating-btn {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 24px;
+        border-radius: 50px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+        .floating-btn i {
+            transition: transform 0.3s ease;
+        }
+
+        .floating-btn:hover i {
+            transform: translateX(4px);
+        }
+
+    .find-offers {
+        background-color: #1e6888;
+        color: var(--white);
+    }
+
+        .find-offers:hover {
+            background-color: var(--dark-blue);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+        }
+
+    .find-offers-arrow {
+        background-color: white;
+        color: #1e6888;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        margin: auto;
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+    }
+
+    .request-service {
+        background-color: var(--primary-orange);
+        color: var(--white);
+    }
+
+        .request-service:hover {
+            background-color: var(--orange-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+        }
+
+    .request-service-arrow {
+        background-color: white;
+        color: #faa74a;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        margin: auto;
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+    }
+
+    .contact-us-btn, .all-other-services-btn {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 24px;
+        border-radius: 50px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        background-color: var(--primary-orange);
+        color: var(--white);
+        width: fit-content;
+    }
+
+        .contact-us-btn i, .all-other-services-btn i {
+            transition: transform 0.3s ease;
+        }
+
+        .contact-us-btn:hover i, .all-other-services-btn:hover i {
+            transform: translateX(4px);
+        }
+
+        .contact-us-btn:hover, .all-other-services-btn:hover {
+            background-color: var(--orange-hover);
+            transform: translateX(4px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+        }
+
+    .contact-arrow, .all-other-services-arrow {
+        background-color: white;
+        color: #faa74a;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        margin: auto;
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+    }
+
+    .divider {
+        border: 0;
+        border-top: 1px solid #cccccc;
+        margin: 24px 0;
+    }
+
+    @@media (min-width: 1600px) {
+        .title-hero-container {
+            margin: 0 auto;
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .container {
+            padding: 0 12px;
+        }
+
+        .title-hero {
+            width: 100%;
+        }
+
+        .floating-actions {
+            bottom: 20px;
+            right: 10px;
+        }
+
+        .floating-btn {
+            padding: 10px 20px;
+            font-size: 14px;
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .floating-actions {
+            bottom: 16px;
+            right: 5px;
+        }
+
+        .floating-btn {
+            width: fit-content;
+            justify-content: center;
+        }
+    }
+
+
+
+    .auth-header {
+        display: flex;
+        align-items: center;
+        padding: 20px 55px 10px 55px;
+        background-color: #fff;
+        max-width: 1400px;
+    }
+
+        .auth-header svg {
+            height: 35px;
+            width: 35px;
+            min-width: 35px;
+            margin-right: 10px;
+        }
+
+        .auth-header span {
+            font-size: 24px;
+            font-weight: 600;
+            color: #777;
+            letter-spacing: 5px;
+        }
+
+    .gray-divider {
+        border: none;
+        height: 50px;
+        background: #d9d9d9;
+        margin: 0;
+    }
+
+    .login-container {
+        padding: 40px 20px;
+        max-width: 400px;
+        margin: 0 auto;
+        background: #fff;
+    }
+
+        .login-container h2 {
+            font-weight: bolder;
+            text-transform: capitalize;
+            color: #01254a;
+            font-size: 28px;
+            margin-bottom: 30px;
+            padding: 10px 0;
+            border-bottom: 3px solid #01254a;
+        }
+
+    label {
+        font-size: 14px;
+        display: block;
+        margin-bottom: 5px;
+    }
+
+    input[type="text"],
+    input[type="password"] {
+        width: 100%;
+        padding: 12px 0px 12px 12px;
+        border-radius: 10px;
+        border: 1px solid #ccc;
+        margin-bottom: 20px;
+        font-size: 16px;
+        background: #fff;
+    }
+
+        input[type="text"]:focus,
+        input[type="password"]:focus {
+            border-color: #f9a03c;
+            outline: none;
+        }
+
+    .login-button {
+        background: #f9a03c;
+        color: white;
+        border: none;
+        padding: 14px;
+        width: 100%;
+        font-size: 18px;
+        font-weight: bold;
+        border-radius: 10px;
+        cursor: pointer;
+        margin-bottom: 20px;
+        transition: background 0.2s;
+    }
+
+        .login-button:hover {
+            background: #ffb85c;
+        }
+
+    .forgot-password {
+        text-align: center;
+        color: #4dcbf8;
+        font-weight: bold;
+        font-size: 15px;
+        cursor: pointer;
+        margin-bottom: 20px;
+    }
+
+    .social-icons {
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
+        .social-icons svg {
+            transition: transform 0.2s;
+            width: 32px;
+            height: 32px;
+            margin: 0 10px;
+            cursor: pointer;
+        }
+
+            .social-icons svg:hover {
+                transform: scale(1.1);
+            }
+
+    .divider {
+        border-top: 1px solid #aaa;
+        margin: 20px 0;
+    }
+
+    .footer-text {
+        text-align: center;
+        font-size: 14px;
+        color: #666;
+        font-weight: bold;
+        margin-bottom: 40px;
+    }
+
+    footer {
+        background: #d9d9d9;
+        padding: 20px;
+        font-size: 12px;
+        text-align: center;
+        color: #716c6c;
+        line-height: 1.5;
+        word-break: break-word;
+    }
+
+    /* Responsive Styles */
+    @@media (max-width: 600px) {
+        .auth-header {
+            flex-direction: column;
+            padding: 15px 0 5px 0;
+        }
+
+            .auth-header svg {
+                margin-right: 0;
+                margin-bottom: 8px;
+            }
+
+            .auth-header span {
+                font-size: 20px;
+                letter-spacing: 3px;
+            }
+
+        .login-container {
+            padding: 24px 8px;
+            max-width: 100%;
+        }
+
+            .login-container h2 {
+                font-size: 22px;
+                padding: 8px 0;
+            }
+
+        .footer-text {
+            font-size: 13px;
+            margin-bottom: 24px;
+        }
+
+        .social-icons svg {
+            width: 28px;
+            height: 28px;
+            margin: 0 6px;
+        }
+
+        .gray-divider {
+            height: 30px;
+        }
+
+        footer {
+            padding: 12px 4px;
+            font-size: 11px;
+        }
+    }
+
+    @@media (max-width: 400px) {
+        .auth-header span {
+            font-size: 16px;
+        }
+
+        .login-container h2 {
+            font-size: 18px;
+        }
+
+        .footer-text {
+            font-size: 12px;
+        }
+    }
+
+    .form-check-input {
+        width: 20px;
+        height: 20px;
+        background-color: white;
+        border: 2px solid #198754; /* أخضر */
+        cursor: pointer;
+    }
+
+        .form-check-input:checked {
+            background-color: #198754; /* أخضر عند التحديد */
+            border-color: #198754;
+        }
+
+    .password-wrapper {
+        position: relative;
+    }
+
+        .password-wrapper input {
+            padding-right: 40px; /* مساحة للأيقونة داخل الحقل */
+        }
+
+    .toggle-password {
+        position: absolute;
+        right: 10px;
+        top: 36%;
+        transform: translateY(-50%);
+        cursor: pointer;
+        color: #666;
+        z-index: 2;
+    }
+
+    .remember-me-container {
+        display: flex;
+        align-items: center;
+        gap: 8px; /* مسافة بين المربع والنص */
+        justify-content: flex-start;
+        margin-bottom: 10px;
+    }
+
+        .remember-me-container .form-check-label {
+            font-weight: bold;
+            margin: 0;
+        }
+
+        .remember-me-container .form-check-input {
+            margin: 0;
+        }
+</style>
+
+
+@{
+    var expireAtUtc = Model.ExpireAtUtc;
+    var isResendEnabled = Model.IsResendEnabled;
+    var resendLockedUntil = Model.ResendLockedUntil;
+    var resendAttemptsLeft = Model.ResendAttemptsLeft;
+    var maxAttempts = Model.MaxAttempts;
+
+    var resendAttemptsUsed = maxAttempts - resendAttemptsLeft;
+    var isLockedOut = resendAttemptsLeft == 0;
+
+    TimeSpan? lockoutTimeRemaining = null;
+    if (resendLockedUntil != null && resendLockedUntil > DateTime.UtcNow)
+    {
+        lockoutTimeRemaining = resendLockedUntil.Value - DateTime.UtcNow;
+        isResendEnabled = false;
+    }
+}
+
+
+
+<div class="auth-header">
+    <svg width="85"
+         height="85"
+         viewBox="0 0 85 85"
+         fill="none"
+         xmlns="http://www.w3.org/2000/svg"
+         xmlns:xlink="http://www.w3.org/1999/xlink">
+        <rect width="85" height="85" fill="url(#pattern0_1_84)" />
+        <defs>
+            <pattern id="pattern0_1_84"
+                     patternContentUnits="objectBoundingBox"
+                     width="1"
+                     height="1">
+                <use xlink:href="#image0_1_84"
+                     transform="matrix(0.00793595 0 0 0.00956662 -4.95455 -1.79877)" />
+            </pattern>
+            <image id="image0_1_84"
+                   width="1283"
+                   height="293"
+                   preserveAspectRatio="none"
+                   xlink:href="data:image/png;base64,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" />
+        </defs>
+    </svg>
+    <span>SWIFT</span>
+</div>
+
+<hr class="gray-divider" />
+
+<div class="login-container">
+    <h2>OTP Verification</h2>
+
+
+    <div class="container d-flex justify-content-center align-items-center" style="min-height: 80vh; font-size:20px">
+        <div class="card shadow-lg p-4 rounded-4" style="max-width: 400px; width: 100%; font-size:20px">
+            <div class="text-center mb-4">
+                <p class="text-muted">Please enter the code sent to your email</p>
+                <i class="bi bi-shield-lock" style="font-size: 2rem; color: #0d6efd;"></i>
+
+                <div class="mt-2">
+                    <small class="text-muted">
+                        OTP expires in
+                        <span id="countdown" style="font-weight: bold; color: #0d6efd;">05:00</span>
+                    </small>
+                </div>
+
+                <div class="text-center mt-2">
+                    <small class="text-muted">
+                        Attempt:
+                        <span id="attemptsDisplay" class="fw-bold @(isLockedOut ? "text-danger" : "text-warning")">
+                            @resendAttemptsUsed of @maxAttempts
+                        </span>
+                    </small>
+                </div>
+
+                <div class="text-center mt-2" id="resendLockoutDiv" style="display:@(isLockedOut ? "block" : "none")">
+                    <div>
+                        You can resend OTP after <span id="resendCountdown">10:00</span>
+                    </div>
+                </div>
+            </div>
+
+            <form asp-action="VerifyOtppass" method="post" novalidate>
+                <input type="hidden" name="Email" value="@Model.Email" />
+
+                <div class="form-group mb-3">
+                    <label asp-for="OTPCode" class="form-label fw-semibold"></label>
+                    <input asp-for="OTPCode" class="form-control form-control-lg rounded-3 shadow-sm" placeholder="Enter 6-digit code" />
+                    <span asp-validation-for="OTPCode" class="text-danger small"></span>
+                </div>
+
+                <button id="verifyBtn" type="submit" class="btn btn-primary w-100 rounded-3 shadow-sm login-button"
+                @(Model.IsVerifyEnabled ? "" : "disabled")>
+                    Verify
+                </button>
+            </form>
+
+            <div class="text-center mt-3">
+                <small>
+                    Didn't receive the code?
+                    <form method="post" asp-action="ResendOtppass" style="display:inline;" id="resendForm">
+                        <input type="hidden" name="Email" value="@Model.Email" />
+                        <button id="resendBtn" type="submit" class="btn btn-link p-0 login-button"
+                        @(isLockedOut || !isResendEnabled ? "disabled" : "")>
+                            Resend
+                        </button>
+                    </form>
+                </small>
+            </div>
+
+            @if (TempData["ErrorMessage"] != null)
+            {
+                <div class="alert alert-danger mt-3">@TempData["ErrorMessage"]</div>
+            }
+            @if (TempData["SuccessMessage"] != null)
+            {
+                <div class="alert alert-success mt-3">@TempData["SuccessMessage"]</div>
+            }
+        </div>
+    </div>
+</div>
+
+    <footer>
+        The system and all information contained within it are confidential and
+        proprietary to Strong Towing.<br />
+        Unauthorized use of Strong Towing’s systems and resources is prohibited
+        and may be subject to disciplinary or legal action.<br />
+        Strong Towing reserves the right to monitor and investigate access to or
+        use of its systems, and may involve law enforcement, as appropriate.
+    </footer>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@* 
+<p>You can resend OTP after @Model.ResendLockedUntil?.ToLocalTime().ToString("hh:mm tt")</p>
+<p>Server Lockout Time (UTC): @Model.ResendLockedUntil?.ToString("yyyy-MM-dd HH:mm:ss")</p>
+<p>Current Server Time (UTC): @DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")</p>
+
+
+ *@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const expireAt = new Date("@expireAtUtc.ToString("yyyy-MM-ddTHH:mm:ssZ")");
+            const countdownEl = document.getElementById("countdown");
+            const verifyBtn = document.getElementById("verifyBtn");
+            const resendBtn = document.getElementById("resendBtn");
+            const resendLockoutDiv = document.getElementById("resendLockoutDiv");
+            const resendCountdownEl = document.getElementById("resendCountdown");
+            const maxAttempts = @maxAttempts;
+
+            let lockoutTimerInterval = null;
+            let otpTimerInterval = null;
+
+            let resendAttemptsUsed = @resendAttemptsUsed;
+
+            let lockedUntilServer = null;
+            @if (resendLockedUntil != null && resendLockedUntil > DateTime.UtcNow)
+            {
+                <text>
+                lockedUntilServer = new Date("@resendLockedUntil.Value.ToString("yyyy-MM-ddTHH:mm:ssZ")");
+                </text>
+            }
+
+            function updateAttemptsDisplay() {
+                const attemptsDisplay = document.getElementById('attemptsDisplay');
+                if (attemptsDisplay) {
+                    attemptsDisplay.textContent = `${resendAttemptsUsed} of ${maxAttempts}`;
+                    attemptsDisplay.className = "fw-bold " + (resendAttemptsUsed >= maxAttempts ? "text-danger" : "text-warning");
+                }
+            }
+
+            function updateOtpTimer() {
+                const now = new Date();
+                let diff = (expireAt - now) / 1000;
+                if (diff <= 0) {
+                    countdownEl.textContent = "00:00";
+                    verifyBtn.disabled = true;
+                    clearInterval(otpTimerInterval);
+                    return;
+                }
+                const minutes = Math.floor(diff / 60).toString().padStart(2, '0');
+                const seconds = Math.floor(diff % 60).toString().padStart(2, '0');
+                countdownEl.textContent = `${minutes}:${seconds}`;
+            }
+
+            function startLockoutCountdown(unlockTime) {
+                resendLockoutDiv.style.display = "block";
+                resendBtn.disabled = true;
+
+                if (lockoutTimerInterval) clearInterval(lockoutTimerInterval);
+
+                lockoutTimerInterval = setInterval(() => {
+                    const now = new Date();
+                    const diff = unlockTime - now;
+
+                    if (diff <= 0) {
+                        resendCountdownEl.textContent = "00:00";
+                        clearInterval(lockoutTimerInterval);
+                        resendBtn.disabled = false;
+                        resendLockoutDiv.style.display = "none";
+
+                        resendAttemptsUsed = 0;
+                        updateAttemptsDisplay();
+                        return;
+                    }
+
+                    const minutes = String(Math.floor(diff / 1000 / 60)).padStart(2, '0');
+                    const seconds = String(Math.floor((diff / 1000) % 60)).padStart(2, '0');
+                    resendCountdownEl.textContent = `${minutes}:${seconds}`;
+                }, 1000);
+            }
+
+            if (lockedUntilServer && lockedUntilServer > new Date()) {
+                resendAttemptsUsed = maxAttempts;
+                updateAttemptsDisplay();
+                startLockoutCountdown(lockedUntilServer);
+            } else {
+                resendAttemptsUsed = resendAttemptsUsed;
+                updateAttemptsDisplay();
+                resendLockoutDiv.style.display = "none";
+                resendBtn.disabled = resendAttemptsUsed >= maxAttempts;
+            }
+
+            otpTimerInterval = setInterval(updateOtpTimer, 1000);
+            updateOtpTimer();
+
+            // Optional: Disable resend button after 2 clicks without page reload - if using AJAX, you can track attempts here
+
+        });
+    </script>
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@* 
+
+
+
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const expireAt = new Date("@expireAtUtc.ToString("yyyy-MM-ddTHH:mm:ssZ")");
+            const countdownEl = document.getElementById("countdown");
+            const verifyBtn = document.getElementById("verifyBtn");
+            const resendBtn = document.getElementById("resendBtn");
+            const resendLockoutDiv = document.getElementById("resendLockoutDiv");
+            const resendCountdownEl = document.getElementById("resendCountdown");
+            const maxAttempts = @maxAttempts;
+
+            let lockoutTimerInterval = null;
+            let otpTimerInterval = null;
+
+            // عدد المحاولات المستخدمة في الجلسة الحالية فقط (بدون localStorage)
+            let resendAttemptsUsed = 0;
+
+            // وقت انتهاء الحظر من السيرفر (إن وجد)
+            let lockedUntilServer = null;
+        @if (resendLockedUntil != null && resendLockedUntil > DateTime.UtcNow)
+        {
+            <text>
+                        lockedUntilServer = new Date("@resendLockedUntil.Value.ToString("yyyy-MM-ddTHH:mm:ssZ")");
+            </text>
+        }
+
+            // تحديث عرض عدد المحاولات في الصفحة
+            function updateAttemptsDisplay() {
+                const attemptsUsedEl = document.getElementById('attemptsUsed');
+                const attemptsLeftEl = document.getElementById('attemptsLeft');
+                if (attemptsUsedEl) attemptsUsedEl.textContent = resendAttemptsUsed;
+                if (attemptsLeftEl) attemptsLeftEl.textContent = maxAttempts - resendAttemptsUsed;
+                console.log(`[updateAttemptsDisplay] Attempts Used: ${resendAttemptsUsed}, Attempts Left: ${maxAttempts - resendAttemptsUsed}`);
+            }
+
+            // بدء عداد انتهاء صلاحية OTP
+            function updateOtpTimer() {
+                const now = new Date();
+                let diff = (expireAt - now) / 1000;
+                if (diff <= 0) {
+                    countdownEl.textContent = "00:00";
+                    verifyBtn.disabled = true;
+                    clearInterval(otpTimerInterval);
+                    console.log("OTP expired, verify button disabled.");
+                    return;
+                }
+                const minutes = Math.floor(diff / 60).toString().padStart(2, '0');
+                const seconds = Math.floor(diff % 60).toString().padStart(2, '0');
+                countdownEl.textContent = `${minutes}:${seconds}`;
+            }
+
+            // بدء عداد الحظر عند الحظر
+            function startLockoutCountdown(unlockTime) {
+                resendLockoutDiv.style.display = "block";
+                resendBtn.disabled = true;
+
+                if (lockoutTimerInterval) clearInterval(lockoutTimerInterval);
+
+                lockoutTimerInterval = setInterval(function () {
+                    const now = new Date();
+                    const diff = unlockTime - now;
+
+                    if (diff <= 0) {
+                        resendCountdownEl.textContent = "00:00";
+                        clearInterval(lockoutTimerInterval);
+                        resendBtn.disabled = false;
+                        resendLockoutDiv.style.display = "none";
+
+                        // إعادة تعيين المحاولات بعد انتهاء الحظر
+                        resendAttemptsUsed = 0;
+                        updateAttemptsDisplay();
+                        console.log("Lockout ended. Attempts reset to 0. Resend button enabled.");
+
+                        return;
+                    }
+
+                    const minutes = String(Math.floor(diff / 1000 / 60)).padStart(2, '0');
+                    const seconds = String(Math.floor((diff / 1000) % 60)).padStart(2, '0');
+                    resendCountdownEl.textContent = `${minutes}:${seconds}`;
+                }, 1000);
+            }
+
+            // تحقق من وجود حظر من السيرفر ووقته، شغل العداد فقط إذا الحظر قائم
+            if (lockedUntilServer && lockedUntilServer > new Date()) {
+                resendAttemptsUsed = maxAttempts; // محظور، لا محاولات متبقية
+                updateAttemptsDisplay();
+                startLockoutCountdown(lockedUntilServer);
+                console.log(`Server lockout active until ${lockedUntilServer}. Attempts set to max.`);
+            } else {
+                // لا حظر، ابدأ من 0
+                resendAttemptsUsed = 0;
+                updateAttemptsDisplay();
+            }
+
+            // مستمع زر إعادة الإرسال
+            if (!resendBtn.dataset.listenerAttached) {
+                resendBtn.addEventListener('click', function (e) {
+                    resendAttemptsUsed++;
+                    console.log(`Resend clicked. Attempts used: ${resendAttemptsUsed}`);
+
+                    updateAttemptsDisplay();
+
+                    if (resendAttemptsUsed >= maxAttempts) {
+                        e.preventDefault();
+                        const unlockTime = new Date(new Date().getTime() + 1 * 60 * 1000); // 1 دقيقة حظر
+                        console.log(`Max attempts reached. Starting lockout until ${unlockTime}`);
+                        startLockoutCountdown(unlockTime);
+                        return false;
+                    }
+                });
+
+                resendBtn.dataset.listenerAttached = "true";
+            }
+
+            // تحديث عداد انتهاء صلاحية OTP كل ثانية
+            updateOtpTimer();
+            otpTimerInterval = setInterval(updateOtpTimer, 1000);
+
+            console.log("Client Now:", new Date());
+            console.log("Lockout Until:", lockedUntilServer);
+        });
+    </script>
+}
+
+ *@
+
+
+@* 
+
+
+
+
+
+
+
+
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const expireAt = new Date("@expireAtUtc.ToString("yyyy-MM-ddTHH:mm:ssZ")");
+            const countdownEl = document.getElementById("countdown");
+            const verifyBtn = document.getElementById("verifyBtn");
+            const resendBtn = document.getElementById("resendBtn");
+            const resendLockoutDiv = document.getElementById("resendLockoutDiv");
+            const resendCountdownEl = document.getElementById("resendCountdown");
+            const maxAttempts = @maxAttempts;
+
+            let lockoutTimerInterval = null;
+            let otpTimerInterval = null;
+
+            // قراءة وقت الحظر من السيرفر
+            let lockedUntilServer = null;
+        @if (resendLockedUntil != null && resendLockedUntil > DateTime.UtcNow)
+        {
+            <text>
+                        lockedUntilServer = new Date("@resendLockedUntil.Value.ToString("yyyy-MM-ddTHH:mm:ssZ")");
+            </text>
+        }
+
+            // تنظيف localStorage إذا الحظر انتهى
+            function clearLockoutData() {
+                localStorage.removeItem("resendAttemptsUsed");
+                localStorage.removeItem("resendLockedUntil");
+            }
+
+            if (!lockedUntilServer || lockedUntilServer <= new Date()) {
+                clearLockoutData();
+            }
+
+            // جلب عدد المحاولات المستخدمة
+            let resendAttemptsUsed = parseInt(localStorage.getItem("resendAttemptsUsed")) || 0;
+
+            // تحديث عداد انتهاء صلاحية OTP
+            function updateOtpTimer() {
+                const now = new Date();
+                let diff = (expireAt - now) / 1000;
+
+                if (diff <= 0) {
+                    countdownEl.textContent = "00:00";
+                    verifyBtn.disabled = true;
+                    clearInterval(otpTimerInterval);
+                    return;
+                }
+
+                const minutes = Math.floor(diff / 60).toString().padStart(2, '0');
+                const seconds = Math.floor(diff % 60).toString().padStart(2, '0');
+                countdownEl.textContent = `${minutes}:${seconds}`;
+            }
+
+            updateOtpTimer();
+            otpTimerInterval = setInterval(updateOtpTimer, 1000);
+
+            // دالة بدء عداد الحظر
+            function startLockoutCountdown(unlockTime) {
+                resendLockoutDiv.style.display = "block";
+                resendBtn.disabled = true;
+
+                if (lockoutTimerInterval) {
+                    clearInterval(lockoutTimerInterval);
+                }
+
+                lockoutTimerInterval = setInterval(function () {
+                    const now = new Date();
+                    const diff = unlockTime - now;
+
+                    if (diff <= 0) {
+                        resendCountdownEl.textContent = "00:00";
+                        clearInterval(lockoutTimerInterval);
+                        resendBtn.disabled = false;
+                        resendLockoutDiv.style.display = "none";
+                        clearLockoutData();
+                        resendAttemptsUsed = 0;
+                        localStorage.setItem("resendAttemptsUsed", resendAttemptsUsed);
+                        // لا حاجة لإعادة تحميل الصفحة، لكن يمكنك فعلها لو أردت
+                        // location.reload();
+                        return;
+                    }
+
+                    const minutes = String(Math.floor(diff / 1000 / 60)).padStart(2, '0');
+                    const seconds = String(Math.floor((diff / 1000) % 60)).padStart(2, '0');
+                    resendCountdownEl.textContent = `${minutes}:${seconds}`;
+                }, 1000);
+            }
+
+            // فحص وجود حظر مخزن في localStorage
+            const savedLockTime = localStorage.getItem("resendLockedUntil");
+            if (savedLockTime) {
+                const savedDate = new Date(savedLockTime);
+                if (savedDate > new Date()) {
+                    startLockoutCountdown(savedDate);
+                } else {
+                    clearLockoutData();
+                }
+            }
+
+            // إذا في حظر من السيرفر نفذ الحظر وحدث localStorage
+            if (lockedUntilServer && lockedUntilServer > new Date()) {
+                localStorage.setItem("resendLockedUntil", lockedUntilServer);
+                startLockoutCountdown(lockedUntilServer);
+            }
+
+            // مستمع زر إعادة الإرسال
+            if (!resendBtn.dataset.listenerAttached) {
+                resendBtn.addEventListener('click', function (e) {
+                    resendAttemptsUsed++;
+                    localStorage.setItem("resendAttemptsUsed", resendAttemptsUsed);
+
+                    if (resendAttemptsUsed >= maxAttempts) {
+                        e.preventDefault();
+                        const unlockTime = new Date(new Date().getTime() + 1 * 60 * 1000); // 10 دقائق حظر
+                        localStorage.setItem("resendLockedUntil", unlockTime);
+                        startLockoutCountdown(unlockTime);
+                        return false;
+                    }
+                });
+
+                resendBtn.dataset.listenerAttached = "true";
+            }
+                    console.log("Client Now:", new Date());
+        console.log("Lockout Until:", lockedUntilServer);
+
+        });
+    </script>
+} *@
+ 
+

@@ -1,0 +1,189 @@
+﻿@model List<towing_services.Models.Info_services>
+
+
+<link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+<link href="https://fonts.googleapis.com/css2?family=Lobster&display=swap" rel="stylesheet">
+<link href="~/css/site.css" rel="stylesheet" />
+
+
+
+<style>
+    body {
+        background: linear-gradient(45deg, #8e3d3d, #3b003b);
+    }
+    /* تنسيق القائمة المنسدلة */
+    .nav-item .dropdown-menu {
+        background-color: #f0f0f0; /* لون الخلفية */
+        border: none;
+        border-radius: 20px; /* زوايا مستديرة */
+        box-shadow: 0px 8px 15px rgb(6 34 57 / 0.10); /* ظل ناعم */
+        padding: 4px;
+        /* إبعاد القائمة عن الحافة اليمنى */
+        margin-left: -50px; /* إضافة مسافة من الحافة اليمنى */
+    }
+
+
+    /* عناصر القائمة المنسدلة */
+    .dropdown-item {
+        font-size: 18px;
+        color: #333;
+        padding: 10px 20px;
+        font-weight: bold;
+        transition: all 0.3s ease;
+    }
+
+        /* تأثير عند المرور على عنصر القائمة المنسدلة */
+        .dropdown-item:hover {
+            background-color: #0b2644; /* لون الخلفية عند المرور */
+            color: #fff; /* لون النص عند المرور */
+            transform: scale(1.05); /* تكبير بسيط */
+        }
+
+    /* تصميم السهم */
+    .nav-link.dropdown-toggle::after {
+        content: ' ▼'; /* إضافة سهم */
+        font-size: 12px;
+        color: inherit; /* نفس لون النص */
+        margin-left: 5px;
+        transition: transform 0.3s ease;
+    }
+
+    /* دوران السهم عند الفتح */
+    .nav-link.dropdown-toggle[aria-expanded="true"]::after {
+        transform: rotate(180deg);
+    }
+
+    /* تأثير الظهور التدريجي للقائمة */
+    .nav-item .dropdown-menu {
+        opacity: 0;
+        transform: translateY(-10px);
+        transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+        /* عند عرض القائمة */
+        .nav-item .dropdown-menu.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+    .w-100 {
+        max-height: 500px !important
+    }
+
+    .line {
+        font-family: "Pacifico", cursive;
+        font-style: normal;
+        text-shadow: 2px 2px 8px #ff0000;
+    }
+
+    .line1 {
+        font-family: "Pacifico", cursive;
+        font-weight: 400;
+        font-style: normal;
+        text-shadow: 2px 2px 8px #ff0000;
+    }
+
+    .l2 {
+        font-family: "Pacifico", cursive;
+        font-weight: 400;
+        font-style: normal;
+        text-shadow: 2px 2px 8px #ff0000;
+    }
+
+
+    .rounded-circle {
+        border-radius: 50% 50% !important;
+        width: 200px;
+        height: 200px;
+    }
+
+    .card-title {
+        color: white;
+        font-family: Cambria, Cochin, Georgia, Times, Times New Roman, serif;
+        font-size: 40px !important;
+    }
+
+    .card-text {
+        color: antiquewhite
+    }
+
+    .card-footer {
+        border-block-color: red
+    }
+    .text-center {
+        padding: 10px
+    }
+</style>
+<div class="container ">
+
+    <a asp-action="Create_services" style="color: #e6f39d" class="btn btn-dark">Create New </a>
+
+    <div class="row row-cols-1 row-cols-md-3 g-4">
+        @foreach (var item in Model)
+        {
+    <div class="h-100">
+        <img src="~/logo/LOGO.jpeg" class="card-img-top rounded-circle mx-auto d-block" alt="...">
+        <div class="card-body">
+            <h5 class="card-title text-center" data-bs-toggle="collapse" href="#collapse_@item.ServiceId" role="button" aria-expanded="false" aria-controls="collapse_@item.ServiceId">
+                @item.Name
+            </h5>
+            <p class="card-text text-center collapse" id="collapse_@item.ServiceId">
+                @item.Description 
+            </p>
+        </div>
+        <div class="card-footer text-center">
+            <a style="color: #e6f39d" class="btn btn-dark" href="@Url.Action("Edit", "Homepharmacy", new { id = item.ServiceId })">Edit</a>
+            <a style="color: #e6f39d" class="btn btn-dark" href=" @Url.Action("delete", "Homepharmacy", new { id = item.ServiceId })">Delete</a>
+        </div>
+    </div>}
+    </div>
+    </div>
+
+<script src="../assets/dist/js/bootstrap.bundle.min.js"></script>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"
+        integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4="
+        crossorigin="anonymous"></script>
+
+
+
+
+
+@*<script>
+
+    var _data = [];
+    $(document).ready(function () {
+        $(".syp").click(function () {
+
+            var item = $(this).text();
+
+
+            if (_data.indexOf(item) == -1) {
+                $(this).addClass("btn-success").removeClass("btn-danger");
+                alert("Added to cart")
+
+                _data.push(item);
+
+                console.log(_data)
+
+            } else {
+                $(this).removeClass("btn-success").addClass("btn-danger")
+                _data = _data.filter(x => x != item)
+
+            }
+
+
+        })
+
+    })
+
+
+
+
+
+
+</script>*@

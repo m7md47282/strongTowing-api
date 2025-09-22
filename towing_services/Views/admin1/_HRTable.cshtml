@@ -1,0 +1,436 @@
+﻿@model List<Dal.HR>
+
+    <style>
+    table.table {
+        font-size:1.5rem; /* حجم الخط 1.2 rem (يمكن تغييره) */
+    }
+    .pagination {
+        font-size: 1.2rem;
+    }
+
+    /* مربع الأسهم */
+    .arrow-box {
+        border-radius: 5px;
+        margin: 0 5px;
+        width: 50px;
+        height: 50px;
+    }
+
+        /* الأسهم (اللينك) الافتراضية - اللون الغامق والكبير */
+        .arrow-box .page-link {
+            color: #222222 !important; /* أسود غامق */
+            font-weight: bold;
+            font-size: 2.5rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 5px;
+            padding: 0;
+        }
+
+        /* الخلفية للمربعات الغير معطلة (مربعات عادية باللون الأزرق) */
+        .arrow-box.has-prev:not(.disabled) .page-link,
+        .arrow-box.has-next:not(.disabled) .page-link {
+            background-color: #007bff; /* أزرق */
+            color: white !important;
+        }
+
+        /* خلفية أخضر إذا فيه صفحة تالية أو سابقة */
+        .arrow-box.has-prev:not(.disabled).has-data .page-link,
+        .arrow-box.has-next:not(.disabled).has-data .page-link {
+            background-color: #28a745 !important; /* أخضر */
+            color: white !important;
+        }
+
+        /* خلفية المربعات المعطلة */
+        .arrow-box.disabled .page-link {
+            background-color: #cce5ff; /* أزرق فاتح */
+            color: #007bff !important; /* السهم أزرق */
+            cursor: not-allowed;
+        }
+
+    /* رقم الصفحة بدون مربع، باللون الأسود */
+    .current-page .page-link {
+        background: none !important;
+        color: black !important;
+        font-weight: bold;
+        font-size: 1.3rem;
+        cursor: default;
+        padding: 0 10px;
+        border-radius: 0;
+        min-width: 40px;
+        text-align: center;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    /**/
+    .custom-modal-backdrop {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+    }
+
+    .custom-modal {
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        width: 500px;
+        transform: translate(-50%, -50%);
+        background: #fff;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+        z-index: 1000;
+        font-size: 18px;
+    }
+
+    .custom-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .custom-modal-title {
+        font-size: 24px;
+        font-weight: bold;
+        margin: 0;
+    }
+
+    .custom-close-btn {
+        background: none;
+        border: none;
+        font-size: 28px;
+        cursor: pointer;
+        color: #444;
+    }
+
+    .custom-modal-body {
+        margin-bottom: 25px;
+        font-size: 20px;
+    }
+
+    .custom-modal-footer {
+        text-align: right;
+    }
+
+    .custom-btn {
+        padding: 10px 20px;
+        font-size: 18px;
+        border-radius: 5px;
+        border: none;
+        cursor: pointer;
+    }
+
+    .custom-btn-danger {
+        background-color: #dc3545;
+        color: white;
+    }
+
+    .custom-btn-secondary {
+        background-color: #6c757d;
+        color: white;
+        margin-right: 10px;
+    }
+
+    /**/
+    .modal-backdrop {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: rgba(0,0,0,0.5);
+        z-index: 999;
+    }
+
+    .modal-container {
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: #fff;
+        width: 400px;
+        padding: 20px;
+        border-radius: 10px;
+        z-index: 1000;
+        box-shadow: 0 0 15px rgba(0,0,0,0.3);
+        font-size: 18px;
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-close {
+        font-size: 24px;
+        background: none;
+        border: none;
+        cursor: pointer;
+    }
+
+    .modal-body input {
+        width: 100%;
+        margin-bottom: 10px;
+        padding: 8px;
+    }
+
+    .modal-footer {
+        text-align: right;
+    }
+
+    .btn {
+        padding: 8px 16px;
+        border: none;
+        cursor: pointer;
+        border-radius: 4px;
+    }
+
+    .btn-success {
+        background-color: #007bff;
+        color: white;
+    }
+
+    .btn-secondary {
+        background-color: #6c757d;
+        color: white;
+    }
+
+    </style>
+
+
+
+@{
+    int totalPages = ViewBag.TotalPages ?? 1;
+    int currentPage = ViewBag.CurrentPage ?? 1;
+}
+<input type="hidden" id="totalPages" value="@ViewBag.TotalPages" />
+<input type="hidden" id="currentPage" value="@ViewBag.CurrentPage" />
+
+
+<nav aria-label="Page navigation">
+    <ul class="pagination justify-content-end align-items-center">
+        <!-- Previous button -->
+        <li class="page-item @(ViewBag.CurrentPage == 1 ? "disabled" : "") arrow-box">
+            <a href="#" class="page-link" data-page="@(ViewBag.CurrentPage - 1)" tabindex="-1" aria-disabled="@(ViewBag.CurrentPage == 1)">
+                &laquo;
+            </a>
+        </li>
+
+        <!-- Current page number (بدون مربع) -->
+        <li class="page-item current-page" aria-current="page">
+            <span class="page-link">
+                @ViewBag.CurrentPage
+            </span>
+        </li>
+
+        <!-- Next button -->
+        <li class="page-item @(ViewBag.CurrentPage == ViewBag.TotalPages ? "disabled" : "") arrow-box">
+            <a href="#" class="page-link" data-page="@(ViewBag.CurrentPage + 1)" aria-disabled="@(ViewBag.CurrentPage == ViewBag.TotalPages)">
+                &raquo;
+            </a>
+        </li>
+    </ul>
+</nav>
+<table class="table table-bordered table-striped text-center" >
+    <thead class="table-dark">
+        <tr>
+            <th>ID</th>
+            <th>Full Name</th>
+            <th>Email</th>
+            <th>Phone Number</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (Model != null && Model.Any())
+        {
+            foreach (var hr in Model)
+            {
+                <tr>
+                    <td>@hr.Id</td>
+                    <td>@hr.FullName</td>
+                    <td>@hr.Email</td>
+                    <td>@hr.PhoneNumber</td>
+                    <td>
+                        <button class="btn-delete-hr btn btn-danger btn-lg" data-id="@hr.Id">Delete</button>
+                        <button class="btn btn-primary btn-lg btn-edit-hr"
+								data-id="@hr.Id" 
+
+                                data-fullname="@hr.FullName"
+                                data-email="@hr.Email"
+								data-phone="@hr.PhoneNumber">
+                            Edit
+                        </button>
+
+
+
+                    </td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr>
+                <td colspan="5" class="text-center text-muted">HR list is empty.</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<div id="modalBackdrop" class="custom-modal-backdrop"></div>
+
+<!-- Modal -->
+<div id="confirmDeleteModal" class="custom-modal">
+    <div class="custom-modal-header">
+        <h2 class="custom-modal-title">Delete Confirmation</h2>
+        <button type="button" id="btnCloseModal" class="custom-close-btn">&times;</button>
+    </div>
+
+    <div class="custom-modal-body">
+        Are you sure you want to delete this HR from the system?
+    </div>
+
+    <div class="custom-modal-footer">
+        <button type="button" id="btnCancelDelete" class="custom-btn custom-btn-secondary">No</button>
+        <button type="button" id="btnConfirmDelete" class="custom-btn custom-btn-danger">Yes, Delete</button>
+    </div>
+</div>
+
+
+@* update *@
+<!-- الخلفية -->
+<div id="editModalBackdrop" class="modal-backdrop" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background-color:rgba(0,0,0,0.5); z-index:999;"></div>
+
+<!-- المودال -->
+<div id="editModal" class="modal-container" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#fff; padding:25px; border-radius:10px; box-shadow:0 0 15px rgba(0,0,0,0.3); z-index:1000; width:400px; font-size:18px;">
+    <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center;">
+        <h2>Edit HR</h2>
+        <button id="btnCloseEditModal" style="background:none; border:none; font-size:24px; cursor:pointer;">&times;</button>
+    </div>
+
+    <div class="modal-body" style="margin-top:15px;">
+        <input type="hidden" id="editId">
+		
+        <label>Full Name:</label>
+        <input type="text" id="editFullName" style="width:100%; padding:6px;"><br><br>
+
+     
+        <label>Email:</label>
+        <input type="email" id="editEmail" style="width:100%; padding:6px;"><br><br>
+
+        <label>Phone Number:</label>
+        <input type="text" id="editPhone" style="width:100%; padding:6px;"><br>
+
+        <div id="editValidation" style="color:red; margin-top:10px;"></div>
+    </div>
+
+    <div class="modal-footer" style="margin-top:15px; text-align:right;">
+        <button id="btnUpdateHR" style="background:#28a745; color:#fff; border:none; padding:8px 14px; font-size:16px; cursor:pointer;">Update</button>
+        <button id="btnCloseEditModalFooter" style="background:#6c757d; color:#fff; border:none; padding:8px 14px; font-size:16px; cursor:pointer;">Close</button>
+    </div>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+           <script>
+                  $(document).ready(function() {
+        var hrIdToDelete = null;
+
+        // فتح المودال مع الـ id المراد حذفه
+        $(document).on('click', '.btn-delete-hr', function() {
+            hrIdToDelete = $(this).data('id');
+            $('#modalBackdrop').fadeIn(200);
+            $('#confirmDeleteModal').fadeIn(200);
+        });
+
+        // زر الإغلاق (X) وزر "No"
+        $('#btnCloseModal, #btnCancelDelete, #modalBackdrop').click(function() {
+            $('#confirmDeleteModal').fadeOut(200);
+            $('#modalBackdrop').fadeOut(200);
+            hrIdToDelete = null;
+        });
+
+        // زر التأكيد للحذف
+        $('#btnConfirmDelete').click(function() {
+            if (hrIdToDelete !== null) {
+                $.post('/admin1/DeleteHR', { id: hrIdToDelete }, function() {
+                    loadHRPage(1); // إعادة تحميل الصفحة بعد الحذف
+                    $('#confirmDeleteModal').fadeOut(200);
+                    $('#modalBackdrop').fadeOut(200);
+                    hrIdToDelete = null;
+                });
+            }
+        });
+    });
+
+    ///updatehr
+
+        $(document).ready(function () {
+        // فتح المودال وتعبئة البيانات
+        $(document).on('click', '.btn-edit-hr', function () {
+            $('#editId').val($(this).data('id'));
+            $('#editFullName').val($(this).data('fullname'));
+            $('#editEmail').val($(this).data('email'));
+            $('#editPhone').val($(this).data('phone'));
+            $('#editUserName').val($(this).data('username'));
+
+            $('#editModalBackdrop').fadeIn(200);
+            $('#editModal').fadeIn(200);
+        });
+
+        // إغلاق المودال
+        $('#btnCloseEditModal, #btnCloseEditModalFooter, #editModalBackdrop').click(function () {
+            $('#editModalBackdrop').fadeOut(200);
+            $('#editModal').fadeOut(200);
+            $('#editValidation').html('');
+        });
+
+        // تنفيذ التحديث
+        $('#btnUpdateHR').click(function () {
+            $.post('/admin1/UpdateHR', {
+                Id: $('#editId').val(),
+                FullName: $('#editFullName').val(),
+                Email: $('#editEmail').val(),
+                PhoneNumber: $('#editPhone').val(),
+                UserName: $('#editUserName').val()
+            }, function (result) {
+                if (result.success) {
+                    $('#editModalBackdrop').fadeOut(200);
+                    $('#editModal').fadeOut(200);
+                    $('#editValidation').html('');
+                    loadHRPage(1);
+                } else {
+                    $('#editValidation').html(result.errorsHtml);
+                }
+            });
+        });
+    });
+
+
+
+     
+           </script>

@@ -1,0 +1,920 @@
+﻿@model towing_services.Models.DriverViewModel
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+
+@{
+    Layout = "~/Views/Shared/_HRLayout.cshtml";
+}
+<style>
+    body {
+        background: white;
+    }
+    /* تنسيق القائمة المنسدلة */
+    .nav-item .dropdown-menu {
+        background-color: #f0f0f0; /* لون الخلفية */
+        border: none;
+        border-radius: 20px; /* زوايا مستديرة */
+        box-shadow: 0px 8px 15px rgb(6 34 57 / 0.10); /* ظل ناعم */
+        padding: 4px;
+        /* إبعاد القائمة عن الحافة اليمنى */
+        margin-left: -50px; /* إضافة مسافة من الحافة اليمنى */
+    }
+
+
+
+
+    label {
+        font-size: 30px;
+        font-weight: 500;
+    }
+
+    .form-control {
+        font-size: 27px;
+    }
+
+    .btn-success {
+        font-size: 1.60rem;
+        background: linear-gradient(145deg, #6eaf4a, #4c9c3e); /* تدرج لوني للزر */
+        color: white; /* النص باللون الأبيض */
+        border: 2px solid #4c9c3e; /* إضافة حد رفيع */
+        padding: 12px 24px; /* المسافات حول النص */
+        border-radius: 30px; /* زوايا مستديرة بشكل أكبر */
+        box-shadow: 3px 3px 6px rgba(0, 0, 0, 0.1), -3px -3px 6px rgba(255, 255, 255, 0.1); /* إضافة ظل ناعم */
+        cursor: pointer; /* تغيير المؤشر عند المرور على الزر */
+        transition: all 0.4s ease-in-out; /* إضافة تأثيرات انسيابية */
+    }
+
+        .btn-success:hover {
+            background: linear-gradient(145deg, #4c9c3e, #6eaf4a); /* عكس التدرج اللوني عند التمرير */
+            box-shadow: 6px 6px 12px rgba(0, 0, 0, 0.15), -6px -6px 12px rgba(255, 255, 255, 0.15); /* زيادة الظلال */
+            transform: translateY(-3px); /* رفع الزر قليلاً عند التمرير */
+        }
+
+        .btn-success:active {
+            background: #4c9c3e; /* لون ثابت عند الضغط */
+            box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.2); /* تغيير الظلال لتأثير الضغط */
+            transform: translateY(0); /* العودة إلى وضع الزر الطبيعي */
+        }
+
+        .btn-success:focus {
+            outline: none; /* إزالة الحدود عند التركيز */
+            box-shadow: 0 0 0 4px rgba(0, 123, 255, 0.5); /* إضافة تأثير ظل عند التركيز */
+        }
+
+    .profile-title {
+        font-family: 'Poppins', sans-serif; /* استخدام الخط المفضل */
+        font-size: 5rem; /* حجم الخط */
+        font-weight: bold; /* جعل الخط عريض */
+        text-align: center; /* محاذاة النص في المنتصف */
+        margin: 40px 0; /* إضافة هامش حول العنوان */
+        line-height: 1.2; /* ضبط ارتفاع السطر */
+        letter-spacing: 2px; /* إضافة تباعد بين الحروف */
+        text-transform: capitalize; /* جعل أول حرف من كل كلمة كبير */
+        padding: 10px 0; /* إضافة padding من الأعلى والأسفل */
+        color: #5390ef; /* تغيير اللون عند التمرير */
+        text-decoration: underline; /* إضافة خط تحت النص عند التمرير */
+    }
+
+
+
+    @@media (max-width: 768px) {
+        .profile-title {
+            font-size: 2.5rem;
+        }
+    }
+
+    @@media (max-width: 480px) {
+        .profile-title {
+            font-size: 2rem;
+        }
+
+        label {
+            font-size: 17px;
+        }
+
+        .form-control {
+            font-size: 18px;
+        }
+    }
+
+    .alert {
+        background-color: #1a1a3c;
+        color: white;
+        margin: 10px auto;
+        width: 50%;
+        max-width: 80%;
+        text-align: center;
+        border-radius: 5px;
+        padding: 1%;
+        font-size: 24px;
+    }
+
+    @@media (max-width: 768px) {
+        .alert {
+            width: 70%;
+            font-size: 20px;
+        }
+    }
+
+    @@media (max-width: 480px) {
+        .alert {
+            width: 90%;
+            font-size: 18px;
+        }
+    }
+
+    .alert ul {
+        list-style-type: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .alert li {
+        display: inline;
+    }
+
+    .image-section {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 30px;
+        margin-top: 30px;
+    }
+
+    .image-box {
+        width: 140px;
+    }
+
+        .image-box label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            font-size: 20px; /* كبرنا الخط */
+            color: #333;
+                white-space: nowrap;
+            text-align: center; /* حتى يكون بالنص */
+        }
+
+
+    .image-wrapper {
+        position: relative;
+        width: 120px;
+        height: 120px;
+        margin: 0 auto;
+    }
+
+        .image-wrapper img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+        }
+
+        .image-wrapper button {
+            position: absolute;
+            bottom: 6px;
+            right: 6px;
+            padding: 5px 8px;
+        }
+
+    .change-picture {
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+        z-index: 11;
+        background-color: rgba(0, 0, 0, 0.6); /* خلفية شفافة للزر */
+        color: #fff;
+        border: none;
+        padding: 5px 10px;
+        border-radius: 40px;
+        cursor: pointer;
+        font-size: 30px;
+    }
+
+        .change-picture i {
+            margin-right: 5px;
+        }
+
+    @@media (max-width: 768px) {
+        .image-container {
+            margin-left: 20px;
+            margin-top: 40px;
+        }
+
+        .image-wrapper {
+            width: 100%;
+            height: 300px;
+        }
+
+        .change-picture {
+            font-size: 20px; /* تصغير حجم الخط للزر */
+        }
+    }
+
+    /* استعلام وسائط للأجهزة الصغيرة جدًا */
+    @@media (max-width: 480px) {
+        .image-container {
+            margin-left: 10px;
+            margin-top: 20px;
+        }
+
+        .image-wrapper {
+            width: 100%;
+            height: 300px;
+        }
+
+        .change-picture {
+            font-size: 18px; /* تصغير أكبر للزر */
+        }
+    }
+
+    span {
+        font-size: 25px
+    }
+
+    /****/
+
+    .card {
+        margin-top: 40px;
+        width: 80%;
+        height: 100%;
+        background-color: transparent;
+        border: 5px solid #f8f8f8;
+        border-radius: 50px 10px;
+        position: relative;
+        box-shadow: 0 4px 9px rgba(0, 0, 0, 0.1);
+        padding: 50px;
+        display: flex;
+        /*    align-items: center;
+        justify-content: center;*/
+        font-family: Arial, sans-serif;
+        color: #333;
+        border-top-color: rgb(6 167 225);
+        border-right-color: rgb(6 167 225);
+        border-left-color: rgb(6 167 225);
+        border-bottom-color: rgb(6 167 225);
+    }
+
+
+    @@media (max-width: 768px) {
+        .card {
+            width: 90%;
+            padding: 15px;
+            border-width: 3px;
+        }
+    }
+
+    @@media (max-width: 480px) {
+        .card {
+            width: 100%;
+            border-radius: 20px;
+            padding: 10px;
+        }
+
+        .avatar {
+            width: 50px;
+            height: 50px;
+        }
+
+            .avatar i {
+                font-size: 20px;
+                color: #fff;
+            }
+    }
+
+
+
+    .avatar {
+        width: 90px;
+        height: 90px;
+        border-radius: 50%;
+        border: 4px solid #fff;
+        background-color: #007bff;
+        position: absolute;
+        top: -50px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    }
+
+        .avatar i {
+            font-size: 50px;
+            color: #fff;
+        }
+
+    @@media (max-width: 768px) {
+        .avatar {
+            width: 80px;
+            height: 80px;
+        }
+
+            .avatar i {
+                font-size: 20px;
+                color: #fff;
+            }
+    }
+
+    @@media (max-width: 480px) {
+
+
+        .avatar {
+            width: 80px;
+            height: 80px;
+        }
+
+            .avatar i {
+                font-size: 20px;
+                color: #fff;
+            }
+    }
+
+
+
+    .wave-container {
+        position: relative;
+        width: 100%;
+        overflow: hidden;
+        text-align: center;
+        background-color: #f9f9f9; /* Background color for better visibility */
+    }
+
+    .welcome-message {
+        position: relative; /* موقع ثابت داخل الحاوية */
+        margin-top: -150px;
+        font-size: 36px;
+        line-height: 1.6;
+        color: black;
+        text-align: center;
+    }
+    /* Title styling */
+    .wave-title {
+        position: absolute;
+        top: 20%;
+        width: 100%;
+        font-size: 3.50rem;
+        font-weight: bold;
+        color: black;
+        text-transform: uppercase;
+        z-index: 1;
+    }
+
+    /* SVG styling */
+    #wave {
+        width: 100%;
+        height: auto;
+    }
+
+
+
+
+
+    @@media (max-width: 2000px) {
+        .welcome-message {
+            margin-top: 3vh;
+            font-size: 29px;
+        }
+
+        .wave-title {
+            font-size: 3rem;
+        }
+    }
+
+
+    @@media (max-width: 768px) {
+        .welcome-message {
+            margin-top: 6vh;
+            font-size: 20px;
+        }
+
+        .wave-title {
+            font-size: 2.5rem;
+        }
+    }
+
+    /* Media query لأجهزة الجوال */
+    @@media (max-width: 480px) {
+        .welcome-message {
+            margin-top: 10vh;
+            font-size: 15px;
+        }
+
+        .wave-title {
+            font-size: 2rem;
+        }
+
+       
+    }
+
+    .manage-drivers-container {
+        text-align: center;
+        margin-top: 40px;
+        margin-bottom: 30px;
+    }
+
+        .manage-drivers-container .title {
+            font-size: 56px;
+            color: black;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .manage-drivers-container .underline {
+            width: 100px;
+            height: 4px;
+            background-color: black;
+            margin: 0 auto;
+            border-radius: 2px;
+        }
+
+</style>
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+
+
+<div class="manage-drivers-container align-items-center">
+    <h1 class="title">Edit driver</h1>
+    <div class="underline"></div>
+</div>
+
+
+
+
+
+<div class="d-flex justify-content-center mb-3">
+    <a href="@Url.Action("GetDriver", "HRS")" class="btn btn-primary btn-lg">
+        <i class="fas fa-arrow-left"></i> Back to Drivers
+    </a>
+</div>
+
+
+@Html.ValidationSummary(true, "", new { @class = "alert alert-danger" })
+
+<div style="padding:20px">
+</div>
+
+<div class="container">
+    <div class="row justify-content-center ">
+
+        <div class=" card ">
+            <div class="avatar">
+                <i class="bi bi-person"></i>
+            </div>
+            <form asp-action="UpdateProfiledriver"  asp-route-id="@Model.DriverId" method="post" id="updateProfileForm">
+                <input type="hidden" asp-for="@Model.DriverId" />
+
+                <div class="form-group">
+                    <label for="Name">Name</label>
+                    <input asp-for="@Model.Name" class="form-control" />
+                    <span asp-validation-for="@Model.Name" class="text-danger"></span>
+                </div>
+
+                <div class="form-group">
+                    <label for="Email">Email</label>
+                    <input asp-for="@Model.Email" class="form-control" />
+                    <span asp-validation-for="@Model.Email" class="text-danger"></span>
+                </div>
+
+                <div class="form-group">
+                    <label for="PhoneNumber">Phone Number</label>
+                    <input asp-for="@Model.phone" class="form-control" />
+                    <span asp-validation-for="@Model.phone" class="text-danger"></span>
+                </div>
+
+                <div class="form-group">
+                    <label for="VehicleType">Vehicle Type</label>
+                    <select asp-for="@Model.VehicleType" class="form-control custom-select" id="VehicleType">
+                        <option value="Flatbed">Flatbed</option>
+                        <option value="Heavy Duty">Heavy Duty</option>
+                    </select>
+                </div>
+                <div class="image-section d-flex flex-wrap justify-content-around gap-4">
+
+                    <div class="image-box text-center">
+                        <label>License Picture</label>
+                        <div class="image-wrapper">
+                            <img id="licensePictureImage" src="~/@Model.LicensePicture" alt="License Picture" />
+                            <button type="button" class="btn btn-info change-picture" data-target="#licensePictureModal" data-toggle="modal">
+                                <i class="fas fa-camera"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="image-box text-center">
+                        <label>Work Permit </label>
+                        <div class="image-wrapper">
+                            <img id="wPictureImage" src="~/@Model.workPermitPicture" alt="Work Permit Picture" />
+                            <button type="button" class="btn btn-info change-picture" data-target="#workPermitModal" data-toggle="modal">
+                                <i class="fas fa-camera"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="image-box text-center">
+                        <label>Profile Picture</label>
+                        <div class="image-wrapper">
+                            <img id="profilePictureImage" src="~/@Model.ProfilePicture" alt="Profile Picture" />
+                            <button type="button" class="btn btn-info change-picture" data-target="#profilePictureModal" data-toggle="modal">
+                                <i class="fas fa-camera"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="form-group">
+                    <label for="CurrentLocation">Current Location</label>
+                    <input id="addressInput" class="form-control" placeholder="Enter your address" value="@Model.CurrentLocation" />
+                    <span asp-validation-for="@Model.CurrentLocation" class="text-danger"></span>
+                </div>
+
+                <input asp-for="CurrentLocation" type="hidden" id="CurrentLocation" />
+                <input asp-for="Latitude" type="hidden" id="Latitude" value="@Model.Latitude" />
+                <input asp-for="Longitude" type="hidden" id="Longitude" value="@Model.Longitude" />
+
+                <div id="map" style="height: 400px; width: 100%; margin-top: 10px;"></div>
+
+                <div class="d-flex justify-content-center mt-5">
+                    <button type="submit" class="btn btn-success w-50">Save</button>
+                </div>
+            </form>
+        </div>
+
+
+    </div>
+</div>
+
+
+<!-- نموذج لتحديث صورة الملف الشخصي -->
+<form id="ProfilePicture" asp-action="UpdateProfilePicture" method="post" enctype="multipart/form-data">
+    <input type="file" name="ProfilePicture" id="ProfilePictureInput" style="display: none;" required />
+    <button type="submit" style="display: none;" id="ProfilePictureSubmit">Update Profile Picture</button>
+</form>
+
+<!-- نموذج لتحديث صورة الرخصة -->
+<form id="LicensePicture" asp-action="UpdateLicensePicture" method="post" enctype="multipart/form-data">
+    <input type="file" name="LicensePicture" id="LicensePictureInput" style="display: none;" required />
+    <button type="submit" style="display: none;" id="LicensePictureSubmit">Update License Picture</button>
+</form>
+
+
+
+
+<!-- مودال لتغيير صورة الملف الشخصي -->
+<div class="modal fade" id="profilePictureModal" tabindex="-1" role="dialog" aria-labelledby="profilePictureModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="profilePictureModalLabel">Update Profile Picture</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <input type="file" name="ProfilePicture" id="ProfilePictureInputModal" class="form-control" />
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="submitProfilePicture">Save changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- مودال لتغيير صورة الرخصة -->
+<div class="modal fade" id="licensePictureModal" tabindex="-1" role="dialog" aria-labelledby="licensePictureModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="licensePictureModalLabel">Update License Picture</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <input type="file" name="LicensePicture" id="LicensePictureInputModal" class="form-control" />
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="submitLicensePicture">Save changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- مودال لتغيير صورة تصريح العمل -->
+<div class="modal fade" id="workPermitModal" tabindex="-1" role="dialog" aria-labelledby="workPermitModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="workPermitModalLabel">Update Work Permit Picture</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <input type="file" name="WorkPermitPicture" id="WorkPermitPictureInputModal" class="form-control" />
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="submitWorkPermitPicture">Save changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- نموذج لتحديث صورة تصريح العمل -->
+<form id="WorkPermitPictureForm" asp-action="UpdateWorkPermitPicture" method="post" enctype="multipart/form-data">
+    <input type="file" name="WorkPermitPicture" id="WorkPermitPictureInput" style="display: none;" required />
+    <button type="submit" style="display: none;" id="WorkPermitPictureSubmit">Update Work Permit Picture</button>
+</form>
+
+
+
+    <script>
+
+
+
+
+    //     $(document).ready(function () {
+    //     // دالة لتحديث الصورة بشكل عام
+    //     function updatePicture(formId, url, imageElementId, modalId) {
+    //         $("form#" + formId).submit(function (event) {
+    //             event.preventDefault();
+
+    //             var formData = new FormData(this);
+
+    //             $.ajax({
+    //                 url: url,
+    //                 type: 'POST',
+    //                 data: formData,
+    //                 contentType: false,
+    //                 processData: false,
+    //                 success: function (data) {
+    //                     if (data.success) {
+    //                         $("#" + imageElementId).attr("src", data.imageUrl + "?t=" + new Date().getTime());
+    //                         $("#message").html('<div class="alert alert-success">Image updated successfully!</div>');
+    //                         $(modalId).modal('hide'); // إغلاق المودال
+    //                     } else {
+    //                         $("#message").html('<div class="alert alert-danger">' + data.message + '</div>');
+    //                     }
+    //                 },
+    //                 error: function () {
+    //                     $("#message").html('<div class="alert alert-danger">An error occurred while updating the image.</div>');
+    //                 }
+    //             });
+    //         });
+    //     }
+
+    //     // تحديث صورة الملف الشخصي
+    //     updatePicture('ProfilePicture', '@Url.Action("UpdateProfilePicture", "HRS")', 'profilePictureImage', '#profilePictureModal');
+
+    //     // تحديث صورة الرخصة
+    //     updatePicture('LicensePicture', '@Url.Action("UpdateLicensePicture", "HRS")', 'licensePictureImage', '#licensePictureModal');
+
+    //     // تحديث صورة تصريح العمل
+    //     updatePicture('WorkPermitPictureForm', '@Url.Action("UpdateWorkPermitPicture", "HRS")', 'wPictureImage', '#workPermitModal');
+
+    //     // فتح المودال عند الضغط على الأيقونة لتغيير الصورة
+    //     $(".change-picture").click(function () {
+    //         var targetModal = $(this).attr("data-target");
+    //         $(targetModal).modal("show");
+    //     });
+
+    //     // إرسال التحديثات عند الضغط على زر "Save changes" في المودال
+    //     $('#submitProfilePicture').click(function () {
+    //         var formData = new FormData();
+    //         var file = $('#ProfilePictureInputModal')[0].files[0];
+    //         formData.append('ProfilePicture', file);
+
+    //         $.ajax({
+    //             url: '@Url.Action("UpdateProfilePicture", "HRS")',
+    //             type: 'POST',
+    //             data: formData,
+    //             contentType: false,
+    //             processData: false,
+    //             success: function (data) {
+    //                 if (data.success) {
+    //                     $("#profilePictureImage").attr('src', data.imageUrl);
+    //                     $('#profilePictureModal').modal('hide'); // إغلاق المودال
+    //                 }
+    //             }
+    //         });
+    //     });
+
+    //     $('#submitLicensePicture').click(function () {
+    //         var formData = new FormData();
+    //         var file = $('#LicensePictureInputModal')[0].files[0];
+    //         formData.append('LicensePicture', file);
+
+    //         $.ajax({
+    //             url: '@Url.Action("UpdateLicensePicture", "HRS")',
+    //             type: 'POST',
+    //             data: formData,
+    //             contentType: false,
+    //             processData: false,
+    //             success: function (data) {
+    //                 if (data.success) {
+    //                     $("#licensePictureImage").attr('src', data.imageUrl);
+    //                     $('#licensePictureModal').modal('hide'); // إغلاق المودال
+    //                 }
+    //             }
+    //         });
+    //     });
+
+    //     $('#submitWorkPermitPicture').click(function () {
+    //         var formData = new FormData();
+    //         var file = $('#WorkPermitPictureInputModal')[0].files[0];
+    //         formData.append('WorkPermitPicture', file);
+
+    //         $.ajax({
+    //             url: '@Url.Action("UpdateWorkPermitPicture", "HRS")',
+    //             type: 'POST',
+    //             data: formData,
+    //             contentType: false,
+    //             processData: false,
+    //             success: function (data) {
+    //                 if (data.success) {
+    //                     $("#wPictureImage").attr('src', data.imageUrl);
+    //                     $('#workPermitModal').modal('hide'); // إغلاق المودال
+    //                 }
+    //             }
+    //         });
+    //     });
+
+    //         $('#profilePictureModal, #licensePictureModal, #workPermitModal').on('hidden.bs.modal', function () {
+    //             // إزالة backdrop فورًا
+    //             $('.modal-backdrop').remove();
+
+    //             // إعادة تمكين التمرير في الصفحة
+    //             $('body').css('overflow', 'auto');
+    //         });
+    // });
+       $(document).ready(function () {
+        // تأكد من أن driverId متوفر، عدل هذه القيمة حسب مصدرها (مثلاً Razor Model أو عنصر مخفي)
+        var driverId = '@Model.DriverId'; // أو اجلبها من input مخفي لو ما موجودة مباشرة
+
+        // دالة عامة لإرسال صورة جديدة مع driverId
+        function sendImageUpdate(url, fileInputSelector, imageElementId, modalSelector, fileParamName) {
+            console.log("sendImageUpdate called with:", url, fileInputSelector, imageElementId, modalSelector, fileParamName);
+
+            var formData = new FormData();
+            var file = $(fileInputSelector)[0].files[0];
+            console.log("Selected file:", file);
+
+            if (!file) {
+                alert("Please select a file first.");
+                console.log("No file selected, aborting AJAX.");
+                return;
+            }
+
+            formData.append(fileParamName, file);  // اسم البراميتر هنا يجب أن يتطابق مع السيرفر
+            formData.append('driverId', driverId);
+
+            $.ajax({
+                url: url,
+                type: 'POST',
+                data: formData,
+                contentType: false,
+                processData: false,
+                success: function (data) {
+                    console.log("AJAX success response:", data);
+
+                    if (data.success) {
+                        $("#" + imageElementId).attr("src", data.imageUrl + "?t=" + new Date().getTime());
+                        $("#message").html('<div class="alert alert-success">Image updated successfully!</div>');
+                        $(modalSelector).modal('hide');
+                    } else {
+                        $("#message").html('<div class="alert alert-danger">' + data.message + '</div>');
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.log("AJAX error:", status, error);
+                    $("#message").html('<div class="alert alert-danger">An error occurred while updating the image.</div>');
+                }
+            });
+        }
+
+        // التعامل مع كل زر حفظ في المودالات
+        $('#submitProfilePicture').click(function () {
+            console.log("Clicked #submitProfilePicture");
+            sendImageUpdate('@Url.Action("UpdateProfilePicture", "HRS")', '#ProfilePictureInputModal', 'profilePictureImage', '#profilePictureModal', 'ProfilePicture');
+        });
+
+        $('#submitLicensePicture').click(function () {
+            console.log("Clicked #submitLicensePicture");
+            sendImageUpdate('@Url.Action("UpdateLicensePicture", "HRS")', '#LicensePictureInputModal', 'licensePictureImage', '#licensePictureModal', 'LicensePicture');
+        });
+
+        $('#submitWorkPermitPicture').click(function () {
+            console.log("Clicked #submitWorkPermitPicture");
+            sendImageUpdate('@Url.Action("UpdateWorkPermitPicture", "HRS")', '#WorkPermitPictureInputModal', 'wPictureImage', '#workPermitModal', 'WorkPermitPicture');
+        });
+
+        // فتح المودال عند الضغط على الأيقونة
+        $(".change-picture").click(function () {
+            var targetModal = $(this).attr("data-target");
+            $(targetModal).modal("show");
+        });
+
+        // إزالة backdrop فورًا عند غلق المودال ومنع مشاكل التمرير
+        $('#profilePictureModal, #licensePictureModal, #workPermitModal').on('hidden.bs.modal', function () {
+            $('.modal-backdrop').remove();
+            $('body').css('overflow', 'auto');
+        });
+    });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      var map = L.map('map').setView([37.0902, -95.7129], 4); // تعيين الموقع الافتراضي للولايات المتحدة
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 18,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    // إظهار الماركر في الموقع الافتراضي
+    var marker = L.marker([37.0902, -95.7129], { draggable: false }).addTo(map);
+
+    // تحديث الموقع استنادًا إلى الإحداثيات المدخلة
+    if (@Model.Latitude && @Model.Longitude) {
+        var lat = @Model.Latitude ?? 37.0902;
+        var lng = @Model.Longitude ?? -95.7129;
+
+        // تحديث الخريطة إلى الموقع المحدد
+        map.setView([lat, lng], 13);
+
+        // تحديث الماركر إلى الموقع الجديد
+        marker.setLatLng([lat, lng]);
+    }
+
+    // التعامل مع النقر على الخريطة
+    map.on('click', function (e) {
+        var lat = e.latlng.lat;
+        var lng = e.latlng.lng;
+
+        marker.setLatLng([lat, lng]); // تحريك الماركر إلى الموقع الجديد
+
+        // تحديث الإحداثيات في الحقول المخفية
+        document.getElementById('Latitude').value = lat;
+        document.getElementById('Longitude').value = lng;
+
+        // استخدام API لتحويل الإحداثيات إلى عنوان
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=en&addressdetails=1&countrycodes=us`)
+            .then(response => response.json())
+            .then(data => {
+                var address = data.display_name;
+                document.getElementById('addressInput').value = address;
+                document.getElementById('CurrentLocation').value = address;
+            });
+    });
+
+    // تحديث العلامة عند إدخال عنوان
+    document.getElementById('addressInput').addEventListener('change', function () {
+        var address = this.value;
+        fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${address}&accept-language=en&countrycodes=us`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.length > 0) {
+                    var lat = data[0].lat;
+                    var lng = data[0].lon;
+                    marker.setLatLng([lat, lng]);
+                    map.setView([lat, lng], 13);
+
+                    document.getElementById('Latitude').value = lat;
+                    document.getElementById('Longitude').value = lng;
+                    document.getElementById('CurrentLocation').value = address;
+                } else {
+                    alert('Address not found in the United States!');
+                }
+            });
+    });
+
+                </script>

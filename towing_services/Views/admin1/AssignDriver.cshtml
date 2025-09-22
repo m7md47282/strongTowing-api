@@ -1,0 +1,305 @@
+﻿
+@model List<towing_services.Models.DriverViewModel>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet" />
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+@{
+    bool isModal = Context.Request.Headers["X-Requested-With"] == "XMLHttpRequest";
+    Layout = isModal ? null : "~/Views/Shared/_layout.cshtml";
+}
+
+<style>
+    body {
+        background: #f0f0f0;
+        margin: 0;
+        padding: 0;
+        min-height: 150vh;
+    }
+
+    .assign-driver-title {
+        text-align: center;
+        font-size: 3rem;
+        font-weight: 700;
+        color: #3260b2;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        margin-bottom: 50px;
+        margin-top: 50px;
+        font-family: 'Arial', sans-serif;
+        position: relative;
+    }
+
+        .assign-driver-title::before {
+            content: "";
+            position: absolute;
+            width: 50%;
+            height: 4px;
+            background-color: #3260b2;
+            bottom: -10px;
+            left: 25%;
+            border-radius: 2px;
+        }
+
+    @@media (max-width: 768px) {
+        .assign-driver-title {
+            font-size: 2.5rem;
+            letter-spacing: 1.5px;
+        }
+    }
+
+    .table-custom {
+        width: 100%;
+        margin: 20px 0;
+        border-collapse: collapse;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        white-space: nowrap;
+    }
+
+        .table-custom th,
+        .table-custom td {
+            padding: 15px;
+            text-align: center;
+            font-size: 1.20rem;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        .table-custom tr:hover {
+            background-color: #f1f1f1;
+        }
+
+        .table-custom tr:nth-child(odd) {
+            background-color: #f9f9f9;
+        }
+
+        .table-custom tr:nth-child(even) {
+            background-color: #fff;
+        }
+
+    .container-fluid.table-responsive {
+        max-width: 100%;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+
+    .table-custom {
+        width: 100%;
+        min-width: 800px;
+        margin: 20px 0;
+        border-collapse: collapse;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        white-space: nowrap;
+    }
+
+        .table-custom th,
+        .table-custom td {
+            padding: 10px;
+            font-size: 1.50rem;
+            white-space: nowrap;
+        }
+
+    @@media (max-width: 768px) {
+        .table-custom th,
+        .table-custom td {
+            font-size: 1rem;
+            padding: 8px;
+            white-space: nowrap;
+        }
+    }
+
+    .modal-dialog {
+        max-width: 50%;
+        margin: 30px auto;
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+
+    .modal-body {
+        text-align: center;
+        max-height: 100%;
+        overflow: hidden;
+    }
+
+        .modal-body img {
+            width: 100%;
+            height: auto;
+            max-height: 70vh;
+        }
+
+    .btn-success {
+        font-size: 1.60rem;
+        background: #00008B; /* تدرج لوني للزر */
+        color: white; /* النص باللون الأبيض */
+        border: 2px solid #4c9c3e; /* إضافة حد رفيع */
+        padding: 12px 24px; /* المسافات حول النص */
+        border-radius: 30px; /* زوايا مستديرة بشكل أكبر */
+        box-shadow: 3px 3px 6px rgba(0, 0, 0, 0.1), -3px -3px 6px rgba(255, 255, 255, 0.1); /* إضافة ظل ناعم */
+        cursor: pointer; /* تغيير المؤشر عند المرور على الزر */
+        transition: all 0.4s ease-in-out; /* إضافة تأثيرات انسيابية */
+    }
+
+        .btn-success:hover {
+            background: #00008B; /* عكس التدرج اللوني عند التمرير */
+            box-shadow: 6px 6px 12px rgba(0, 0, 0, 0.15), -6px -6px 12px rgba(255, 255, 255, 0.15); /* زيادة الظلال */
+            transform: translateY(-3px); /* رفع الزر قليلاً عند التمرير */
+        }
+
+        .btn-success:active {
+            background: #4c9c3e; /* لون ثابت عند الضغط */
+            box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.2); /* تغيير الظلال لتأثير الضغط */
+            transform: translateY(0); /* العودة إلى وضع الزر الطبيعي */
+        }
+
+        .btn-success:focus {
+            outline: none; /* إزالة الحدود عند التركيز */
+            box-shadow: 0 0 0 4px rgba(0, 123, 255, 0.5); /* إضافة تأثير ظل عند التركيز */
+        }
+
+    @@media (max-width: 768px) {
+        .btn-success {
+            font-size: 0.9rem;
+            padding: 8px 16px;
+            white-space: nowrap;
+        }
+    }
+
+    a:hover {
+        color: white !important
+    }
+</style>
+
+<h2 class="assign-driver-title">Assign Driver</h2>
+<div class="container-fluid table-responsive">
+    
+
+
+    @if (Model != null && Model.Any())
+    {
+        <table class="mt-4  table-custom">
+            <thead>
+                <tr>
+                    <th>Driver Name</th>
+                    <th>Driver Available</th>
+                    <th>Vehicle Type</th>
+
+                    <th>Phone</th>
+                    <th>Email</th>
+                    @*<th>Profile Picture</th>
+                    <th>License Picture</th>*@
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var driver in Model)
+                {
+                <tr>
+                    <td>@driver.Name</td>
+                    <td>@(driver.isAvailable ? "Available" : "Not Available")</td>
+                    <td>@driver.VehicleType</td>
+
+                    <td>@driver.phone</td>
+                    <td>@driver.Email</td>
+
+                    @*<td>
+            <a href="@Url.Content("~/" + driver.ProfilePicture)" data-toggle="modal" data-target="#imageModal">
+                <img src="@Url.Content("~/" + driver.ProfilePicture)" alt="Profile Picture" style="width:50px;height:50px" />
+
+
+
+            </a>
+        </td>
+
+        <td>
+            <a href="@Url.Content("~/" + driver.LicensePicture)" data-toggle="modal" data-target="#imageModal">
+                <img src="@Url.Content("~/" + driver.LicensePicture)" alt="License Picture" style="width:50px;height:50px" />
+            </a>
+        </td>*@
+                    <td>
+                        <button type="button" class="btn btn-success assign-driver-btn"
+                                data-driver-id="@driver.DriverId" data-order-id="@ViewBag.OrderId">
+                            Assign Driver
+                        </button>
+                    </td>
+                    @*<td>
+            <form method="post" asp-action="AssignDriver">
+                <input type="hidden" name="orderId" value="@ViewBag.OrderId" />
+                <input type="hidden" name="driverId" value="@driver.DriverId" />
+                <button type="submit" class="btn btn-success">Assign Driver</button>
+            </form>
+        </td>*@
+                </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <p style="font-size:22px">No available drivers found for the selected order.</p>
+    }
+
+</div>
+<div class="modal fade" id="imageModal" tabindex="-1" role="dialog" aria-labelledby="imageModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="imageModalLabel">Image Preview</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <img src="" id="modalImage" class="img-fluid" alt="Image Preview">
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    $('a[data-toggle="modal"]').on('click', function (e) {
+        e.preventDefault();
+        var imageSrc = $(this).attr('href');
+        $('#modalImage').attr('src', imageSrc);
+    });
+
+
+    $(document).ready(function () {
+        // عند الضغط على زر "Assign Driver"
+        $('button.assign-driver-btn').click(function () {
+            var driverId = $(this).data('driver-id');  // الحصول على DriverId من الزر
+            var orderId = $(this).data('order-id');    // الحصول على OrderId من الزر
+
+            // عرض رسالة تأكيد
+            var isConfirmed = confirm('Are you sure you want to assign this driver?');
+
+            if (isConfirmed) {
+                // إذا وافق المستخدم، أرسل الطلب إلى الخادم
+                $.ajax({
+                    url: '/admin1/AssignDriver',
+                    type: 'POST',
+                    data: {
+                        orderId: orderId,
+                        driverId: driverId
+                    },
+                    success: function (response) {
+                        if (response.success) {
+                            alert('Driver assigned successfully.');
+                            location.reload();  // إعادة تحميل الصفحة لتحديث الحالة
+                        } else {
+                            alert('Failed to assign driver. Please try again.');
+                        }
+                    },
+                    error: function () {
+                        alert('Error occurred while assigning driver.');
+                    }
+                });
+            } else {
+                // إذا رفض المستخدم، لا يتم إرسال الطلب
+                alert('Driver assignment was canceled.');
+            }
+        });
+    });
+
+
+</script>

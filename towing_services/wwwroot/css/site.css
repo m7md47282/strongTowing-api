@@ -1,0 +1,127 @@
+﻿/* Please see documentation at https://docs.microsoft.com/aspnet/core/client-side/bundling-and-minification
+for details on configuring this project to bundle and minify static web assets. */
+
+a.navbar-brand {
+  white-space: normal;
+  text-align: center;
+  word-break: break-all;
+}
+
+/* Provide sufficient contrast against white background */
+a {
+  color: #0366d6;
+}
+
+.btn-primary {
+  color: #fff;
+  background-color: #1b6ec2;
+  border-color: #1861ac;
+}
+
+.nav-pills .nav-link.active, .nav-pills .show > .nav-link {
+  color: #fff;
+  background-color: #1b6ec2;
+  border-color: #1861ac;
+}
+
+/* Sticky footer styles
+-------------------------------------------------- */
+html {
+  font-size: 14px;
+}
+@media (min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+.border-top {
+  border-top: 1px solid #e5e5e5;
+}
+.border-bottom {
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.box-shadow {
+  box-shadow: 0 .25rem .75rem rgba(0, 0, 0, .05);
+}
+
+button.accept-policy {
+  font-size: 1rem;
+  line-height: inherit;
+}
+
+/* Sticky footer styles
+-------------------------------------------------- */
+html {
+  position: relative;
+  min-height: 100%;
+}
+
+body {
+  /* Margin bottom by footer height */
+  margin-bottom: 60px;
+}
+
+/*.footer {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  white-space: nowrap;
+  line-height: 60px;*/ /* Vertically center the text there */
+/*}*/
+/**/
+
+.nav-item .dropdown-menu {
+    background-color: #f0f0f0; /* لون الخلفية */
+    border: none;
+    border-radius: 20px; /* زوايا مستديرة */
+    box-shadow: 0px 8px 15px rgb(6 34 57 / 0.10); /* ظل ناعم */
+    padding: 4px;
+    /* إبعاد القائمة عن الحافة اليمنى */
+    margin-left: -50px; /* إضافة مسافة من الحافة اليمنى */
+}
+
+
+/* عناصر القائمة المنسدلة */
+.dropdown-item {
+    font-size: 18px;
+    color: #333;
+    padding: 10px 20px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+    /* تأثير عند المرور على عنصر القائمة المنسدلة */
+    .dropdown-item:hover {
+        background-color: #0b2644; /* لون الخلفية عند المرور */
+        color: #fff; /* لون النص عند المرور */
+        transform: scale(1.05); /* تكبير بسيط */
+    }
+
+/* تصميم السهم */
+.nav-link.dropdown-toggle::after {
+    content: ' ▼'; /* إضافة سهم */
+    font-size: 12px;
+    color: inherit; /* نفس لون النص */
+    margin-left: 5px;
+    transition: transform 0.3s ease;
+}
+
+/* دوران السهم عند الفتح */
+.nav-link.dropdown-toggle[aria-expanded="true"]::after {
+    transform: rotate(180deg);
+}
+
+/* تأثير الظهور التدريجي للقائمة */
+.nav-item .dropdown-menu {
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+    /* عند عرض القائمة */
+    .nav-item .dropdown-menu.show {
+        opacity: 1;
+        transform: translateY(0);
+    }

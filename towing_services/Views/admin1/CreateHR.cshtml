@@ -1,0 +1,281 @@
+﻿@model towing_services.Models.CreateHRViewModel
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+
+@{
+    Layout = "~/Views/Shared/-DashAdmin.cshtml";
+}
+<style>
+    
+    label{
+        font-size: 24px;
+        font-weight:bolder
+    }
+
+    .text-danger{
+        font-size: 19px;
+        font-weight: bolder
+    }
+    .form-control{
+        font-size: 24px;
+    }
+
+   
+    button[type="submit"] {
+        clear: both;
+        display: block;
+        margin: 30px auto 0;
+        padding: 12px 3px; /* تكبير الزر */
+        font-size: 25px;
+        cursor: pointer;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        transition: background-color 0.3s ease;
+    }
+
+        button[type="submit"]:hover {
+            background-color: #0056b3;
+        }
+
+    h2 {
+        text-align: center; /* توسيط النص */
+        color: black; /* اللون أسود */
+        font-size: 36px; /* حجم الخط كبير */
+        font-weight: bold; /* جعل الخط عريض */
+        position: relative; /* للسماح للخط الأسفل */
+        margin-bottom: 20px; /* مسافة تحت العنوان */
+    }
+
+        h2::after {
+            content: "";
+            display: block;
+            width: 50px; /* طول الخط */
+            height: 3px; /* سمك الخط */
+            background-color: black; /* لون الخط */
+            margin: 8px auto 0; /* توسيط الخط ومسافة من النص */
+            border-radius: 2px; /* حواف ناعمة للخط */
+        }
+
+    .password-field {
+        font-size: 20px;
+        height: 50px;
+    }
+
+    .eye-box {
+        position: absolute;
+        top: 50%;
+        right: 15px;
+        transform: translateY(-50%);
+        background-color: #f1f1f1;
+        border-radius: 6px;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+    }
+
+        .eye-box i {
+            font-size: 22px;
+            color: #333;
+        }
+
+        .eye-box:hover {
+            background-color: #e0e0e0;
+        }
+
+
+    .btn-custom {
+        background-color: black; /* لون أزرق Bootstrap الأساسي */
+        color: white;
+        font-size: 1.5rem; /* حجم الخط الكبير */
+        font-weight: 700; /* خط عريض */
+        padding: 10px 30px;
+        border: none;
+        border-radius: 5px;
+        transition: background-color 0.3s ease;
+        cursor: pointer;
+    }
+
+        .btn-custom:hover {
+            background-color: #0b5ed7; /* لون أزرق أغمق عند التمرير */
+        }
+
+</style>
+<div style="padding:10px">
+
+</div>
+
+<h2>Add New HR User</h2>
+
+<div class="d-flex align-items-center gap-2 mb-3">
+    <button id="showFormBtn" class="btn btn-custom">Add HR</button>
+</div>
+
+<form id="createHRForm" method="post" action="/admin1/CreateHR" class="container" style="display:none; position:relative;">
+    <button type="button" id="hideFormBtn" class="btn btn-danger" style="display:none;float: right;">X</button>
+    <div id="validationSummary" class="text-danger text-center my-lg-1"></div>
+
+   <div class="row g-3">
+        <div class="col-12 col-md-6 col-lg-4 ">
+            <label asp-for="FullName" class="form-label"></label>
+            <input asp-for="FullName" class="form-control" />
+        </div>
+
+     
+
+        <div class="col-12 col-md-6 col-lg-4">
+            <label asp-for="Email" class="form-label"></label>
+            <input asp-for="Email" class="form-control" />
+        </div>
+
+        <div class="col-12 col-md-6 col-lg-4">
+            <label asp-for="PhoneNumber" class="form-label"></label>
+            <input asp-for="PhoneNumber" class="form-control" />
+        </div>
+
+        <div class="col-12 col-md-6 col-lg-4 position-relative mb-3">
+            <label asp-for="Password" class="form-label"></label>
+            <div class="position-relative">
+                <input asp-for="Password" type="password" class="form-control password-field pe-5" id="passwordField" />
+                
+            </div>
+        </div>
+
+        <div class="col-12 col-md-6 col-lg-4 position-relative mb-3">
+            <label asp-for="ConfirmPassword" class="form-label"></label>
+            <div class="position-relative">
+                <input asp-for="ConfirmPassword" type="password" class="form-control password-field pe-5" id="confirmPasswordField" />
+                <div class="eye-box" onclick="togglePasswords()">
+                    <i id="eyeIcon" class="bi bi-eye-slash"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 text-center mt-3">
+            <button type="submit" class="btn btn-primary px-5">Add</button>
+        </div>
+    </div>
+</form>
+
+<div id="hrTableContainer"></div>
+<input type="hidden" id="currentPage" value="1" />
+
+
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
+    <script>
+       function togglePasswords() {
+           const password = document.getElementById("passwordField");
+           const confirm = document.getElementById("confirmPasswordField");
+           const icon = document.getElementById("eyeIcon");
+
+           const isHidden = password.type === "password";
+
+           password.type = isHidden ? "text" : "password";
+           confirm.type = isHidden ? "text" : "password";
+           icon.className = isHidden ? "bi bi-eye" : "bi bi-eye-slash";
+       }
+
+
+
+
+    $(document).ready(function () {
+        loadHRPage(1);
+
+        // استماع للنقر على أزرار الصفحة (رقم الصفحة أو الأسهم)
+        $(document).on('click', '.page-link', function (e) {
+            e.preventDefault();
+            var page = $(this).data('page');
+            if (!page || $(this).parent().hasClass('disabled')) {
+                return;
+            }
+            loadHRPage(page);
+        });
+
+        $("#createHRForm").submit(function (e) {
+            e.preventDefault();
+            var form = $(this);
+            $.ajax({
+                url: form.attr('action'),
+                method: form.attr('method'),
+                data: form.serialize(),
+                success: function (result) {
+                    if (result.success) {
+                        $("#validationSummary").html('');
+                        loadHRPage(1);  // بعد الإضافة، إعادة تحميل أول صفحة دائماً
+                        form[0].reset();
+                    } else {
+                        $("#validationSummary").html(result.errorsHtml);
+                    }
+                }
+            });
+        });
+    });
+    function loadHRPage(page) {
+        $.get("/admin1/_HRTable", { page: page }, function (data) {
+            $("#hrTableContainer").html(data);
+
+            // بعد التحديث، نقرأ totalPages و currentPage من الصفحة الجديدة
+            var totalPages = parseInt($("#totalPages").val()) || 1;
+            var currentPage = parseInt($("#currentPage").val()) || 1;
+
+            // نتأكد ان الصفحة الحالية لا تتجاوز totalPages
+            if (page > totalPages) {
+                currentPage = totalPages;
+            } else {
+                currentPage = page;
+            }
+
+            $("#currentPage").val(currentPage);
+
+            // تعطيل سهم السابق إذا في الصفحة الأولى
+            if (currentPage <= 1) {
+                $(".pagination .page-item:first").addClass("disabled");
+            } else {
+                $(".pagination .page-item:first").removeClass("disabled");
+            }
+
+            // تعطيل سهم التالي إذا في الصفحة الأخيرة أو لا صفحات تالية
+            if (currentPage >= totalPages) {
+                $(".pagination .page-item:last").addClass("disabled");
+            } else {
+                $(".pagination .page-item:last").removeClass("disabled");
+            }
+        });
+    }
+
+
+    function deleteHR(id) {
+        if (confirm("Are you sure you want to delete this HR?")) {
+            $.post("/admin1/DeleteHR", { id: id }, function () {
+                loadHRPage(1); // إعادة تحميل أول صفحة بعد الحذف
+            });
+        }
+    }
+
+    //
+
+      $(document).ready(function() {
+      $('#showFormBtn').click(function() {
+        $('#createHRForm').show();
+        $('#hideFormBtn').show();
+        $(this).hide();
+      });
+
+      $('#hideFormBtn').click(function() {
+        $('#createHRForm').hide();
+        $('#hideFormBtn').hide();
+        $('#showFormBtn').show();
+      });
+    });
+
+
+</script>
+

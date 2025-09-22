@@ -1,0 +1,727 @@
+﻿@model Dal.Driver
+@{
+    Layout = "~/Views/Shared/-Driver.cshtml";
+}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+
+<style>
+    body {
+        background: #f8f8f8;
+    }
+
+
+    .table th, .table td {
+        font-size: 20px; /* زيادة حجم الخط في الجدول */
+        text-align: center; /* محاذاة النص في الوسط */
+    }
+
+    .table thead {
+        background-color: #0d1640; /* لون خلفية العناوين */
+        color: white; /* لون النص */
+        font-size: 20px; /* زيادة حجم خط العناوين */
+        font-weight: bold
+    }
+
+
+    .bt {
+        position: relative;
+        padding: 0.60em 1em;
+        background-color: #38ACEC;
+        border: 4px solid #fff; /* تحديد حدود الزر بلون أبيض */
+        color: black;
+        font-size: 20px;
+        text-transform: uppercase;
+        font-weight: bold;
+        cursor: pointer;
+        border-radius: 50px;
+        overflow: hidden;
+        transition: color 0.3s, border-color 0.3s;
+        z-index: 1;
+    }
+
+        .bt::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background-color: #15317E;
+            transition: left 0.5s ease;
+            z-index: -1;
+        }
+
+
+        .bt:hover {
+            color: black;
+            border-color: #3b5bdb;
+        }
+
+    .btn:hover::before {
+        left: 0;
+    }
+
+    .bt:hover {
+        color: #ddd;
+    }
+
+    .btn-link {
+        color: black;
+        font-size: 20px;
+        font-weight: bold
+    }
+
+        .btn-link:hover {
+            color: #808080 !important
+        }
+
+    .custom-pagination-container {
+        display: flex;
+        justify-content: flex-end; /* لجعل الأزرار على اليمين */
+        align-items: center;
+        gap: 30px; /* مسافة بين العناصر */
+        padding: 20px;
+    }
+
+    .btn-primary {
+        background-color: #4CAF50; /* لون الخلفية */
+        color: white; /* لون النص */
+        border: none;
+        padding: 15px 30px; /* تكبير حجم الأزرار */
+        font-size: 20px; /* تكبير النص */
+        font-weight: bold; /* جعل النص عريضًا */
+        border-radius: 50px; /* لجعل الأزرار دائرية */
+        cursor: pointer;
+        transition: all 0.3s ease; /* تأثير سلس عند التمرير */
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* إضافة ظل خفيف */
+    }
+
+        .btn-primary:hover {
+            background-color: #45a049; /* لون عند التمرير */
+            transform: scale(1.1); /* تكبير الأزرار قليلاً عند التمرير */
+        }
+
+    #custom-pageNumber {
+        font-size: 20px; /* تكبير النص */
+        font-weight: bold; /* جعله عريضًا */
+        color: #333; /* لون النص */
+    }
+  @@media (max-width: 768px) {
+        .custom-pagination-container {
+            justify-content: center;
+            gap: 4vw;
+        }
+
+        .btn-primary {
+            padding: 1rem 1.5rem;
+            font-size: 3vw;
+        }
+
+        #custom-pageNumber {
+            font-size: 3vw;
+        }
+    }
+
+   
+     @@media (max-width: 480px) {
+        .btn-primary {
+            font-size: 4vw;
+            padding: 1.2rem 2rem;
+        }
+
+        #custom-pageNumber {
+            font-size: 4vw;
+        }
+    }
+
+    .wave-container {
+        position: relative;
+        width: 100%;
+        overflow: hidden;
+        text-align: center;
+        background-color: #f9f9f9; /* Background color for better visibility */
+    }
+
+    .welcome-message {
+        position: relative; /* موقع ثابت داخل الحاوية */
+        margin-top: -150px;
+        font-size: 36px;
+        line-height: 1.6;
+        color: black;
+        text-align: center;
+    }
+    /* Title styling */
+    .wave-title {
+        position: absolute;
+        top: 20%;
+        width: 100%;
+        font-size: 3.50rem;
+        font-weight: bold;
+        color: black;
+        text-transform: uppercase;
+        z-index: 1;
+    }
+
+    /* SVG styling */
+    #wave {
+        width: 100%;
+        height: auto;
+    }
+
+
+
+
+
+    @@media (max-width: 2000px) {
+        .welcome-message {
+            margin-top: 3vh;
+            font-size: 29px;
+        }
+
+        .wave-title {
+            font-size: 3rem;
+        }
+    }
+
+
+    @@media (max-width: 768px) {
+        .welcome-message {
+            margin-top: 6vh;
+            font-size: 20px;
+        }
+
+        .wave-title {
+            font-size: 2.5rem;
+        }
+    }
+
+    /* Media query لأجهزة الجوال */
+    @@media (max-width: 480px) {
+        .welcome-message {
+            margin-top: 10vh;
+            font-size: 15px;
+        }
+
+        .wave-title {
+            font-size: 2rem;
+        }
+    }
+
+    .no-data-message {
+        color: #942929; /* لون النص */
+        font-size: 28px; /* حجم الخط */
+        font-weight: bold; /* جعل النص عريض */
+        border-radius: 5px; /* إضافة زوايا دائرية */
+        margin-top: 20px; /* مسافة فوق الصف */
+        display: none
+    }
+
+    #custom-ordersTable {
+        width: 100%;
+        border-collapse: collapse; /* ضمان أن الأعمدة والصفوف متقاربة بشكل جيد */
+    }
+
+    .table-responsive {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    th {
+        text-align: left;
+        padding: 8px;
+        border: 1px solid #ddd;
+    }
+
+    @@media (max-width: 768px) {
+        th, td {
+            font-size: 14px !important;
+            word-wrap: unset; /* يسمح بكسر الكلمات بشكل مرتب */
+            text-align: left;
+        }
+    }
+
+    @@media (max-width: 576px) {
+        th, td {
+            font-size: 12px;
+        }
+
+        .table {
+            display: block;
+        }
+
+        th, td {
+            display: block;
+            text-align: right;
+        }
+
+        th {
+            font-weight: bold;
+            text-align: left;
+        }
+    }
+</style>
+
+
+
+<div class="wave-container">
+    <div class="wave-title">ORDER COMPLETED</div>
+    <svg id="wave" style="transform:rotate(180deg); transition: 0.3s" viewBox="0 0 1440 300" version="1.1" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <linearGradient id="sw-gradient-0" x1="0" x2="0" y1="1" y2="0">
+                <stop stop-color="rgba(255, 215, 0, 1)" offset="0%"></stop> <!-- لون ذهبي -->
+                <stop stop-color="rgba(0, 191, 255, 1)" offset="100%"></stop> <!-- لون أزرق سماوي -->
+            </linearGradient>
+        </defs>
+        <path style="transform:translate(0, 0px); opacity:1" fill="url(#sw-gradient-0)"
+              d="M0,43L48,71.7C96,100,192,158,288,200.7C384,144,480,272,576,250.8C672,229,768,158,864,143.3C960,129,1056,172,1152,157.7C1248,143,1344,72,1440,57.3L1440,430L0,430Z"></path>
+    </svg>
+
+
+    <div class="welcome-message" style="text-align: center; font-weight: bold; color: black; ">
+        <h1 style="margin-top:30px">Thank You for Completing Your Orders!</h1>
+
+        <h2>Congratulations on successfully completing your tasks! This is a remarkable achievement.</h2>
+        <h2>We are here to celebrate your success and provide support for your next milestones.</h2>
+
+    </div>
+</div>
+
+
+<div style="padding:30px"></div>
+
+<div id="custom-pagination" class="custom-pagination-container">
+    <button id="custom-prevPage" class="btn btn-primary">
+        <i class="bi bi-arrow-left"></i> <!-- سهم اليسار -->
+    </button>
+    <span id="custom-pageNumber">Page 1</span>
+    <button id="custom-nextPage" class="btn btn-primary">
+        <i class="bi bi-arrow-right"></i> <!-- سهم اليمين -->
+
+    </button>
+</div>
+
+<div style="padding:10px"></div>
+<div class="container-fluid">
+
+    <table id="custom-ordersTable" class="table table-responsive"style="display: none;">
+        <thead>
+            <tr>
+                <th>Order ID</th>
+                <th>ETA</th>
+                <th>TrackingNumber</th>
+                <th>Status</th>
+                <th>Customer</th>
+                <th>Dropoff Location</th>
+                <th>Pickup Location</th>
+                <th>Vehicle Type</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <div class="modal fade" id="custom-customerModal" tabindex="-1" role="dialog" aria-labelledby="custom-customerModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="custom-customerModalLabel" style="font-size: 33px; color: #4682B4;">Customer Details</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true" style="font-size: 36px; color: #4682B4;">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body" id="custom-customerDetailsContent">
+                    <!-- Customer details will be loaded here -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn bt cl" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script>
+
+
+    $(document).ready(function () {
+        // عند الضغط على الزر الذي يحتوي على data-dismiss="modal"
+        $('.close ').click(function () {
+            $('#custom-customerModal').modal('hide');
+            $('#custom-customerModal').modal('hide');
+        });
+
+        // عند الضغط على الزر الذي يحتوي على data-dismiss="modal"
+        $('.cl ').click(function () {
+            $('#custom-customerModal').modal('hide');
+            $('#custom-customerModal').modal('hide');
+        });
+
+    });
+
+
+
+    function showCustomerDetails(orderId) {
+        $('#custom-customerDetailsContent').html('<p>Loading...</p>');
+        $.ajax({
+            url: '@Url.Action("GetCustomerDetails", "admin1")',
+            type: 'GET',
+            data: { orderId: orderId },
+            success: function (data) {
+                if (data) {
+                    $('#custom-customerDetailsContent').html(data);
+                } else {
+                    $('#custom-customerDetailsContent').html('<p style="color: red;">No details available for this customer.</p>');
+                }
+                $('#custom-customerModal').modal('show');
+            },
+            error: function () {
+                $('#custom-customerDetailsContent').html('<p style="color: red;">Failed to load customer details. Please try again later.</p>');
+            }
+        });
+    }
+    //document.addEventListener("DOMContentLoaded", function () {
+    //    const table = document.getElementById("custom-ordersTable");
+    //    const tbody = table.querySelector("tbody");
+    //    let currentPage = parseInt(localStorage.getItem("customCurrentPage")) || 0;
+    //    const pageSize = 10;
+    //    let isLoading = false;
+    //    let totalPages = 0;
+    //    let hasNextPage = false;
+
+    //    // وظيفة تحميل البيانات
+    //    async function loadData(page) {
+    //        if (isLoading) return; // إذا كان التحميل جاريًا، لا ترسل طلب جديد
+    //        isLoading = true;
+
+    //        try {
+    //            const response = await fetch(`/DriverDash/Ordercompletedsuccessfully?page=${page}&pageSize=${pageSize}`);
+    //            console.log(`Request URL: /DriverDash/Ordercompletedsuccessfully?page=${page}&pageSize=${pageSize}`);
+    //            if (!response.ok) {
+    //                throw new Error(`HTTP error! status: ${response.status}`);
+    //            }
+    //            const data = await response.json();
+
+    //            console.log("Received Data:", data);
+
+    //            totalPages = Math.ceil(data.totalCount / pageSize);
+    //            tbody.innerHTML = ""; // تنظيف الجدول قبل ملئه بالبيانات
+
+    //            if (data.orders && Array.isArray(data.orders) && data.orders.length > 0) {
+    //                // إذا كانت هناك بيانات
+    //                table.style.display = 'table'; // إظهار الجدول
+    //                data.orders.forEach(order => {
+    //                    const row = document.createElement("tr");
+    //                    row.innerHTML = `
+    //                <td>${order.orderId || 'N/A'}</td>
+    //                <td>${order.eta || 'N/A'}</td>
+    //                <td>${order.track || 'N/A'}</td>
+    //                <td>${order.status || 'N/A'}</td>
+    //                <td>
+    //                    <button class="btn btn-link" onclick="showCustomerDetails(${order.orderId})">
+    //                        ${order.customerName || 'N/A'}
+    //                    </button>
+    //                </td>
+    //                <td>${order.dropoffLocation || 'N/A'}</td>
+    //                <td>${order.pickupLocation || 'N/A'}</td>
+    //                <td>${order.vehicleType || 'N/A'}</td>
+    //            `;
+    //                    tbody.appendChild(row);
+    //                });
+    //                hasNextPage = data.orders.length === pageSize; // تحديد ما إذا كانت هناك صفحة تالية
+    //                document.getElementById("custom-pageNumber").innerText = `Page ${currentPage + 1}`;
+    //            } else {
+    //                // عند عدم وجود بيانات
+    //                table.style.display = 'none'; // إخفاء الجدول
+    //                hasNextPage = false;
+    //            }
+
+    //            updatePageButtons(); // تحديث حالة الأزرار
+    //        } catch (error) {
+    //            console.error("Error loading data:", error);
+    //            // عرض رسالة خطأ في حالة فشل الجلب
+    //            table.style.display = 'none'; // إخفاء الجدول في حالة الخطأ
+    //            const errorRow = document.createElement("tr");
+    //            errorRow.innerHTML = `<td colspan="9" style="text-align: center; color: red;">Failed to load data. Please try again later.</td>`;
+    //            tbody.appendChild(errorRow);
+    //        } finally {
+    //            isLoading = false; // إنهاء حالة التحميل
+    //        }
+    //    }
+
+    //    // تحديث الأزرار
+    //    function updatePageButtons() {
+    //        const prevPageButton = document.getElementById("custom-prevPage");
+    //        const nextPageButton = document.getElementById("custom-nextPage");
+
+    //        prevPageButton.disabled = currentPage <= 0;
+    //        nextPageButton.disabled = currentPage >= totalPages - 1 || !hasNextPage;
+    //    }
+
+    //    // التنقل إلى الصفحة السابقة
+    //    document.getElementById("custom-prevPage").addEventListener("click", function () {
+    //        if (isLoading || currentPage <= 0) return;
+    //        currentPage--;  // تحديث currentPage
+    //        localStorage.setItem("customCurrentPage", currentPage);  // حفظ الصفحة الحالية في localStorage
+    //        loadData(currentPage);
+    //    });
+
+    //    // التنقل إلى الصفحة التالية
+    //    document.getElementById("custom-nextPage").addEventListener("click", function () {
+    //        if (isLoading || !hasNextPage) return;
+    //        currentPage++;  // تحديث currentPage
+    //        localStorage.setItem("customCurrentPage", currentPage);  // حفظ الصفحة الحالية في localStorage
+    //        loadData(currentPage);
+    //    });
+
+////    //    // تحميل البيانات عند تحميل الصفحة
+//////    //    loadData(currentPage);
+///////*  *//*  //*///});
+
+    document.addEventListener("DOMContentLoaded", function () {
+        const table = document.getElementById("custom-ordersTable");
+        const tbody = table.querySelector("tbody");
+        let currentPage = 0; // الصفحة الحالية تبدأ من 0
+        const pageSize = 10; // حجم الصفحة
+        let isLoading = false; // لتجنب الطلبات المتكررة
+        let totalPages = 0;
+        let hasNextPage = false;
+
+        // تحميل البيانات من الخادم
+        async function loadData(page) {
+            if (isLoading) return; // منع الطلب المتكرر أثناء التحميل
+            isLoading = true;
+
+            try {
+                const response = await fetch(`/DriverDash/Ordercompletedsuccessfully?page=${page}&pageSize=${pageSize}`);
+                console.log(`Request URL: /DriverDash/Ordercompletedsuccessfully?page=${page}&pageSize=${pageSize}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+
+                console.log("Received Data:", data);
+
+                totalPages = Math.ceil(data.totalCount / pageSize);
+                tbody.innerHTML = ""; // تنظيف الجدول قبل ملئه بالبيانات
+
+                // استخراج البيانات من $values إذا كانت موجودة
+                let ordersArray = [];
+                if (data.orders && data.orders.$values) {
+                    ordersArray = data.orders.$values;
+                } else {
+                    console.warn("Orders are empty or invalid:", data.orders);
+                }
+
+                if (ordersArray.length > 0) {
+                    // إذا كانت هناك بيانات
+                    table.style.display = 'table'; // إظهار الجدول
+                    ordersArray.forEach(order => {
+                        console.log("Adding order to table:", order);
+                        const row = document.createElement("tr");
+                        row.innerHTML = `
+                        <td>${order.orderId || 'N/A'}</td>
+                        <td>${order.eta || 'N/A'}</td>
+                        <td>${order.track || 'N/A'}</td>
+                        <td>${order.status || 'N/A'}</td>
+                        <td>
+                            <button class="btn btn-link" onclick="showCustomerDetails(${order.orderId})">
+                                ${order.customerName || 'N/A'}
+                            </button>
+                        </td>
+                        <td>${order.dropoffLocation || 'N/A'}</td>
+                        <td>${order.pickupLocation || 'N/A'}</td>
+                        <td>${order.vehicleType || 'N/A'}</td>
+                    `;
+                        tbody.appendChild(row);
+                    });
+                    hasNextPage = ordersArray.length === pageSize; // تحديد ما إذا كانت هناك صفحة تالية
+                    document.getElementById("custom-pageNumber").innerText = `Page ${currentPage + 1}`;
+                } else {
+                    // عند عدم وجود بيانات
+                    table.style.display = 'none'; // إخفاء الجدول
+                    hasNextPage = false;
+                }
+
+                updatePageButtons(); // تحديث حالة الأزرار
+            } catch (error) {
+                console.error("Error loading data:", error);
+                // عرض رسالة خطأ في حالة فشل الجلب
+                table.style.display = 'none'; // إخفاء الجدول في حالة الخطأ
+                const errorRow = document.createElement("tr");
+                errorRow.innerHTML = `<td colspan="9" style="text-align: center; color: red;">Failed to load data. Please try again later.</td>`;
+                tbody.appendChild(errorRow);
+            } finally {
+                isLoading = false; // إنهاء حالة التحميل
+            }
+        }
+
+        // تحديث الأزرار
+        function updatePageButtons() {
+            const prevPageButton = document.getElementById("custom-prevPage");
+            const nextPageButton = document.getElementById("custom-nextPage");
+
+            prevPageButton.disabled = currentPage <= 0;
+            nextPageButton.disabled = currentPage >= totalPages - 1 || !hasNextPage;
+        }
+
+        // التنقل إلى الصفحة السابقة
+        document.getElementById("custom-prevPage").addEventListener("click", function () {
+            if (isLoading || currentPage <= 0) return;
+            currentPage--;  // تحديث الصفحة الحالية
+            loadData(currentPage);
+        });
+
+        // التنقل إلى الصفحة التالية
+        document.getElementById("custom-nextPage").addEventListener("click", function () {
+            if (isLoading || !hasNextPage) return;
+            currentPage++;  // تحديث الصفحة الحالية
+            loadData(currentPage);
+        });
+
+        // تحميل البيانات عند تحميل الصفحة
+        loadData(currentPage);
+    });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    //document.addEventListener("DOMContentLoaded", function () {
+    //    const table = document.getElementById("custom-ordersTable");
+    //    const tbody = table.querySelector("tbody");
+    //    let currentPage = parseInt(localStorage.getItem("customCurrentPage")) || 0;
+    //    const pageSize = 10;
+    //    let isLoading = false;
+    //    let totalPages = 0;
+    //    let hasNextPage = false;
+
+    //    async function loadData(page) {
+    //        if (isLoading) return;
+    //        isLoading = true;
+
+    //        try {
+    //            const response = await fetch(`/DriverDash/Ordercompletedsuccessfully?page=${page}&pageSize=${pageSize}`);
+    //            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    //            const data = await response.json();
+
+    //            totalPages = Math.ceil(data.totalCount / pageSize);
+    //            tbody.innerHTML = "";
+
+    //            if (data.orders.length > 0) {
+    //                data.orders.forEach(order => {
+    //                    const row = document.createElement("tr");
+    //                    row.innerHTML = `
+    //                        <td>${order.orderId || 'N/A'}</td>
+    //                        <td>${order.eta || 'N/A'}</td>
+    //                        <td>${order.track || 'N/A'}</td>
+    //                        <td>${order.status || 'N/A'}</td>
+    //                        <td>
+    //                            <button class="btn btn-link" onclick="showCustomerDetails(${order.orderId})">
+    //                                ${order.customerName || 'N/A'}
+    //                            </button>
+    //                        </td>
+    //                        <td>${order.distance || 'N/A'}</td>
+    //                        <td>${order.dropoffLocation || 'N/A'}</td>
+    //                        <td>${order.pickupLocation || 'N/A'}</td>
+    //                        <td>${order.vehicleType || 'N/A'}</td>
+    //                    `;
+    //                    tbody.appendChild(row);
+    //                });
+    //                hasNextPage = data.orders.length === pageSize;
+    //                document.getElementById("custom-pageNumber").innerText = `Page ${page + 1}`;
+    //            } else {
+
+    //                const noDataRow = document.createElement("tr");
+    //                noDataRow.innerHTML = `<td colspan="10" style="text-align: center; color: red;">No data available</td>`;
+    //                tbody.appendChild(noDataRow);
+    //                hasNextPage = false;
+    //            }
+    //            updatePageButtons();
+    //        } catch (error) {
+    //            console.error("Error loading data:", error);
+    //        } finally {
+    //            isLoading = false;
+    //        }
+    //    }
+
+    //    function updatePageButtons() {
+    //        document.getElementById("custom-prevPage").disabled = currentPage <= 0;
+    //        document.getElementById("custom-nextPage").disabled = !hasNextPage;
+    //    }
+
+    //    document.getElementById("custom-prevPage").addEventListener("click", function () {
+    //        if (isLoading) return;
+    //        if (currentPage > 0) {
+    //            currentPage--;
+    //            localStorage.setItem("customCurrentPage", currentPage);
+    //            loadData(currentPage);
+    //        }
+    //    });
+
+    //    document.getElementById("custom-nextPage").addEventListener("click", function () {
+    //        if (isLoading) return;
+    //        if (hasNextPage) {
+    //            currentPage++;
+    //            localStorage.setItem("customCurrentPage", currentPage);
+    //            loadData(currentPage);
+    //        }
+    //    });
+
+    //    loadData(currentPage);
+    //});
+</script>

@@ -1,0 +1,823 @@
+﻿<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+<style>
+    :root {
+        --primary-blue: #174d65;
+        --dark-blue: #226a9c;
+        --light-blue: #0084b4;
+        --primary-orange: #faa74a;
+        --orange-hover: #ec971f;
+        --light-gray: #f8f9fa;
+        --medium-gray: #e9ecef;
+        --dark-gray: #343a40;
+        --white: #ffffff;
+        --black: #000000;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        line-height: 1.5;
+        font-weight: 400;
+        background-color: var(--white);
+        color: var(--dark-gray);
+        font-synthesis: none;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        overflow-x: hidden;
+    }
+
+    body {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        overflow-x: hidden;
+    }
+
+    #app {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+
+    a {
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .container {
+        width: 100%;
+        max-width: 1350px;
+        margin: 0 auto;
+        padding: 0 16px;
+    }
+
+    .title-hero-container {
+        width: 100%;
+/*         max-width: 1350px;
+ */    }
+
+    .title-hero {
+        padding: 4.5rem 0;
+        text-align: center;
+        margin: 0px;
+        width: 100%;
+        background-color: var(--primary-blue);
+        position: relative;
+    }
+
+    .start-dots {
+        position: absolute;
+        top: 15px;
+        left: 10px;
+    }
+
+    .end-dots {
+        position: absolute;
+        bottom: 15px;
+        right: 10px;
+    }
+
+    .section-label {
+        color: var(--primary-orange);
+        font-size: 16px;
+        font-weight: 600;
+        display: flex;
+    }
+
+    .center-label {
+        justify-content: center;
+        justify-items: center;
+    }
+
+    .divider-label {
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+        .divider-label::before {
+            content: "";
+            height: 2px;
+            background-color: var(--primary-orange);
+            width: 24px;
+            margin: 0 12px;
+        }
+
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 16px;
+        border-radius: 4px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: none;
+        text-align: center;
+    }
+
+    .btn-primary {
+        background-color: var(--primary-blue);
+        color: var(--white);
+    }
+
+        .btn-primary:hover {
+            background-color: var(--dark-blue);
+        }
+
+    .btn-orange {
+        background-color: var(--primary-orange);
+        color: var(--white);
+    }
+
+        .btn-orange:hover {
+            background-color: var(--orange-hover);
+        }
+
+    .btn-outline {
+        background-color: transparent;
+        border: 1px solid var(--white);
+        color: var(--white);
+    }
+
+        .btn-outline:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+    .social-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 16px;
+        color: inherit;
+        font-size: 18px;
+    }
+
+    .arrow-icon {
+        margin-left: 8px;
+    }
+
+    .fa,
+    .fa-brands,
+    .fa-classic,
+    .fa-regular,
+    .fa-sharp,
+    .fa-solid,
+    .fab,
+    .far,
+    .fas {
+        line-height: normal;
+    }
+
+    /* Floating Actions */
+    .floating-actions {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        z-index: 1000;
+    }
+
+    .floating-btn {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 24px;
+        border-radius: 50px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+        .floating-btn i {
+            transition: transform 0.3s ease;
+        }
+
+        .floating-btn:hover i {
+            transform: translateX(4px);
+        }
+
+    .find-offers {
+        background-color: #1e6888;
+        color: var(--white);
+    }
+
+        .find-offers:hover {
+            background-color: var(--dark-blue);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+        }
+
+    .find-offers-arrow {
+        background-color: white;
+        color: #1e6888;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        margin: auto;
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+    }
+
+    .request-service {
+        background-color: var(--primary-orange);
+        color: var(--white);
+    }
+
+        .request-service:hover {
+            background-color: var(--orange-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+        }
+
+    .request-service-arrow {
+        background-color: white;
+        color: #faa74a;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        margin: auto;
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+    }
+
+    .contact-us-btn, .all-other-services-btn {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 24px;
+        border-radius: 50px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        background-color: var(--primary-orange);
+        color: var(--white);
+        width: fit-content;
+    }
+
+        .contact-us-btn i, .all-other-services-btn i {
+            transition: transform 0.3s ease;
+        }
+
+        .contact-us-btn:hover i, .all-other-services-btn:hover i {
+            transform: translateX(4px);
+        }
+
+        .contact-us-btn:hover, .all-other-services-btn:hover {
+            background-color: var(--orange-hover);
+            transform: translateX(4px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+        }
+
+    .contact-arrow, .all-other-services-arrow {
+        background-color: white;
+        color: #faa74a;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        margin: auto;
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+    }
+
+    .divider {
+        border: 0;
+        border-top: 1px solid #cccccc;
+        margin: 24px 0;
+    }
+
+    @@media (min-width: 1600px) {
+        .title-hero-container
+
+    {
+        margin: 0 auto;
+    }
+
+    }
+    @@media (max-width: 768px) {
+        .container
+
+    {
+        padding: 0 12px;
+    }
+
+    .title-hero {
+        width: 100%;
+    }
+
+    .floating-actions {
+        bottom: 20px;
+        right: 10px;
+    }
+
+    .floating-btn {
+        padding: 10px 20px;
+        font-size: 14px;
+    }
+
+    }
+
+    @@media (max-width: 576px) {
+        .floating-actions
+
+    {
+        bottom: 16px;
+        right: 5px;
+    }
+
+    .floating-btn {
+        width: fit-content;
+        justify-content: center;
+    }
+    }
+
+
+    .blog-hero {
+        background-color: var(--primary-blue);
+        padding: 3.75rem 0;
+        text-align: center;
+        color: var(--white);
+    }
+
+    .blog-title {
+        color: var(--white);
+        font-size: clamp(17px, 5vw, 36px);
+        font-weight: 700;
+        margin: 0 0 1rem;
+        line-height: 1.2;
+    }
+
+    .blog-meta {
+        font-size: clamp(13px, 2.2vw, 14px);
+        opacity: 0.8;
+        color: var(--white);
+    }
+
+        .blog-meta span:not(:last-child)::after {
+            content: "|";
+            margin: 0 0.75rem;
+        }
+
+    .blog-single-container {
+        max-width: 1350px;
+        margin: 0 auto;
+        padding: 3.75rem 1rem;
+    }
+
+    .blog-post-content {
+        background: var(--white);
+        padding: 2rem;
+        border-radius: 0.5rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-bottom: 3.75rem;
+    }
+
+    .blog-section {
+        margin-bottom: 2.5rem;
+    }
+
+        .blog-section h2 {
+            font-size: clamp(16px, 4vw, 24px);
+            font-weight: 700;
+            color: var(--dark-gray);
+            margin-bottom: 1rem;
+        }
+
+        .blog-section p {
+            color: var(--dark-gray);
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+        }
+
+    .checklist {
+        background: var(--light-gray);
+        padding: 1.5rem;
+        border-radius: 0.5rem;
+        margin-top: 1rem;
+    }
+
+        .checklist h3 {
+            font-size: clamp(16px, 3vw, 18px);
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--dark-gray);
+        }
+
+        .checklist ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .checklist li {
+            margin-bottom: 0.75rem;
+            color: var(--dark-gray);
+            line-height: 1.5;
+        }
+
+        .checklist strong {
+            color: var(--primary-blue);
+        }
+
+    .related-posts {
+        margin-top: 3.75rem;
+    }
+
+        .related-posts h2 {
+            font-size: clamp(16px, 4vw, 24px);
+            font-weight: 700;
+            margin-bottom: 2rem;
+            color: var(--dark-gray);
+        }
+
+    .related-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 2rem;
+    }
+
+    .related-card {
+        max-width: 600px;
+        width: 100%;
+        background-color: #ebf3f6;
+        border-radius: 0.75rem;
+        overflow: hidden;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        margin: 1.25rem;
+    }
+
+    .related-card-image {
+        width: 100%;
+        height: 18.75rem;
+        overflow: hidden;
+    }
+
+        .related-card-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s ease;
+        }
+
+    .related-card-content {
+        padding: 1.5rem;
+    }
+
+    .related-card-date {
+        display: flex;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .related-card-date-icon {
+        background-color: #fff4e5;
+        width: 2.25rem;
+        height: 2.25rem;
+        border-radius: 0.5rem;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-right: 0.75rem;
+    }
+
+    .related-card-content h2 {
+        font-size: clamp(16px, 4vw, 24px);
+        font-weight: 700;
+        margin-top: 0;
+        margin-bottom: 0.75rem;
+        color: #1e293b;
+        line-height: 1.3;
+    }
+
+    .related-card-content p {
+        font-size: clamp(14px, 2.5vw, 16px);
+        color: #475569;
+        line-height: 1.6;
+        margin-bottom: 1.5rem;
+    }
+
+    .related-card-content a {
+        display: inline-flex;
+        align-items: center;
+        color: #f97316;
+        font-weight: 600;
+        text-decoration: none;
+        font-size: clamp(14px, 2.5vw, 16px);
+        transition: color 0.2s ease;
+    }
+
+    .card-content a:hover {
+        color: #ea580c;
+    }
+
+    @@media (max-width: 1024px) {
+        .related-grid
+
+    {
+        grid-template-columns: 1fr;
+    }
+
+    }
+
+    @@media (max-width: 768px) {
+        .blog-single-container
+
+    {
+        padding: 2.5rem 1rem;
+    }
+
+    }
+</style>
+
+<div class="title-hero-container">
+    <div class="title-hero">
+        <img src="/public/images/dots.png" alt="" class="start-dots" />
+        <div class="section-label center-label">
+            <span class="divider-label"> Blog</span>
+        </div>
+        <h1 class="blog-title">HOW TO PREPARE FOR AN<br />TOWING INSPECTION</h1>
+        <div class="blog-meta">
+            <span>August 25, 2024</span>
+            <span>Sarah Smith</span>
+        </div>
+        <img src="/public/images/dots.png" alt="" class="end-dots" />
+    </div>
+</div>
+
+<main class="blog-single-container">
+    <article class="blog-post-content">
+        <section class="blog-section">
+            <h2>INTRODUCTION</h2>
+            <p>
+                Whether you're facing a state vehicle or planning renovation, an
+                electrical inspection is essential. A thorough electrical inspection
+                can make all the difference in passing or failing your inspection.
+                Here's what you'll need to know.
+            </p>
+        </section>
+
+        <section class="blog-section">
+            <h2>1. CHECK ALL OUTLETS AND SWITCHES</h2>
+            <p>
+                Before all outlets and switches are functioning properly and
+                securely installed.
+            </p>
+
+            <div class="checklist">
+                <h3>Things to Look For:</h3>
+                <ul>
+                    <li>
+                        <strong>Loose Outlets:</strong> Tighten any loose outlets as
+                        needed.
+                    </li>
+                    <li>
+                        <strong>Cover Plates:</strong> Make sure all outlets have cover
+                        plates in good condition.
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <section class="blog-section">
+            <h2>2. INSPECT THE ELECTRICAL PANEL</h2>
+            <p>
+                Your panel should be clearly labeled, organized, and free from any
+                visible defects.
+            </p>
+
+            <div class="checklist">
+                <h3>Inspection Checklist:</h3>
+                <ul>
+                    <li>
+                        <strong>Proper Labeling:</strong> Ensure each circuit is clearly
+                        labeled for easy identification.
+                    </li>
+                    <li>
+                        <strong>No Overcrowded Circuits:</strong> Avoid overloading any
+                        individual circuit with too many devices.
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <section class="blog-section">
+            <h2>3. TEST ALL GFCI OUTLETS</h2>
+            <p>
+                All Ground Fault Circuit Interrupter outlets are required in certain
+                areas like bathrooms and kitchens.
+            </p>
+
+            <div class="checklist">
+                <h3>Prevention Tips:</h3>
+                <ul>
+                    <li>
+                        <strong>Test Monthly:</strong> Use the test button to ensure
+                        each GFCI outlet is functioning correctly.
+                    </li>
+                    <li>
+                        <strong>Replace Faulty GFCIs:</strong> Replace non-functioning
+                        or outdated GFCI outlets.
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <section class="blog-section">
+            <h2>4. CLEAR ACCESS TO ELECTRICAL COMPONENTS</h2>
+            <p>
+                Make sure there is easy access to your electrical panel, outlets,
+                and other components.
+            </p>
+
+            <div class="checklist">
+                <h3>Key Priorities:</h3>
+                <ul>
+                    <li>
+                        <strong>Adequate Access:</strong> Keep min. 3 feet clear space
+                        in front of your panels.
+                    </li>
+                    <li>
+                        <strong>Remove Obstructions:</strong> Clear away any items
+                        blocking access to your wiring.
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <section class="blog-section">
+            <h2>CONCLUSION</h2>
+            <p>
+                Taking the time to prepare for your electrical inspection ensures a
+                smooth process and minimal issues during inspections. By following
+                these steps, you'll be well on your way to passing your inspection!
+            </p>
+        </section>
+    </article>
+
+    <div class="related-posts">
+        <h2>READ MORE BLOG POSTS</h2>
+        <div class="related-grid">
+            <div class="related-card">
+                <div class="related-card-image">
+                    <img src="https://images.pexels.com/photos/4488660/pexels-photo-4488660.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2"
+                         alt="Mechanic fixing car motor oil" />
+                </div>
+                <div class="related-card-content">
+                    <div class="related-card-date">
+                        <div class="related-card-date-icon">
+                            <svg width="18"
+                                 height="18"
+                                 viewBox="0 0 24 24"
+                                 fill="none"
+                                 xmlns="http://www.w3.org/2000/svg">
+                                <path d="M8 2V5M16 2V5M3.5 9.09H20.5M21 8.5V17C21 20 19.5 22 16 22H8C4.5 22 3 20 3 17V8.5C3 5.5 4.5 3.5 8 3.5H16C19.5 3.5 21 5.5 21 8.5Z"
+                                      stroke="#F97316"
+                                      stroke-width="1.5"
+                                      stroke-miterlimit="10"
+                                      stroke-linecap="round"
+                                      stroke-linejoin="round" />
+                                <path d="M15.6949 13.7H15.7039M15.6949 16.7H15.7039M11.9949 13.7H12.0049M11.9949 16.7H12.0049M8.29492 13.7H8.30492M8.29492 16.7H8.30492"
+                                      stroke="#F97316"
+                                      stroke-width="2"
+                                      stroke-linecap="round"
+                                      stroke-linejoin="round" />
+                            </svg>
+                        </div>
+                        <span>August 26, 2024</span>
+                    </div>
+
+                    <h2 class="related-card-title">
+                        5 Common Towing Problems and How to Prevent Them
+                    </h2>
+
+                    <p class="related-card-description">
+                        Learn how to spot and prevent the most common towing issues in
+                        your service.
+                    </p>
+
+                    <a href="#" class="related-card-link">
+                        Read more
+                        <svg width="20"
+                             height="20"
+                             viewBox="0 0 24 24"
+                             fill="none"
+                             xmlns="http://www.w3.org/2000/svg">
+                            <path d="M14.4301 5.93005L20.5001 12.0001L14.4301 18.0701M3.5 12H20.33"
+                                  stroke="#F97316"
+                                  stroke-width="1.5"
+                                  stroke-miterlimit="10"
+                                  stroke-linecap="round"
+                                  stroke-linejoin="round" />
+                        </svg>
+                    </a>
+                </div>
+            </div>
+
+            <div class="related-card">
+                <div class="related-card-image">
+                    <img src="https://images.pexels.com/photos/4489736/pexels-photo-4489736.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2"
+                         alt="Truck repair service" />
+                </div>
+                <div class="related-card-content">
+                    <div class="related-card-date">
+                        <div class="related-card-date-icon">
+                            <svg width="18"
+                                 height="18"
+                                 viewBox="0 0 24 24"
+                                 fill="none"
+                                 xmlns="http://www.w3.org/2000/svg">
+                                <path d="M8 2V5M16 2V5M3.5 9.09H20.5M21 8.5V17C21 20 19.5 22 16 22H8C4.5 22 3 20 3 17V8.5C3 5.5 4.5 3.5 8 3.5H16C19.5 3.5 21 5.5 21 8.5Z"
+                                      stroke="#F97316"
+                                      stroke-width="1.5"
+                                      stroke-miterlimit="10"
+                                      stroke-linecap="round"
+                                      stroke-linejoin="round" />
+                                <path d="M15.6949 13.7H15.7039M15.6949 16.7H15.7039M11.9949 13.7H12.0049M11.9949 16.7H12.0049M8.29492 13.7H8.30492M8.29492 16.7H8.30492"
+                                      stroke="#F97316"
+                                      stroke-width="2"
+                                      stroke-linecap="round"
+                                      stroke-linejoin="round" />
+                            </svg>
+                        </div>
+                        <span>August 26, 2024</span>
+                    </div>
+
+                    <h2 class="related-card-title">
+                        5 Common Towing Problems and How to Prevent Them
+                    </h2>
+
+                    <p class="related-card-description">
+                        Learn how to spot and prevent the most common towing issues in
+                        your service.
+                    </p>
+
+                    <a href="#" class="related-card-link">
+                        Read more
+                        <svg width="20"
+                             height="20"
+                             viewBox="0 0 24 24"
+                             fill="none"
+                             xmlns="http://www.w3.org/2000/svg">
+                            <path d="M14.4301 5.93005L20.5001 12.0001L14.4301 18.0701M3.5 12H20.33"
+                                  stroke="#F97316"
+                                  stroke-width="1.5"
+                                  stroke-miterlimit="10"
+                                  stroke-linecap="round"
+                                  stroke-linejoin="round" />
+                        </svg>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+<script>
+        // Add hover effects with JavaScript
+    document.addEventListener("DOMContentLoaded", function () {
+      const cards = document.querySelectorAll(".related-card");
+
+      cards.forEach(function (card) {
+        const cardImage = card.querySelector(".related-card-image img");
+        const readMoreLink = card.querySelector("a");
+
+        card.addEventListener("mouseenter", function () {
+          this.style.transform = "translateY(-5px)";
+          this.style.boxShadow = "0 10px 30px rgba(0, 0, 0, 0.1)";
+          if (cardImage) cardImage.style.transform = "scale(1.05)";
+        });
+
+        card.addEventListener("mouseleave", function () {
+          this.style.transform = "translateY(0)";
+          this.style.boxShadow = "0 4px 20px rgba(0, 0, 0, 0.08)";
+          if (cardImage) cardImage.style.transform = "scale(1)";
+        });
+
+        if (readMoreLink) {
+          readMoreLink.addEventListener("mouseenter", function () {
+            this.style.color = "#EA580C";
+          });
+
+          readMoreLink.addEventListener("mouseleave", function () {
+            this.style.color = "#F97316";
+          });
+        }
+      });
+    });
+
+</script>

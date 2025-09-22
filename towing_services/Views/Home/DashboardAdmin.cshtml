@@ -1,0 +1,435 @@
+﻿
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+<style>
+    body {
+        margin: 0;
+        height: 100%;
+        font-family: Arial, sans-serif;
+    }
+
+
+
+    .sidebar {
+        width: 100px; /* عرض الشريط الجانبي في البداية */
+        background-color: #f0f0f0;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        float: left;
+        padding: 80px 10px;
+        transition: width 0.3s ease;
+        position: relative;
+        height: 100vh; /* تأكيد أن الشريط الجانبي يغطي كامل ارتفاع الصفحة */
+        overflow-y: auto; /* إضافة سكروول عمودي */
+    }
+
+        .sidebar.expanded {
+            width: 400px; /* عرض الشريط الجانبي عند التوسيع */
+        }
+
+            .sidebar.expanded h2 {
+                display: block;
+            }
+
+        .sidebar a {
+            text-decoration: none;
+            padding: 19px 27px;
+            margin: 15px 0;
+            display: flex;
+            align-items: center;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 20px;
+            white-space: nowrap;
+            transition: background-color 0.2s ease, transform 0.3s ease; /* إضافة تأثير التكبير */
+        }
+
+            .sidebar a i {
+                margin-right: 10px;
+                font-size: 24px;
+                transition: transform 0.3s ease, color 0.3s ease; /* تدوير الأيقونة */
+            }
+
+    i {
+        color: #000000;
+    }
+
+    .sidebar a .sidebar-text {
+        display: none;
+    }
+
+    .sidebar.expanded a .sidebar-text {
+        display: inline-block;
+    }
+
+    /* إضافة التأثير عند التمرير */
+    .sidebar a:hover {
+        background-color: #ddd;
+        transform: translateY(-10px); /* تحريك النص 10 بيكسل للأعلى */
+    }
+
+    .sidebar a i:hover {
+        color: #000000; /* تغيير لون الأيقونة عند التمرير */
+        transform: rotate(360deg); /* تدوير الأيقونة */
+    }
+
+    .sidebar a.active {
+        background-color: #ddd;
+    }
+
+    .sidebar a.logout {
+        margin-top: auto;
+        background-color: #ddd;
+        text-align: center;
+    }
+
+    /* تنسيق زر التبديل بين الشريط الجانبي القابل للطي */
+    .toggle-btn {
+        position: absolute;
+        top: 20px;
+        left: 23px;
+        padding: 20px;
+        font-size: 24px; /* تكبير حجم الأيقونة */
+        cursor: pointer;
+        color: #fff;
+        padding: 12px;
+        border-radius: 5px;
+        background-color: #34495e;
+        transition: background-color 0.2s ease;
+        z-index: 100;
+        width: 50px; /* عرض الزر */
+        height: 50px; /* ارتفاع الزر */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+        .toggle-btn:hover {
+            background-color: #516f90; /* تغيير اللون عند التمرير */
+        }
+
+    span {
+        font-size: 23px;
+        font-weight: bold;
+    }
+
+    /* استعلامات الوسائط لتصميم متجاوب */
+    @@media (max-width: 768px) {
+        .sidebar {
+            width: 80px;
+            padding: 67px 2px;
+            overflow-x: hidden;
+        }
+
+            .sidebar.expanded {
+                width: 300px; /* الشريط الجانبي الموسع على الشاشات الصغيرة */
+            }
+
+        .toggle-btn {
+            left: 13px;
+        }
+
+        .sidebar {
+            display: block;
+            font-size: 18px;
+        }
+
+            .sidebar a {
+                font-size: 16px; /* تصغير حجم النص */
+            }
+
+                .sidebar a i {
+                    font-size: 20px; /* تصغير الأيقونات */
+                }
+
+        span {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .sidebar a:hover {
+            transform: none; /* تعطيل التأثيرات */
+        }
+
+        .sidebar a i:hover {
+            transform: none; /* تعطيل تدوير الأيقونة */
+        }
+    }
+
+    @@media (max-width: 480px) {
+        .sidebar {
+            width: 80px;
+            padding: 67px 2px;
+            overflow-x: hidden;
+        }
+
+        span {
+            font-size: 15px;
+            font-weight: bold;
+        }
+
+        .sidebar.expanded {
+            width: 230px; /* الشريط الجانبي الموسع على الهواتف */
+        }
+
+        .sidebar a {
+            font-size: 14px; /* تصغير حجم النص أكثر */
+        }
+
+        .toggle-btn {
+            left: 14px;
+        }
+
+        .sidebar a:hover {
+            transform: none; /* تعطيل التأثيرات */
+        }
+
+        .sidebar a i:hover {
+            transform: none; /* تعطيل تدوير الأيقونة */
+        }
+    }
+
+    /* تحسين تنسيق السكروول */
+    .sidebar::-webkit-scrollbar {
+        width: 5px; /* عرض السكروول */
+    }
+
+    .sidebar::-webkit-scrollbar-thumb {
+        background-color: #516f90; /* لون السكروول */
+        border-radius: 5px;
+        height: 1px !important; /* تحديد طول المقبض (الزر المتحرك) */
+    }
+
+        .sidebar::-webkit-scrollbar-thumb:hover {
+            background-color: #1abc9c; /* تغيير اللون عند التمرير */
+        }
+
+    .container {
+        flex-direction: row; /* ترتيب العناصر بشكل أفقي */
+    }
+</style>
+
+
+
+<div class="">
+    <div class="sidebar">
+        <div class="toggle-btn" onclick="toggleSidebar()">&#9776;</div>
+        <a data-section="profile" class="active"><i class="fas fa-user-circle"></i><span class="sidebar-text">Profile</span></a>
+        <a data-section="admin-requests"><i class="fas fa-tasks"></i><span class="sidebar-text">Admin Requests</span></a>
+        <a data-section="drivers-management"><i class="fas fa-car"></i><span class="sidebar-text">Drivers Management</span></a>
+        <a data-section="admins-management"><i class="fas fa-users-cog"></i><span class="sidebar-text">Admins Management</span></a>
+        <a data-section="order-management" id="order-management-link">
+            <i class="fas fa-users"></i><span class="sidebar-text">Order Management</span>
+            @if (ViewBag.NewOrder != null && (bool)ViewBag.NewOrder)
+            {
+                <span style="color:red" class="ms-2">!</span>
+            }
+        </a>
+
+
+
+
+        <a data-section="reports"><i class="fas fa-chart-line"></i><span class="sidebar-text">Reports</span></a>
+        <a data-section="add-admin"><i class="fas fa-user-plus"></i><span class="sidebar-text">Add Admin</span></a>
+        <a data-section="add-driver"><i class="fas fa-user-tie"></i><span class="sidebar-text">Add Driver</span></a>
+        <a data-section="logout" class="logout"><i class="fas fa-sign-out-alt"></i><span class="sidebar-text">Logout</span></a>
+    </div>
+    <div id="loadingIndicator" style="display:none;">
+        <p>Loading...</p> <!-- يمكنك تخصيص هذا بتغيير النص أو إضافة صورة Spinner -->
+    </div>
+    <div id="container" class="main-content">
+
+        <!-- سيتم تحميل المحتوى هنا باستخدام AJAX -->
+    </div>
+</div>
+
+<script>
+
+
+    //function toggleSidebar() {
+    //    document.querySelector('.sidebar').classList.toggle('expanded');
+    //    const sidebar = document.querySelector('.sidebar');
+    //    const mainContent = document.querySelector('.main-content');
+    //    if (sidebar.classList.contains('expanded')) {
+    //        mainContent.style.marginLeft = `${0}px`; // عرض الشريط الجانبي الموسع
+    //    } else {
+    //        mainContent.style.marginLeft = `${0}px`; // عرض الشريط الجانبي عند الطي
+    //    }
+    //}
+    //$(document).ready(function () {
+    //    // وظيفة لتفعيل القسم بناءً على البيانات
+    //    function activateSection(section) {
+    //        $.ajax({
+    //            url: '/Home/GetPartialView',  // المسار الخاص بـ Controller
+    //            type: 'GET',
+    //            data: { section: section },  // إرسال القسم المختار
+    //            success: function (data) {
+    //                $('#container').html(data);  // تحميل المحتوى في الـ container
+    //                $('.sidebar a').removeClass('active'); // إزالة الـ active عن كل الروابط
+    //                $(`.sidebar a[data-section="${section}"]`).addClass('active'); // إضافة active للرابط المطلوب
+    //            },
+    //            error: function (xhr, status, error) {
+    //                console.error("Error loading partial view:", error);
+    //            }
+    //        });
+    //    }
+
+    //    // التحقق من وجود الباراميتر في الرابط
+    //    const urlParams = new URLSearchParams(window.location.search);
+    //    const section = urlParams.get('section'); // جلب القيمة من باراميتر الـ section
+
+    //    // إذا كان هناك باراميتر للقسم يتم تحميله مباشرة
+    //    if (section) {
+    //        activateSection(section);
+    //    } else {
+    //        activateSection("default"); // تحميل القسم الافتراضي في حالة عدم وجود باراميتر
+    //    }
+
+    //    // تفعيل الأقسام عند الضغط اليدوي
+    //    $('.sidebar a').on('click', function (e) {
+    //        e.preventDefault();
+    //        var section = $(this).data('section');
+    //        activateSection(section);
+    //        window.history.pushState({}, '', `?section=${section}`); // تحديث الرابط
+    //    });
+    //});
+
+
+
+        function toggleSidebar() {
+            document.querySelector('.sidebar').classList.toggle('expanded');
+        const sidebar = document.querySelector('.sidebar');
+        const mainContent = document.querySelector('.main-content');
+        if (sidebar.classList.contains('expanded')) {
+            mainContent.style.marginLeft = `${0}px`; // عرض الشريط الجانبي الموسع
+        } else {
+            mainContent.style.marginLeft = `${0}px`; // عرض الشريط الجانبي عند الطي
+        }
+    }
+
+        $(document).ready(function () {
+            // وظيفة لتفعيل القسم بناءً على البيانات
+            function activateSection(section) {
+                $('#loadingIndicator').show(); // إظهار مؤشر التحميل
+
+                $.ajax({
+                    url: '/Home/GetPartialView',  // المسار الخاص بـ Controller
+                    type: 'GET',
+                    data: { section: section },  // إرسال القسم المختار
+                    success: function (data) {
+                        $('#container').html(data);  // تحميل المحتوى في الـ container
+                        $('.sidebar a').removeClass('active'); // إزالة الـ active عن كل الروابط
+                        $(`.sidebar a[data-section="${section}"]`).addClass('active'); // إضافة active للرابط المطلوب
+                    },
+                    error: function (xhr, status, error) {
+                        console.error("Error loading partial view:", error);
+                        console.log(xhr.responseText);  // طباعة الاستجابة من السيرفر
+
+                    },
+                    complete: function () {
+                        $('#loadingIndicator').hide();  // إخفاء مؤشر التحميل عند الانتهاء
+                    }
+                });
+            }
+
+        // التحقق من وجود الباراميتر في الرابط
+        const urlParams = new URLSearchParams(window.location.search);
+        const section = urlParams.get('section'); // جلب القيمة من باراميتر الـ section
+
+        // إذا كان هناك باراميتر للقسم يتم تحميله مباشرة
+        if (section) {
+            activateSection(section);
+        } else {
+            activateSection("default"); // تحميل القسم الافتراضي في حالة عدم وجود باراميتر
+        }
+
+        // تفعيل الأقسام عند الضغط اليدوي
+        $('.sidebar a').on('click', function (e) {
+            e.preventDefault();
+        var section = $(this).data('section');
+        activateSection(section);
+        window.history.pushState({ }, '', `?section=${section}`); // تحديث الرابط
+        });
+    });
+
+
+
+
+    ///*****2 not/
+
+    //$('.sidebar a').on('click', function (e) {
+    //    e.preventDefault(); // لمنع التحميل التقليدي للصفحة
+
+    //    var section = $(this).data('section'); // الحصول على اسم القسم من البيانات
+
+    //    $.ajax({
+    //        url: '/Home/GetPartialView',  // المسار الخاص بـ Controller
+    //        type: 'GET',
+    //        data: { section: section },  // إرسال القسم المختار
+    //        success: function (data) {
+    //            $('#container').html(data);  // استبدال المحتوى في #container
+    //        },
+    //        error: function (xhr, status, error) {
+    //            console.error("Error loading partial view:", error); // في حال حدوث خطأ
+    //        }
+
+    //    });
+    //});
+
+
+
+
+
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

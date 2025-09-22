@@ -1,0 +1,838 @@
+﻿@model towing_services.Models.PaginatedDriversViewModel
+@* 
+@{
+    Layout = "~/Views/Shared/_HRLayout.cshtml";
+} *@
+@{
+    Layout = "~/Views/Shared/test.cshtml";
+}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.14.0-beta2/js/bootstrap-select.min.js" defer></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" defer rel="stylesheet">
+<!-- SweetAlert2 CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+
+<!-- SweetAlert2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<style>
+    body {
+        background: #F0F0F0;
+        margin-top: 0; /* تأكد من إزالة المسافة العلوية */
+  }
+
+    /* تكبير خط الجدول بالكامل */
+    #ordersTable {
+        font-size: 20px; /* حجم الخط العام للجدول */
+        white-space:nowrap
+    }
+
+        /* تكبير خط عناوين الجدول */
+        #ordersTable thead th {
+            font-size: 22px;
+            background-color: #dee2e6;
+            font-weight: bold;
+        }
+
+        /* تكبير خط محتوى الجدول */
+        #ordersTable tbody td {
+            font-size: 26px;
+        }
+
+     
+        /* تحسين المسافات بين الخلايا */
+        #ordersTable th, #ordersTable td {
+            padding: 12px;
+            text-align: center;
+        }
+
+
+    .btn {
+        font-size: 1.2rem;
+        padding: 1px 14px;
+    }
+
+    .btn-danger{
+        font-size: 1.2rem;
+        padding: 1px 14px;
+    }
+
+    .btn-success {
+        font-size: 1.6rem;
+        background: #1e90ff; /* تدرج لوني للزر */
+        color: white; /* النص باللون الأبيض */
+        border: 2px solid #4c9c3e; /* إضافة حد رفيع */
+        padding: 12px 24px; /* المسافات حول النص */
+        border-radius: 30px; /* زوايا مستديرة بشكل أكبر */
+        box-shadow: 3px 3px 6px rgba(0, 0, 0, 0.1), -3px -3px 6px rgba(255, 255, 255, 0.1); /* إضافة ظل ناعم */
+        cursor: pointer; /* تغيير المؤشر عند المرور على الزر */
+        transition: all 0.4s ease-in-out; /* إضافة تأثيرات انسيابية */
+    }
+
+        .btn-success:hover {
+            background: #1e90ff; /* عكس التدرج اللوني عند التمرير */
+            box-shadow: 6px 6px 12px rgba(0, 0, 0, 0.15), -6px -6px 12px rgba(255, 255, 255, 0.15); /* زيادة الظلال */
+            transform: translateY(-3px); /* رفع الزر قليلاً عند التمرير */
+        }
+
+        .btn-success:active {
+            background: #1e90ff; /* لون ثابت عند الضغط */
+            box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.2); /* تغيير الظلال لتأثير الضغط */
+            transform: translateY(0); /* العودة إلى وضع الزر الطبيعي */
+        }
+
+        .btn-success:focus {
+            outline: none; /* إزالة الحدود عند التركيز */
+            box-shadow: 0 0 0 4px rgba(0, 123, 255, 0.5); /* إضافة تأثير ظل عند التركيز */
+        }
+    /* تنسيق شريط التمرير للمتصفحات التي تدعم WebKit */
+    ::-webkit-scrollbar {
+        height: 8px; /* ارتفاع شريط التمرير الأفقي */
+    }
+
+
+
+    .table-wrapper::-webkit-scrollbar-thumb {
+        background: transparent; /* لون شريط التمرير */
+        border-radius: 10px; /* تدوير الزوايا */
+    }
+
+        .table-wrapper::-webkit-scrollbar-thumb:hover {
+            background: #555; /* لون شريط التمرير عند المرور */
+        }
+
+    @@media (max-width: 768px) {
+        body {
+            margin-left: 0; /* إزالة المسافة لاحتواء الـ navbar على الشاشات الصغيرة */
+        }
+
+        .btn-success {
+            font-size: 1rem;
+            padding: 8px 16px;
+            white-space: nowrap;
+            margin-top: 10px;
+        }
+
+        .table-custom th,
+        .table-custom td {
+            font-size: 1rem;
+            padding: 10px;
+        }
+
+        h2 {
+            font-size: 2rem;
+        }
+    }
+
+    .modal-body img {
+        width: 100%;
+        height: auto;
+    }
+
+    .modal-dialog {
+       max-width:100% !important;
+        margin: 30px auto;
+        max-height: 60vh;
+        overflow-y: auto;
+    }
+
+    .modal-content {
+        background-color: #fff;
+        margin: 10% auto;
+        padding: 30px;
+        border-radius: 10px;
+        width: 40%;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); /* إضافة ظل ناعم */
+        animation: slideIn 0.4s ease-out, shake 0.5s ease-out; /* تحسين الأنيميشن */
+    }
+
+    .s{
+        background-color: #fff;
+        margin: 10% auto;
+        padding: 30px;
+        border-radius: 10px;
+        width: 60%;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); /* إضافة ظل ناعم */
+        animation: slideIn 0.4s ease-out, shake 0.5s ease-out; /* تحسين الأنيميشن */
+    }
+
+  
+
+
+
+
+    .modal-actions {
+        margin-top: 20px;
+    }
+
+    h2, p {
+        font-size: 30px
+    }
+
+    .close-btn {
+        color: #aaa;
+        font-size: 32px;
+        font-weight: bold;
+        position: absolute;
+        top: 10px;
+        right: 15px;
+        cursor: pointer;
+        transition: color 0.3s;
+    }
+
+        .close-btn:hover,
+        .close-btn:focus {
+            color: #333;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+    @@keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+
+        to {
+            opacity: 1;
+        }
+    }
+
+
+    @@media (max-width: 768px) {
+        .modal-content {
+            width: 80%; /* المودال يكون 80% من عرض الشاشة في الأجهزة الصغيرة */
+            padding: 20px; /* تقليل الحشو */
+        }
+    }
+
+    @@media (max-width: 480px) {
+        .modal-content {
+            width: 90%; /* المودال يكون 90% من عرض الشاشة في الأجهزة الصغيرة جدًا */
+            padding: 15px; /* تقليل الحشو أكثر */
+            font-size: 14px; /* تقليل حجم النص */
+            
+        }
+      
+
+        .close-btn {
+            font-size: 28px; /* تصغير حجم زر الإغلاق */
+        }
+
+        .modal-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px; /* مسافة بين الأزرار */
+            align-items: center; /* لضبط الأزرار في المنتصف */
+        }
+
+        h2, p {
+            font-size: 21px
+        }
+
+        .modal-actions button {
+            width: 100%; /* جعل الأزرار تأخذ عرض 100% من المودال */
+            padding: 10px;
+            font-size: 16px;
+        }
+    }
+
+
+
+    /*btnd*/
+    /* Blue color and font size for buttons and pagination */
+    .btnd {
+        color: white;
+        background-color: #1e90ff;
+        font-size: 20px;
+        padding: 8px 16px;
+        border-radius: 4px;
+        text-decoration: none;
+    }
+
+        /* Add hover effect */
+        .btnd:hover {
+            background-color: #1e90ff;
+        }
+
+    /* Adjust pagination button size */
+    .pagination .page-item .btnd {
+        font-size: 20px;
+        padding: 8px 16px;
+    }
+
+    /* Styling for the page label */
+    .pagination .page-item.active .btnd {
+        background-color: #1e90ff;
+        border-color: #1e90ff;
+    }
+
+    /* Responsive layout */
+    @@media (max-width: 768px) {
+        .d-flex {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .pagination {
+            margin-top: 10px;
+            text-align: center;
+        }
+    }
+
+    /* Style for the "Add New Driver" button */
+    a.btn-success {
+        background-color: #1e90ff;
+        color: white;
+        font-size: 20px;
+        padding: 8px 16px;
+        border-radius: 4px;
+        text-decoration: none;
+    }
+
+        a.btn-success:hover {
+            background-color: #1e90ff;
+        }
+
+    .manage-drivers-container {
+        text-align: center;
+        padding: 20px;
+    }
+
+    .title {
+        font-size: 36px;
+        font-weight: bold;
+        color: black;
+    }
+
+    .underline {
+        width: 50%; /* العرض نسبة إلى عرض العنصر الأب */
+        max-width: 600px; /* الحد الأقصى لعرض الخط */
+        height: 10px;
+        background-color: #0c1f24; /* اللون حسب الاختيار */
+        margin: 30px auto;
+    }
+
+    @@media (max-width: 768px) {
+        .title {
+            font-size: 19px;
+            font-weight: bold;
+            color: black;
+        }
+
+        .underline {
+            width: 50%; /* العرض نسبة إلى عرض العنصر الأب */
+            max-width: 600px; /* الحد الأقصى لعرض الخط */
+            height: 2px;
+            background-color: #0c1f24; /* اللون حسب الاختيار */
+            margin: 20px auto;
+        }
+
+        .btn {
+            font-size: 1px;
+            color: white
+        }
+    }
+</style>
+
+<div class="manage-drivers-container">
+    <h1 class="title">Approve drivers</h1>
+    <div class="underline"></div>
+</div>
+<div class="container-fluid">
+    <div>
+
+
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="d-flex gap-2">
+                <a id="addDriverBtn" class="btn btn-success">Add New Driver</a>
+                <a id="closeDriverFormBtn" class="btn btn-success" style="display:none;">
+                    <i class="bi bi-x-lg"></i>
+                </a>
+            </div>
+            
+            <ul class="pagination justify-content-center">
+                <li class="page-item @(Model.CurrentPage == 1 ? "disabled" : "")" id="prevPage">
+                    <a class="btnd" href="javascript:void(0);" onclick="loadPage(@(Model.CurrentPage - 1))">«</a>
+                </li>
+
+                <li class="page-item active">
+                    <span class="btnd">Page @Model.CurrentPage of @Model.TotalPages</span>
+                </li>
+
+                <li class="page-item @(Model.CurrentPage == Model.TotalPages ? "disabled" : "")" id="nextPage">
+                    <a class="btnd" href="javascript:void(0);" onclick="loadPage(@(Model.CurrentPage + 1))">»</a>
+                </li>
+            </ul>
+
+            <span id="totalPages" data-total-pages="@Model.TotalPages" style="display: none;"></span>
+        </div>
+        <div id="driverFormContainer"></div>            
+
+        <div id="driversListContainer">
+            <div class="table-responsive">
+
+                <table class="table table-custom mt-4" style="width: 100%; table-layout: auto;" id="ordersTable">
+
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>TrackingDriver</th>
+                        <th>Name</th>
+                        <th>Profile Picture</th>
+                        <th>License Picture</th>
+                        <th>work Permit </th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Vehicle Type</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var driver in Model.Drivers)
+                    {
+                        <tr>
+                            <td>@driver.DriverId</td>
+                            <td>@driver.TrackingDriver</td>
+                            <td>@driver.Name</td>
+
+                            <td>
+                                <a href="@Url.Content("~/" + driver.ProfilePicture)" data-toggle="modal" data-target="#imageModal">
+                                    <img src="@Url.Content("~/" + driver.ProfilePicture)" alt="Profile Picture" style="width:50px;height:50px" />
+
+
+
+                                </a>
+                            </td>
+
+                            <td>
+                                <a href="@Url.Content("~/" + driver.LicensePicture)" data-toggle="modal" data-target="#imageModal">
+                                    <img src="@Url.Content("~/" + driver.LicensePicture)" alt="License Picture" style="width:50px;height:50px" loading="lazy" />
+                                </a>
+                            </td>
+                            <td>
+                                <a href="@Url.Content("~/" + driver.workPermitPicture)" data-toggle="modal" data-target="#imageModal">
+                                    <img src="@Url.Content("~/" + driver.workPermitPicture)" alt="License Picture" style="width:50px;height:50px" />
+                                </a>
+                            </td>
+                            <td>@driver.Email</td>
+                            <td style="padding-left:10px">@driver.phone</td>
+                            <td>@driver.VehicleType</td>
+                            <td>
+                                <div style="display: flex; gap: 10px">
+                                    <a asp-action="UpdateProfiledriver" asp-controller="HRS" asp-route-id="@driver.DriverId" class="btn btn-success">Edit</a>
+                                    <button type="button" class="btn btn-danger delete-btn" data-id="@driver.DriverId">Delete</button>
+                                </div>
+                            </td>
+
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    </div>
+
+
+</div>
+<div id="deleteModal" class="modal" style="display:none;">
+    <div class="modal-content">
+        <h2>Are you sure?</h2>
+        <p>You won't be able to revert this!</p>
+        <div class="modal-actions">
+            <button id="confirmDelete" class="btn btn-danger">Yes, delete it!</button>
+            <button id="cancelDelete" class="btn btn-secondary">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="imageModal" tabindex="-1" role="dialog" aria-labelledby="imageModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content s" >
+            <div class="modal-header">
+                <h5 class="modal-title" id="imageModalLabel">Image Preview</h5>
+                <button type="button" style="font-size:29px" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true" style="font-size:29px">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <img src="" id="modalImage" class="img-fluid" alt="Image Preview" loading="lazy">
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    $(document).on('click', 'a[data-toggle="modal"]', function (e) {
+        e.preventDefault();
+        var imageSrc = $(this).attr('href');
+        $('#modalImage').attr('src', imageSrc);
+
+        // افتح المودال مع Bootstrap 5
+        var myModal = new bootstrap.Modal(document.getElementById('imageModal'));
+        myModal.show();
+    });
+    $(document).ready(function() {
+        $('.close').on('click', function() {
+            var myModalEl = document.getElementById('imageModal');
+            var modal = bootstrap.Modal.getInstance(myModalEl);
+            if (modal) {
+                modal.hide();
+            }
+        });
+    });
+
+     
+
+    //     function loadPage(page) {
+    //     if (page < 1) return; 
+
+    //     $.ajax({
+    //         url: '/admin1/GetDriver?page=' + page,
+    //         type: 'GET',
+    //         success: function (data) {
+    //             if ($(data).find('#ordersTable tbody tr').length === 0) {
+    //                 console.warn("No data on this page.");
+    //                 return; // لا يوجد بيانات، لا تغيير
+    //             }
+
+    //             $('#ordersTable').html($(data).find('#ordersTable').html());
+
+    //             $('.pagination').html($(data).find('.pagination').html());
+
+    //             var totalPages = $(data).find('#totalPages').data('total-pages');
+
+    //             if (page <= 1) {
+    //                 $('#prevPage').addClass('disabled');
+    //             } else {
+    //                 $('#prevPage').removeClass('disabled');
+    //             }
+
+    //             if (page >= totalPages) {
+    //                 $('#nextPage').addClass('disabled');
+    //             } else {
+    //                 $('#nextPage').removeClass('disabled');
+    //             }
+    //         },
+    //         error: function (err) {
+    //             console.error("Error loading page:", err);
+    //         }
+    //     });
+    // }
+         function loadPage(page) {
+        if (page < 1) return;
+
+        $.ajax({
+            url: '/HRS/GetDriver?page=' + page,
+            type: 'GET',
+            success: function (data) {
+                // تحقق من عدد الصفوف في الجدول
+                if ($(data).find('#ordersTable tbody tr').length === 0) {
+                    console.warn("No data on this page.");
+                    // إذا كانت الصفحة فارغة، أعد تحميل الصفحة السابقة إذا كانت هناك صفحات قبلها
+                    if (page > 1) {
+                        loadPage(page - 1); // أعد تحميل الصفحة السابقة
+                    } else {
+                        $('#ordersTable tbody').empty(); // إذا كانت الصفحة الأولى، اجعل الجدول فارغًا
+                        // تحديث الأزرار
+                        $('.pagination').html('');
+                        $('#totalPages').data('total-pages', 0);
+                    }
+                    return; // لا تغيير
+                }
+
+                $('#ordersTable').html($(data).find('#ordersTable').html());
+                $('.pagination').html($(data).find('.pagination').html());
+
+                var totalPages = $(data).find('#totalPages').data('total-pages');
+
+                // تحديث حالة الأزرار
+                if (page <= 1) {
+                    $('#prevPage').addClass('disabled');
+                } else {
+                    $('#prevPage').removeClass('disabled');
+                }
+
+                if (page >= totalPages) {
+                    $('#nextPage').addClass('disabled');
+                } else {
+                    $('#nextPage').removeClass('disabled');
+                }
+            },
+            error: function (err) {
+                console.error("Error loading page:", err);
+            }
+        });
+    }
+    $(document).ready(function () {
+        $(document).on('click', '.delete-btn', function () {
+            var deleteId = $(this).data("id");
+            var currentPage = getCurrentPage();
+
+            $("#deleteModal").show();
+
+            $("#confirmDelete").off('click').on('click', function () {
+                $.ajax({
+                    url: "/HRS/Delete",
+                    type: "POST",
+                    data: { id: deleteId },
+                    success: function (response) {
+                        if (response.success) {
+                            $("tr[data-id='" + deleteId + "']").fadeOut(500, function () {
+                                $(this).remove();
+                            });
+
+                            // بعد الحذف، تحقق إذا كانت الصفحة فارغة
+                            var rowsCount = $('#ordersTable tbody tr').length;
+                            if (rowsCount === 0) {
+                                // إذا كانت الصفحة فارغة بعد الحذف، أعد تحميل الصفحة السابقة أو الأولى
+                                if (currentPage > 1) {
+                                    loadPage(currentPage - 1); // أعد تحميل الصفحة السابقة
+                                } else {
+                                    loadPage(1); // أعد تحميل الصفحة الأولى إذا كانت هذه هي الصفحة الوحيدة
+                                }
+
+                                // تحديث المتغير TotalPages هنا
+                                $('#totalPages').data('total-pages', 0); // إذا كانت الصفحة فارغة، تأكد من أن عدد الصفحات هو 0
+                            } else {
+                                loadPage(currentPage); // إذا كان هناك صفوف، فقط أعد تحميل الصفحة
+                            }
+
+                            $("#deleteModal").hide();
+                        } else {
+                            alert('⚠️ Error: ' + response.message);
+                        }
+                    },
+                    error: function (xhr, status, error) {
+                        console.error("Error:", xhr.responseText);
+                        alert('⚠️ Error: ' + xhr.status + ' - ' + xhr.statusText);
+                        $("#deleteModal").hide();
+                    }
+                });
+            });
+
+            $("#cancelDelete").click(function () {
+                $("#deleteModal").hide();
+            });
+        });
+   
+
+    function getCurrentPage() {
+        var currentPage = 1;
+        currentPage = parseInt($("#totalPages").data("total-pages")) || 1;
+        return currentPage;
+    }
+
+
+
+
+
+
+
+   
+        // 🟡 تحميل النموذج لإضافة سائق جديد
+        $('#addDriverBtn').click(function (e) {
+            e.preventDefault();
+
+            if ($('#driverFormContainer').is(':empty')) {
+                $.ajax({
+                    url: '@Url.Action("AddDriver", "HRS")',
+                    type: 'GET',
+                    success: function (data) {
+                        $('#driverFormContainer').html(data);
+                                            $('#closeDriverFormBtn').show(); // عرض زر الإغلاق بعد تحميل الفورم
+
+                        activateFormFunctions(); // تفعيل أي أحداث مرتبطة بالفورم
+                    },
+                    error: function () {
+                        alert('⚠️ Error loading the form.');
+                    }
+                });
+            }
+        });
+         $('#closeDriverFormBtn').click(function () {
+        $('#driverFormContainer').empty(); // إفراغ الفورم
+        $(this).hide(); // إخفاء زر الإغلاق
+    });
+        // 🟡 إرسال النموذج باستخدام AJAX
+        $(document).on('submit', '#addDriverForm', function (e) {
+            e.preventDefault();
+            var formData = new FormData(this);
+
+            $.ajax({
+                url: '@Url.Action("AddDriver", "HRS")',
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function (data) {
+                    if ($(data).find(".input-validation-error").length > 0) {
+                        // إعادة عرض النموذج مع الأخطاء
+                        $('#driverFormContainer').html(data);
+                        activateFormFunctions();
+                    } else {
+                        // تفريغ الفورم وتحديث الجدول بعد الإضافة
+                        $("#driverFormContainer").empty();
+                        loadPage(1); // تحديث الصفحة الأولى
+                                        $('#closeDriverFormBtn').hide(); // إخفاء زر الإغلاق
+
+                    }
+                },
+                 error: function (xhr, status, error) {
+        console.error("Error details:", xhr.responseText);
+        alert('⚠️ Error submitting the form: ' + xhr.status + ' - ' + xhr.statusText);
+    }
+
+            });
+        });
+
+   
+
+
+
+        function activateFormFunctions() {
+         
+    $('#togglePassword, #toggleConfirmPassword').click(function () {
+         const passwordField = document.getElementById("Password");
+         const confirmPasswordField = document.getElementById("ConfirmPassword");
+         const icons = document.querySelectorAll(".toggleIcon");
+
+         // تبديل نوع الحقول بين النص وكلمة السر
+         const isPasswordVisible = passwordField.type === "password";
+         passwordField.type = isPasswordVisible ? "text" : "password";
+         confirmPasswordField.type = isPasswordVisible ? "text" : "password";
+
+         // تبديل الأيقونات بين "العين المفتوحة" و "العين المغلقة" لكلا الحقلين
+         icons.forEach(icon => {
+             icon.classList.toggle("fa-eye");
+             icon.classList.toggle("fa-eye-slash");
+         });
+     });
+
+            // باقي الوظائف الأخرى مثل رقم الهاتف
+            const areaCode = document.getElementById("areaCode");
+            const phoneNumber = document.getElementById("phoneNumber");
+
+            // تعيين مفتاح الدولة الافتراضي عند تحميل الصفحة
+            phoneNumber.value = areaCode.value;
+
+            // عند تغيير مفتاح الدولة، يتم تعيين الحقل إلى مفتاح الدولة فقط
+            areaCode.addEventListener("change", function () {
+                phoneNumber.value = areaCode.value; // تعيين الحقل بمفتاح الدولة الجديد
+            });
+
+            // تحديث الرقم عند الكتابة
+            phoneNumber.addEventListener("input", function () {
+                let currentValue = phoneNumber.value;
+
+                // إذا كانت القيمة فارغة، إعادة مفتاح الدولة فقط
+                if (currentValue.trim() === '') {
+                    phoneNumber.value = areaCode.value;
+                    return;
+                }
+
+                const escapedAreaCode = areaCode.value.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
+
+                // التحقق مما إذا كان رمز الدولة محذوفًا يدويًا
+                if (!currentValue.startsWith(areaCode.value)) {
+                    // عرض رسالة خطأ بجانب الحقل
+                    const errorMessage = document.getElementById('phoneError');
+                    if (errorMessage) {
+                        errorMessage.textContent = 'It should be entered with the country code.';
+                        errorMessage.style.display = 'block';
+                    } else {
+                        const errorElement = document.createElement('div');
+                        errorElement.id = 'phoneError';
+                        errorElement.textContent = 'It should be entered with the country code.';
+                        errorElement.style.color = 'red';
+                        errorElement.style.marginTop = '5px';
+                        errorElement.style.fontSize = '0.9em';
+                        phoneNumber.parentElement.appendChild(errorElement);
+                    }
+
+                    phoneNumber.value = areaCode.value; // إعادة رمز الدولة فقط
+                    return;
+                }
+
+                // إزالة أي تكرارات لمفتاح الدولة في النص الحالي، مع الحفاظ على التنسيق
+                let sanitizedValue = currentValue.replace(new RegExp(`^(\\+?${escapedAreaCode}\\s*)+`), `${escapedAreaCode} `);
+
+                // تنظيف الرقم مع الحفاظ على التنسيق (+، الأقواس، والمسافات)
+                sanitizedValue = sanitizedValue.replace(/[^+\d()\s]/g, '');
+
+                // إخفاء رسالة الخطأ إذا كان الإدخال صحيحًا
+                const errorMessage = document.getElementById('phoneError');
+                if (errorMessage) {
+                    errorMessage.style.display = 'none';
+                }
+
+                // تحديث حقل رقم الهاتف بالقيمة المعالجة
+                phoneNumber.value = sanitizedValue;
+            });
+
+            // التأكد من وجود مفتاح الدولة عند فقدان التركيز
+            phoneNumber.addEventListener("focusout", function () {
+                if (phoneNumber.value.trim() === '' || phoneNumber.value === areaCode.value) {
+                    phoneNumber.value = areaCode.value; // إعادة مفتاح الدولة فقط إذا كان الحقل فارغًا
+                }
+            });
+        }
+           });
+
+
+
+
+              // $(document).ready(function () {
+        // let deleteId = null;
+
+        // $(document).on("click", ".delete-btn", function () {
+        //     deleteId = $(this).data("id");
+        //     $("#deleteModal").fadeIn();
+        // });
+
+        // $(".close-btn, #cancelDelete").click(function () {
+        //     $("#deleteModal").fadeOut();
+        // });
+
+        // $("#confirmDelete").click(function () {
+        //     if (deleteId) {
+        //         $.ajax({
+        //             url: "/admin1/Delete",
+        //             type: "POST",
+        //             data: {
+        //                 id: deleteId,
+        //                 __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+        //             },
+        //             success: function (response) {
+        //                 if (response.success) {
+        //                     // إخفاء المودال
+        //                     $("#deleteModal").fadeOut();
+
+        //                     // تحديث الجدول بعد الحذف بدون alert
+        //                     $("tr[data-id='" + deleteId + "']").fadeOut(500, function () {
+        //                         $(this).remove();
+        //                     });
+        //                 }
+        //             },
+        //             error: function (xhr) {
+        //                 console.error("Error: " + xhr.responseText);
+        //                 $("#deleteModal").fadeOut();
+        //             }
+        //         });
+        //     }
+        // });
+
+</script>
+
+
+
+
+
+
+
+

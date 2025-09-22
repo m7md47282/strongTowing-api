@@ -1,0 +1,907 @@
+﻿@{
+    Layout = "~/Views/Shared/-DashAdmin.cshtml";
+}
+
+ @model towing_services.Models.OrdersModel
+
+<style>
+    .bt {
+        background-color: #007bff; /* لون الخلفية الأزرق */
+        color: white; /* لون النص */
+        padding: 10px 20px; /* الحشوة داخل الزر */
+        font-size: 16px; /* حجم الخط */
+        border: none; /* إزالة الحدود */
+        border-radius: 5px; /* حواف مدورة */
+        cursor: pointer; /* تغيير المؤشر إلى يد عند المرور على الزر */
+        transition: all 0.3s ease; /* تأثير الانتقال عند التغيير */
+        white-space: nowrap;
+    }
+
+        .bt:hover {
+            background-color: #007bff !important; /* تغيير اللون عند المرور */
+            transform: scale(1.05); /* تكبير الزر عند المرور */
+        }
+
+        .bt:active {
+            transform: scale(0.95); /* تقليص الزر عند الضغط عليه */
+        }
+
+    .btn-container {
+        display: flex;
+        justify-content: center; /* توسيط الأزرار */
+        gap: 10px; /* مسافة بين الأزرار */
+        flex-wrap: wrap;
+    }
+    @@media (max-width: 600px) {
+        .bt
+
+    {
+        font-size: 10px;
+    }
+
+        .texts{
+            font-size: 19px;
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .d-flex{
+        justify-content: center;
+        text-align: center;
+    }
+
+    .btn-container {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        margin-top: 10px; /* مسافة بين العنوان والأزرار */
+    }
+
+    .bt {
+        font-size: 12px;
+    }
+
+    .texts {
+        font-size: 16px;
+        width: 100%;
+    }
+    }
+
+    .btn-se {
+        background-color: #007bff;
+        color: black;
+        border: 2px solid #007bff;
+        padding: 12px 30px;
+        border-radius: 25px;
+        font-size: 16px;
+        font-weight: bold;
+        text-transform: uppercase;
+        display: inline-block;
+        transition: all 0.3s ease;
+        width: auto;
+        min-width: 150px; /* الحد الأدنى من العرض */
+        max-width: 100%;
+        text-align: center;
+    }
+
+        .btn-se:hover {
+            background-color: #0056b3;
+            border-color: #0056b3;
+            transform: scale(1.05);
+        }
+
+        .btn-se:active {
+            background-color: #004085;
+            border-color: #004085;
+            transform: scale(0.95);
+        }
+
+    @@media (max-width: 768px) {
+        .btn-se
+
+    {
+        padding: 10px 10px;
+        font-size: 16px !important;
+        white-space:normal
+    }
+
+    }
+
+
+
+
+    /*titlw*/
+    .approval-container {
+        text-align: center;
+        padding-top: 20px;
+    }
+
+    .heading {
+        font-size: 36px;
+        font-weight: bold;
+        color: black;
+    }
+
+    .line-separator {
+        width: 50%;
+        max-width: 300px;
+        height: 10px;
+        background-color: #0c1f24;
+        margin: 30px auto;
+    }
+
+    @@media (max-width: 768px) {
+        .heading
+
+    {
+        font-size: 19px;
+        font-weight: bold;
+        color: black;
+    }
+
+    .line-separator {
+        width: 50%;
+        max-width: 600px;
+        height: 2px;
+        background-color: #0c1f24;
+        margin: 20px auto;
+    }
+
+   
+
+    }
+</style>
+
+
+<div class="approval-container">
+    <h1 class="heading">New requests now</h1>
+    <div class="line-separator"></div>
+</div>
+
+<div style="padding-top:80px">
+</div>
+<button id="resetFilter" class="btn-se " style="font-size:25px">Reset to First Page</button>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mt-3 text-center text-md-start">
+
+
+    <h2 class="texts">
+        <span>New Request: <strong id="newRequestCount">0</strong></span>
+    </h2>
+
+    <div class="btn-container">
+        <button id="prevPagenew" class="bt " disabled>
+            <i class="bi bi-chevron-left"></i> <!-- أيقونة "Previous" -->
+        </button>
+        <span id="currentPagenew" class="mx-3">Page 1</span>
+        <button id="nextPagenew" class="bt ">
+            <i class="bi bi-chevron-right"></i> <!-- أيقونة "Next" -->
+        </button>
+    </div>
+
+</div>
+<div style="padding-top:30px">
+
+</div>
+
+<div id="tableContainer">
+   
+    <partial name="orders" model="Model" />
+</div>
+<div id="noDataMessage" style="display:none;"></div>  <!-- سيتم عرض الرسالة هنا إذا لم توجد بيانات -->
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/3.1.7/signalr.min.js"></script>
+
+
+
+
+<script>
+
+  
+
+
+     
+     $(document).ready(function () {
+        let currentPage = 1;
+        let currentPageInProgress = 1;
+        let totalPages = parseInt($("#totalPages").val()) || 1;
+        let totalPagesInProgress = parseInt($("#totalPagesInProgress").val()) || 1;
+        let isLoading = false;
+
+        // ✅ تحميل الطلبات عند فتح الصفحة
+        loadOrders();
+
+        // ✅ دالة لتحميل الطلبات مع القيم الافتراضية
+        function loadOrders(page = 1, pageInProgress = 1) {
+            if (isLoading) return;
+            isLoading = true;
+
+            $("#prevPagenew, #nextPagenew, #prevPageInProgressnew, #nextPageInProgressnew").prop("disabled", true);
+
+            $.ajax({
+                url: '/admin1/IIndexPartialView',
+                type: 'GET',
+                data: { page: page, pageInProgress: pageInProgress },
+                success: function (data) {
+                    $("#tableContainer").html(data);
+
+                    // ✅ عرض أو إخفاء رسالة "لا توجد بيانات"
+                    if ($("#tableContainer table tbody tr").length === 0) {
+                        $("#notFoundMessage").show();
+                    } else {
+                        $("#notFoundMessage").hide();
+                    }
+
+                    // ✅ تحديث عدد الصفحات
+                    totalPages = parseInt($("#totalPages").val()) || 1;
+                    totalPagesInProgress = parseInt($("#totalPagesInProgress").val()) || 1;
+
+                    // ✅ تحديث الصفحة الحالية
+                    currentPage = page;
+                    currentPageInProgress = pageInProgress;
+
+                    updatePaginationButtons();
+                },
+                complete: function () {
+                    isLoading = false;
+                    updatePaginationButtons();
+                }
+            });
+        }
+
+        // ✅ دالة لتحديث أزرار التنقل بين الصفحات
+        function updatePaginationButtons() {
+            $("#currentPagenew").text(`Page ${currentPage}`);
+            $("#prevPagenew").prop("disabled", currentPage <= 1 || isLoading);
+            $("#nextPagenew").prop("disabled", currentPage >= totalPages || isLoading);
+
+            $("#currentPageInProgressnew").text(`Page ${currentPageInProgress}`);
+            $("#prevPageInProgressnew").prop("disabled", currentPageInProgress <= 1 || isLoading);
+            $("#nextPageInProgressnew").prop("disabled", currentPageInProgress >= totalPagesInProgress || isLoading);
+        }
+
+        // ✅ البحث أو التصفية
+        $('#filterForm').submit(function (e) {
+            e.preventDefault();
+            loadOrders(1, 1);
+        });
+
+        // ✅ التنقل بين الصفحات
+        $(document).on("click", "#prevPagenew", function () {
+            if (currentPage > 1) {
+                loadOrders(currentPage - 1, currentPageInProgress);
+            }
+        });
+
+        $(document).on("click", "#nextPagenew", function () {
+            if (currentPage < totalPages) {
+                loadOrders(currentPage + 1, currentPageInProgress);
+            }
+        });
+
+        $(document).on("click", "#prevPageInProgressnew", function () {
+            if (currentPageInProgress > 1) {
+                loadOrders(currentPage, currentPageInProgress - 1);
+            }
+        });
+
+        $(document).on("click", "#nextPageInProgressnew", function () {
+            if (currentPageInProgress < totalPagesInProgress) {
+                loadOrders(currentPage, currentPageInProgress + 1);
+            }
+        });
+
+        $(document).on("click", "#resetFilter", function () {
+            loadOrders(1, 1);
+        });
+
+        // ✅ إنشاء اتصال SignalR مع الهب
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/orderHub")
+            .build();
+
+        // ✅ بدء الاتصال
+        connection.start().then(() => {
+            console.log("✅ SignalR connection established");
+            loadOrders(); // تحميل البيانات عند الاتصال
+        }).catch(err => {
+            console.error("❌ Error while establishing connection: " + err);
+        });
+
+        // ✅ استقبال الإشعار عند وصول طلب جديد
+        connection.on("ReceiveNewOrderNotification", function (newOrderCount, message) {
+            console.log("🔔 New order count received: " + newOrderCount);
+
+            // ✅ تحديث عداد الطلبات الجديدة
+            const newRequestCountElement = document.getElementById("newRequestCount");
+            if (newRequestCountElement) {
+                // تحديث العداد بالقيمة الجديدة فقط
+                newRequestCountElement.innerText = newOrderCount;
+            }
+
+            // ✅ عرض الإشعار
+            showNotification(message);
+
+            // ✅ تشغيل صوت الإشعار
+            playNotificationSound();
+
+            // ✅ تحديث الجدول مع الحفاظ على الصفحة الحالية
+            loadOrders(currentPage, currentPageInProgress);
+        });
+
+        // ✅ دالة لإظهار إشعار بسيط
+        function showNotification(message) {
+            let notification = document.createElement("div");
+            notification.classList.add("notification");
+            notification.innerText = message;
+
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.remove();
+            }, 5000);
+        }
+
+        // ✅ دالة لتشغيل صوت عند الإشعار
+        function playNotificationSound() {
+            var audio = new Audio('/soundtest1/nottest.wav');  // تحديد مسار الصوت
+            audio.play();
+        }
+
+    });
+
+
+    // بدء الاتصال
+    // // // // // $(document).ready(function () {
+    // // // // //     let currentPage = localStorage.getItem("currentPage") ? parseInt(localStorage.getItem("currentPage")) : 1;
+    // // // // //     let currentPageInProgress = localStorage.getItem("currentPageInProgress") ? parseInt(localStorage.getItem("currentPageInProgress")) : 1;
+
+    // // // // //     let totalPages = parseInt($("#totalPages").val()) || 1;
+    // // // // //     let totalPagesInProgress = parseInt($("#totalPagesInProgress").val()) || 1;
+    // // // // //     let isLoading = false;
+
+    // // // // //     loadOrders(currentPage, currentPageInProgress);
+
+    // // // // //     function loadOrders(page = 1, pageInProgress = 1) {
+    // // // // //         if (isLoading) return;
+    // // // // //         isLoading = true;
+
+    // // // // //         localStorage.setItem("currentPage", page);
+    // // // // //         localStorage.setItem("currentPageInProgress", pageInProgress);
+
+    // // // // //         $("#prevPagenew, #nextPagenew, #prevPageInProgressnew, #nextPageInProgressnew").prop("disabled", true);
+
+    // // // // //         $.ajax({
+    // // // // //             url: '/admin1/IIndexPartialView',
+    // // // // //             type: 'GET',
+    // // // // //             data: { page: page, pageInProgress: pageInProgress },
+    // // // // //             success: function (data) {
+    // // // // //                 $("#tableContainer").html(data);
+
+    // // // // //                 // التحقق مما إذا كان الجدول فارغًا
+    // // // // //                 if ($("#tableContainer table tbody tr").length === 0) {
+    // // // // //                     $("#notFoundMessage").show(); // عرض الرسالة
+    // // // // //                 } else {
+    // // // // //                     $("#notFoundMessage").hide(); // إخفاء الرسالة إذا كان هناك بيانات
+    // // // // //                 }
+
+    // // // // //                 currentPage = page;
+    // // // // //                 currentPageInProgress = pageInProgress;
+
+    // // // // //                 totalPages = parseInt($("#totalPages").val()) || 1;
+    // // // // //                 totalPagesInProgress = parseInt($("#totalPagesInProgress").val()) || 1;
+
+    // // // // //                 updatePaginationButtons();
+    // // // // //             },
+    // // // // //             complete: function () {
+    // // // // //                 isLoading = false;
+    // // // // //                 updatePaginationButtons();
+    // // // // //             }
+    // // // // //         });
+    // // // // //     }
+
+    // // // // //     function updatePaginationButtons() {
+    // // // // //         $("#currentPagenew").text(`Page ${currentPage}`);
+    // // // // //         $("#prevPagenew").prop("disabled", currentPage <= 1 || isLoading);
+    // // // // //         $("#nextPagenew").prop("disabled", currentPage >= totalPages || isLoading);
+
+    // // // // //         $("#currentPageInProgressnew").text(`Page ${currentPageInProgress}`);
+    // // // // //         $("#prevPageInProgressnew").prop("disabled", currentPageInProgress <= 1 || isLoading);
+    // // // // //         $("#nextPageInProgressnew").prop("disabled", currentPageInProgress >= totalPagesInProgress || isLoading);
+    // // // // //     }
+
+    // // // // //     $('#filterForm').submit(function (e) {
+    // // // // //         e.preventDefault();
+    // // // // //         loadOrders(1, 1);
+    // // // // //     });
+
+    // // // // //     $(document).on("click", "#prevPagenew", function () {
+    // // // // //         if (currentPage > 1) {
+    // // // // //             loadOrders(currentPage - 1, currentPageInProgress);
+    // // // // //         }
+    // // // // //     });
+
+    // // // // //     $(document).on("click", "#nextPagenew", function () {
+    // // // // //         if (currentPage < totalPages) {
+    // // // // //             loadOrders(currentPage + 1, currentPageInProgress);
+    // // // // //         }
+    // // // // //     });
+
+    // // // // //     $(document).on("click", "#prevPageInProgressnew", function () {
+    // // // // //         if (currentPageInProgress > 1) {
+    // // // // //             loadOrders(currentPage, currentPageInProgress - 1);
+    // // // // //         }
+    // // // // //     });
+
+    // // // // //     $(document).on("click", "#nextPageInProgressnew", function () {
+    // // // // //         if (currentPageInProgress < totalPagesInProgress) {
+    // // // // //             loadOrders(currentPage, currentPageInProgress + 1);
+    // // // // //         }
+    // // // // //     });
+
+    // // // // //     $(document).on("click", "#resetFilter", function () {
+    // // // // //         localStorage.setItem("currentPage", 1);
+    // // // // //         localStorage.setItem("currentPageInProgress", 1);
+    // // // // //         loadOrders(1, 1);
+    // // // // //     });
+
+    // // // // // });
+
+
+    //     $(document).ready(function () {
+    //     let currentPage = localStorage.getItem("currentPage") ? parseInt(localStorage.getItem("currentPage")) : 1;
+    //     let currentPageInProgress = localStorage.getItem("currentPageInProgress") ? parseInt(localStorage.getItem("currentPageInProgress")) : 1;
+
+    //     let totalPages = parseInt($("#totalPages").val()) || 1;
+    //     let totalPagesInProgress = parseInt($("#totalPagesInProgress").val()) || 1;
+    //     let isLoading = false;
+
+    //     loadOrders(currentPage, currentPageInProgress);
+
+    //     function loadOrders(page = 1, pageInProgress = 1) {
+    //         if (isLoading) return;
+    //         isLoading = true;
+
+    //         localStorage.setItem("currentPage", page);
+    //         localStorage.setItem("currentPageInProgress", pageInProgress);
+
+    //         $("#prevPagenew, #nextPagenew, #prevPageInProgressnew, #nextPageInProgressnew").prop("disabled", true);
+
+    //         $.ajax({
+    //             url: '/admin1/IIndexPartialView',
+    //             type: 'GET',
+    //             data: { page: page, pageInProgress: pageInProgress },
+    //             success: function (data) {
+    //                 $("#tableContainer").html(data);
+
+    //                 // التحقق مما إذا كان الجدول فارغًا
+    //                 if ($("#tableContainer table tbody tr").length === 0) {
+    //                     $("#notFoundMessage").show(); // عرض الرسالة
+    //                 } else {
+    //                     $("#notFoundMessage").hide(); // إخفاء الرسالة إذا كان هناك بيانات
+    //                 }
+
+    //                 currentPage = page;
+    //                 currentPageInProgress = pageInProgress;
+
+    //                 totalPages = parseInt($("#totalPages").val()) || 1;
+    //                 totalPagesInProgress = parseInt($("#totalPagesInProgress").val()) || 1;
+
+    //                 updatePaginationButtons();
+    //             },
+    //             complete: function () {
+    //                 isLoading = false;
+    //                 updatePaginationButtons();
+    //             }
+    //         });
+    //     }
+
+    //     function updatePaginationButtons() {
+    //         $("#currentPagenew").text(`Page ${currentPage}`);
+    //         $("#prevPagenew").prop("disabled", currentPage <= 1 || isLoading);
+    //         $("#nextPagenew").prop("disabled", currentPage >= totalPages || isLoading);
+
+    //         $("#currentPageInProgressnew").text(`Page ${currentPageInProgress}`);
+    //         $("#prevPageInProgressnew").prop("disabled", currentPageInProgress <= 1 || isLoading);
+    //         $("#nextPageInProgressnew").prop("disabled", currentPageInProgress >= totalPagesInProgress || isLoading);
+    //     }
+
+    //     $('#filterForm').submit(function (e) {
+    //         e.preventDefault();
+    //         loadOrders(1, 1);
+    //     });
+
+    //     $(document).on("click", "#prevPagenew", function () {
+    //         if (currentPage > 1) {
+    //             loadOrders(currentPage - 1, currentPageInProgress);
+    //         }
+    //     });
+
+    //     $(document).on("click", "#nextPagenew", function () {
+    //         if (currentPage < totalPages) {
+    //             loadOrders(currentPage + 1, currentPageInProgress);
+    //         }
+    //     });
+
+    //     $(document).on("click", "#prevPageInProgressnew", function () {
+    //         if (currentPageInProgress > 1) {
+    //             loadOrders(currentPage, currentPageInProgress - 1);
+    //         }
+    //     });
+
+    //     $(document).on("click", "#nextPageInProgressnew", function () {
+    //         if (currentPageInProgress < totalPagesInProgress) {
+    //             loadOrders(currentPage, currentPageInProgress + 1);
+    //         }
+    //     });
+
+    //     $(document).on("click", "#resetFilter", function () {
+    //         localStorage.setItem("currentPage", 1);
+    //         localStorage.setItem("currentPageInProgress", 1);
+    //         loadOrders(1, 1);
+    //     });
+
+    //     // إنشاء اتصال SignalR مع الهب
+    //     const connection = new signalR.HubConnectionBuilder()
+    //         .withUrl("/orderHub")
+    //         .build();
+
+    //     // بدء الاتصال
+    //     connection.start().then(() => {
+    //         console.log("✅ SignalR connection established");
+    //         updateTable(); // ✅ تحميل البيانات عند فتح الصفحة
+    //     }).catch(err => {
+    //         console.error("❌ Error while establishing connection: " + err);
+    //     });
+
+    //     // استقبال الإشعار عند وصول طلب جديد
+    //     connection.on("ReceiveNewOrderNotification", function (newOrderCount, message) {
+    //         console.log("🔔 New order count received: " + newOrderCount);
+
+    //         // تحديث عدد الطلبات الجديدة
+    //         const orderCountElement = document.getElementById("newOrderCount");
+    //         if (orderCountElement) {
+    //             orderCountElement.innerText = newOrderCount;
+    //             orderCountElement.style.display = 'inline-block';
+    //         }
+
+    //         // عرض إشعار للمستخدم
+    //         showNotification(message);
+
+    //         // ✅ تحديث الجدول إذا كنا في الصفحة التي تحتوي عليه
+    //         if ($("#tableContainer").length) {
+    //             loadOrders(currentPage, currentPageInProgress);  // تحديث الجدول عند تلقي الإشعار
+    //         }
+    //     });
+
+    //     // ✅ تحميل البيانات عند فتح الصفحة أو تحديثها عند وصول طلب جديد
+    //     function updateTable() {
+    //         console.log("🔄 Fetching orders...");
+    //         $.ajax({
+    //             url: "/admin1/IIndexPartialView", // تأكد من أن هذا هو المسار الصحيح
+    //             type: "GET",
+    //             success: function (data) {
+    //                 $("#tableContainer").html(data);
+    //                 console.log("✅ Table loaded successfully");
+    //                 updatePaginationButtons();  // تحديث الأزرار بعد تحميل الجدول
+    //             },
+    //             error: function (xhr) {
+    //                 console.error("❌ Error loading table: " + xhr.status + " " + xhr.statusText);
+    //             }
+    //         });
+    //     }
+
+    //     // دالة لإظهار إشعار بسيط
+    //     function showNotification(message) {
+    //         let notification = document.createElement("div");
+    //         notification.classList.add("notification");
+    //         notification.innerText = message;
+
+    //         document.body.appendChild(notification);
+
+    //         setTimeout(() => {
+    //             notification.remove();
+    //         }, 5000);
+    //     }
+    // });
+
+
+
+
+    // // //     $(document).ready(function () {
+    // // //     let currentPage = localStorage.getItem("currentPage") ? parseInt(localStorage.getItem("currentPage")) : 1;
+    // // //     let currentPageInProgress = localStorage.getItem("currentPageInProgress") ? parseInt(localStorage.getItem("currentPageInProgress")) : 1;
+
+    // // //     let totalPages = parseInt($("#totalPages").val()) || 1;
+    // // //     let totalPagesInProgress = parseInt($("#totalPagesInProgress").val()) || 1;
+    // // //     let isLoading = false;
+
+    // // //     loadOrders(currentPage, currentPageInProgress);
+
+    // // //     function loadOrders(page = 1, pageInProgress = 1) {
+    // // //         if (isLoading) return;
+    // // //         isLoading = true;
+
+    // // //         localStorage.setItem("currentPage", page);
+    // // //         localStorage.setItem("currentPageInProgress", pageInProgress);
+
+    // // //         $("#prevPagenew, #nextPagenew, #prevPageInProgressnew, #nextPageInProgressnew").prop("disabled", true);
+
+    // // //         $.ajax({
+    // // //             url: '/admin1/IIndexPartialView',
+    // // //             type: 'GET',
+    // // //             data: { page: page, pageInProgress: pageInProgress },
+    // // //             success: function (data) {
+    // // //                 $("#tableContainer").html(data);
+
+    // // //                 // التحقق مما إذا كان الجدول فارغًا
+    // // //                 if ($("#tableContainer table tbody tr").length === 0) {
+    // // //                     $("#notFoundMessage").show(); // عرض الرسالة
+    // // //                 } else {
+    // // //                     $("#notFoundMessage").hide(); // إخفاء الرسالة إذا كان هناك بيانات
+    // // //                 }
+
+    // // //                 currentPage = page;
+    // // //                 currentPageInProgress = pageInProgress;
+
+    // // //                 totalPages = parseInt($("#totalPages").val()) || 1;
+    // // //                 totalPagesInProgress = parseInt($("#totalPagesInProgress").val()) || 1;
+
+    // // //                 updatePaginationButtons();
+    // // //             },
+    // // //             complete: function () {
+    // // //                 isLoading = false;
+    // // //                 updatePaginationButtons();
+    // // //             }
+    // // //         });
+    // // //     }
+
+    // // //     function updatePaginationButtons() {
+    // // //         $("#currentPagenew").text(`Page ${currentPage}`);
+    // // //         $("#prevPagenew").prop("disabled", currentPage <= 1 || isLoading);
+    // // //         $("#nextPagenew").prop("disabled", currentPage >= totalPages || isLoading);
+
+    // // //         $("#currentPageInProgressnew").text(`Page ${currentPageInProgress}`);
+    // // //         $("#prevPageInProgressnew").prop("disabled", currentPageInProgress <= 1 || isLoading);
+    // // //         $("#nextPageInProgressnew").prop("disabled", currentPageInProgress >= totalPagesInProgress || isLoading);
+    // // //     }
+
+    // // //     $('#filterForm').submit(function (e) {
+    // // //         e.preventDefault();
+    // // //         loadOrders(1, 1);
+    // // //     });
+
+    // // //     $(document).on("click", "#prevPagenew", function () {
+    // // //         if (currentPage > 1) {
+    // // //             loadOrders(currentPage - 1, currentPageInProgress);
+    // // //         }
+    // // //     });
+
+    // // //     $(document).on("click", "#nextPagenew", function () {
+    // // //         if (currentPage < totalPages) {
+    // // //             loadOrders(currentPage + 1, currentPageInProgress);
+    // // //         }
+    // // //     });
+
+    // // //     $(document).on("click", "#prevPageInProgressnew", function () {
+    // // //         if (currentPageInProgress > 1) {
+    // // //             loadOrders(currentPage, currentPageInProgress - 1);
+    // // //         }
+    // // //     });
+
+    // // //     $(document).on("click", "#nextPageInProgressnew", function () {
+    // // //         if (currentPageInProgress < totalPagesInProgress) {
+    // // //             loadOrders(currentPage, currentPageInProgress + 1);
+    // // //         }
+    // // //     });
+
+    // // //     $(document).on("click", "#resetFilter", function () {
+    // // //         localStorage.setItem("currentPage", 1);
+    // // //         localStorage.setItem("currentPageInProgress", 1);
+    // // //         loadOrders(1, 1);
+    // // //     });
+
+    // // //     // إنشاء اتصال SignalR مع الهب
+    // // //     const connection = new signalR.HubConnectionBuilder()
+    // // //         .withUrl("/orderHub")
+    // // //         .build();
+
+    // // //     // بدء الاتصال
+    // // //     connection.start().then(() => {
+    // // //         console.log("✅ SignalR connection established");
+    // // //         updateTable(); // ✅ تحميل البيانات عند فتح الصفحة
+    // // //     }).catch(err => {
+    // // //         console.error("❌ Error while establishing connection: " + err);
+    // // //     });
+
+    // // //     // استقبال الإشعار عند وصول طلب جديد
+    // // //     connection.on("ReceiveNewOrderNotification", function (newOrderCount, message) {
+    // // //         console.log("🔔 New order count received: " + newOrderCount);
+
+    // // //         // تحديث عدد الطلبات الجديدة
+    // // //         const orderCountElement = document.getElementById("newOrderCount");
+    // // //         if (orderCountElement) {
+    // // //             orderCountElement.innerText = newOrderCount;
+    // // //             orderCountElement.style.display = 'inline-block';
+    // // //         }
+
+    // // //         // عرض إشعار للمستخدم
+    // // //         showNotification(message);
+
+    // // //         // تشغيل الصوت عند وصول إشعار جديد
+    // // //         playNotificationSound();
+
+    // // //         // ✅ تحديث الجدول إذا كنا في الصفحة التي تحتوي عليه
+    // // //         if ($("#tableContainer").length) {
+    // // //             loadOrders(currentPage, currentPageInProgress);  // تحديث الجدول عند تلقي الإشعار
+    // // //         }
+    // // //     });
+
+  
+    // // //     // دالة لإظهار إشعار بسيط
+    // // //     function showNotification(message) {
+    // // //         let notification = document.createElement("div");
+    // // //         notification.classList.add("notification");
+    // // //         notification.innerText = message;
+
+    // // //         document.body.appendChild(notification);
+
+    // // //         setTimeout(() => {
+    // // //             notification.remove();
+    // // //         }, 5000);
+    // // //     }
+
+    // // //     // دالة لتشغيل الصوت
+    // // //     function playNotificationSound() {
+    // // //         var audio = new Audio('/soundtest1/nottest.wav');  // تحديد مسار الصوت
+    // // //         audio.play();  // تشغيل الصوت
+    // // //     }
+    // // // });
+
+
+
+    // // //     $(document).ready(function () {
+    // // //     let currentPage = 1;
+    // // //     let currentPageInProgress = 1;
+
+    // // //     let totalPages = parseInt($("#totalPages").val()) || 1;
+    // // //     let totalPagesInProgress = parseInt($("#totalPagesInProgress").val()) || 1;
+    // // //     let isLoading = false;
+
+    // // //     loadOrders(currentPage, currentPageInProgress);
+
+    // // //     function loadOrders(page = 1, pageInProgress = 1) {
+    // // //         if (isLoading) return;
+    // // //         isLoading = true;
+
+    // // //         $("#prevPagenew, #nextPagenew, #prevPageInProgressnew, #nextPageInProgressnew").prop("disabled", true);
+
+    // // //         $.ajax({
+    // // //             url: '/admin1/IIndexPartialView',
+    // // //             type: 'GET',
+    // // //             data: { page: page, pageInProgress: pageInProgress },
+    // // //             success: function (data) {
+    // // //                 $("#tableContainer").html(data);
+
+    // // //                 // التحقق مما إذا كان الجدول فارغًا
+    // // //                 if ($("#tableContainer table tbody tr").length === 0) {
+    // // //                     $("#notFoundMessage").show(); // عرض الرسالة
+    // // //                 } else {
+    // // //                     $("#notFoundMessage").hide(); // إخفاء الرسالة إذا كان هناك بيانات
+    // // //                 }
+
+    // // //                 currentPage = page;
+    // // //                 currentPageInProgress = pageInProgress;
+
+    // // //                 totalPages = parseInt($("#totalPages").val()) || 1;
+    // // //                 totalPagesInProgress = parseInt($("#totalPagesInProgress").val()) || 1;
+
+    // // //                 updatePaginationButtons();
+    // // //             },
+    // // //             complete: function () {
+    // // //                 isLoading = false;
+    // // //                 updatePaginationButtons();
+    // // //             }
+    // // //         });
+    // // //     }
+
+    // // //     function updatePaginationButtons() {
+    // // //         $("#currentPagenew").text(`Page ${currentPage}`);
+    // // //         $("#prevPagenew").prop("disabled", currentPage <= 1 || isLoading);
+    // // //         $("#nextPagenew").prop("disabled", currentPage >= totalPages || isLoading);
+
+    // // //         $("#currentPageInProgressnew").text(`Page ${currentPageInProgress}`);
+    // // //         $("#prevPageInProgressnew").prop("disabled", currentPageInProgress <= 1 || isLoading);
+    // // //         $("#nextPageInProgressnew").prop("disabled", currentPageInProgress >= totalPagesInProgress || isLoading);
+    // // //     }
+
+    // // //     $('#filterForm').submit(function (e) {
+    // // //         e.preventDefault();
+    // // //         loadOrders(1, 1);
+    // // //     });
+
+    // // //     $(document).on("click", "#prevPagenew", function () {
+    // // //         if (currentPage > 1) {
+    // // //             loadOrders(currentPage - 1, currentPageInProgress);
+    // // //         }
+    // // //     });
+
+    // // //     $(document).on("click", "#nextPagenew", function () {
+    // // //         if (currentPage < totalPages) {
+    // // //             loadOrders(currentPage + 1, currentPageInProgress);
+    // // //         }
+    // // //     });
+
+    // // //     $(document).on("click", "#prevPageInProgressnew", function () {
+    // // //         if (currentPageInProgress > 1) {
+    // // //             loadOrders(currentPage, currentPageInProgress - 1);
+    // // //         }
+    // // //     });
+
+    // // //     $(document).on("click", "#nextPageInProgressnew", function () {
+    // // //         if (currentPageInProgress < totalPagesInProgress) {
+    // // //             loadOrders(currentPage, currentPageInProgress + 1);
+    // // //         }
+    // // //     });
+
+    // // //     $(document).on("click", "#resetFilter", function () {
+    // // //         loadOrders(1, 1);
+    // // //     });
+
+    // // //     // إنشاء اتصال SignalR مع الهب
+    // // //     const connection = new signalR.HubConnectionBuilder()
+    // // //         .withUrl("/orderHub")
+    // // //         .build();
+
+    // // //     // بدء الاتصال
+    // // //     connection.start().then(() => {
+    // // //         console.log("✅ SignalR connection established");
+    // // //         updateTable(); // ✅ تحميل البيانات عند فتح الصفحة
+    // // //     }).catch(err => {
+    // // //         console.error("❌ Error while establishing connection: " + err);
+    // // //     });
+
+    // // //     // استقبال الإشعار عند وصول طلب جديد
+    // // //     connection.on("ReceiveNewOrderNotification", function (newOrderCount, message) {
+    // // //         console.log("🔔 New order count received: " + newOrderCount);
+
+    // // //         // تحديث عدد الطلبات الجديدة
+    // // //         const orderCountElement = document.getElementById("newOrderCount");
+    // // //         if (orderCountElement) {
+    // // //             orderCountElement.innerText = newOrderCount;
+    // // //             orderCountElement.style.display = 'inline-block';
+    // // //         }
+
+
+    // // //         //2 item
+      
+    // // //         showNotification(message);
+
+    // // //         playNotificationSound();
+
+    // // //         if ($("#tableContainer").length) {
+    // // //             loadOrders(currentPage, currentPageInProgress);  // تحديث الجدول عند تلقي الإشعار
+    // // //         }
+    // // //     });
+
+    // // //     // دالة لإظهار إشعار بسيط
+    // // //     function showNotification(message) {
+    // // //         let notification = document.createElement("div");
+    // // //         notification.classList.add("notification");
+    // // //         notification.innerText = message;
+
+    // // //         document.body.appendChild(notification);
+
+    // // //         setTimeout(() => {
+    // // //             notification.remove();
+    // // //         }, 5000);
+    // // //     }
+
+    // // //     function playNotificationSound() {
+    // // //         var audio = new Audio('/soundtest1/nottest.wav');  // تحديد مسار الصوت
+    // // //         audio.play();  // تشغيل الصوت
+    // // //     }
+    // // // });
+       
+</script>

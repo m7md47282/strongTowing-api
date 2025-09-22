@@ -1,0 +1,576 @@
+﻿<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+<style>
+    :root {
+        --primary-blue: #174d65;
+        --dark-blue: #226a9c;
+        --light-blue: #0084b4;
+        --primary-orange: #faa74a;
+        --orange-hover: #ec971f;
+        --light-gray: #f8f9fa;
+        --medium-gray: #e9ecef;
+        --dark-gray: #343a40;
+        --white: #ffffff;
+        --black: #000000;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        line-height: 1.5;
+        font-weight: 400;
+        background-color: var(--white);
+        color: var(--dark-gray);
+        font-synthesis: none;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        overflow-x: hidden;
+    }
+
+    body {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        overflow-x: hidden;
+    }
+
+    #app {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+
+    a {
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .container {
+        width: 100%;
+        max-width: 1350px;
+        margin: 0 auto;
+        padding: 0 16px;
+    }
+
+    .title-hero-container {
+        width: 100%;
+    }
+
+    .title-hero {
+        padding: 4.5rem 0;
+        text-align: center;
+        margin: 0px;
+        width: 100%;
+        background-color: var(--primary-blue);
+        position: relative;
+    }
+
+    .start-dots {
+        position: absolute;
+        top: 15px;
+        left: 10px;
+    }
+
+    .end-dots {
+        position: absolute;
+        bottom: 15px;
+        right: 10px;
+    }
+
+    .section-label {
+        color: var(--primary-orange);
+        font-size: 16px;
+        font-weight: 600;
+        display: flex;
+    }
+
+    .center-label {
+        justify-content: center;
+        justify-items: center;
+    }
+
+    .divider-label {
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+        .divider-label::before {
+            content: "";
+            height: 2px;
+            background-color: var(--primary-orange);
+            width: 24px;
+            margin: 0 12px;
+        }
+
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 16px;
+        border-radius: 4px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: none;
+        text-align: center;
+    }
+
+    .btn-primary {
+        background-color: var(--primary-blue);
+        color: var(--white);
+    }
+
+        .btn-primary:hover {
+            background-color: var(--dark-blue);
+        }
+
+    .btn-orange {
+        background-color: var(--primary-orange);
+        color: var(--white);
+    }
+
+        .btn-orange:hover {
+            background-color: var(--orange-hover);
+        }
+
+    .btn-outline {
+        background-color: transparent;
+        border: 1px solid var(--white);
+        color: var(--white);
+    }
+
+        .btn-outline:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+    .social-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 16px;
+        color: inherit;
+        font-size: 18px;
+    }
+
+    .arrow-icon {
+        margin-left: 8px;
+    }
+
+    .fa,
+    .fa-brands,
+    .fa-classic,
+    .fa-regular,
+    .fa-sharp,
+    .fa-solid,
+    .fab,
+    .far,
+    .fas {
+        line-height: normal;
+    }
+
+    /* Floating Actions */
+    .floating-actions {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        z-index: 1000;
+    }
+
+    .floating-btn {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 24px;
+        border-radius: 50px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+        .floating-btn i {
+            transition: transform 0.3s ease;
+        }
+
+        .floating-btn:hover i {
+            transform: translateX(4px);
+        }
+
+    .find-offers {
+        background-color: #1e6888;
+        color: var(--white);
+    }
+
+        .find-offers:hover {
+            background-color: var(--dark-blue);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+        }
+
+    .find-offers-arrow {
+        background-color: white;
+        color: #1e6888;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        margin: auto;
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+    }
+
+    .request-service {
+        background-color: var(--primary-orange);
+        color: var(--white);
+    }
+
+        .request-service:hover {
+            background-color: var(--orange-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+        }
+
+    .request-service-arrow {
+        background-color: white;
+        color: #faa74a;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        margin: auto;
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+    }
+
+    .contact-us-btn, .all-other-services-btn {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 24px;
+        border-radius: 50px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        background-color: var(--primary-orange);
+        color: var(--white);
+        width: fit-content;
+    }
+
+        .contact-us-btn i, .all-other-services-btn i {
+            transition: transform 0.3s ease;
+        }
+
+        .contact-us-btn:hover i, .all-other-services-btn:hover i {
+            transform: translateX(4px);
+        }
+
+        .contact-us-btn:hover, .all-other-services-btn:hover {
+            background-color: var(--orange-hover);
+            transform: translateX(4px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+        }
+
+    .contact-arrow, .all-other-services-arrow {
+        background-color: white;
+        color: #faa74a;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        margin: auto;
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+    }
+
+    .divider {
+        border: 0;
+        border-top: 1px solid #cccccc;
+        margin: 24px 0;
+    }
+
+    @@media (min-width: 1600px) {
+        .title-hero-container
+
+    {
+        margin: 0 auto;
+    }
+
+    }
+    @@media (max-width: 768px) {
+        .container
+
+    {
+        padding: 0 12px;
+    }
+
+    .title-hero {
+        width: 100%;
+    }
+
+    .floating-actions {
+        bottom: 20px;
+        right: 10px;
+    }
+
+    .floating-btn {
+        padding: 10px 20px;
+        font-size: 14px;
+    }
+
+    }
+
+    @@media (max-width: 576px) {
+        .floating-actions
+
+    {
+        bottom: 16px;
+        right: 5px;
+    }
+
+    .floating-btn {
+        width: fit-content;
+        justify-content: center;
+    }
+
+    }
+
+    .blog-hero {
+        background-color: var(--primary-blue);
+        padding: 2rem 0;
+        text-align: center;
+    }
+
+    .blog-title {
+        color: var(--white);
+        font-size: clamp(1.75rem, 4vw, 3rem);
+        font-weight: 700;
+        margin: 0;
+    }
+
+    .blog-container {
+        width: 100%;
+        max-width: 1350px;
+        padding: 1.5rem;
+        margin: 0 auto;
+    }
+
+    .blog-intro {
+        padding: 1rem 0;
+        max-width: 800px;
+        color: var(--dark-gray);
+        font-size: clamp(1rem, 2vw, 1.125rem);
+    }
+
+    .bold-intro {
+        font-weight: 700;
+        font-size: clamp(1.5rem, 4vw, 2.5rem);
+        display: block;
+    }
+
+    .blog-posts {
+        display: flex;
+        flex-direction: column;
+        gap: 6rem;
+        padding: 2rem 0;
+    }
+
+    .blog-post {
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        background: var(--white);
+        transition: transform 0.3s ease;
+    }
+
+        .blog-post:hover {
+            transform: translateY(-5px);
+        }
+
+    .blog-post-title {
+        font-size: clamp(1.25rem, 3vw, 2rem);
+        font-weight: 700;
+        margin-bottom: 1rem;
+        color: var(--dark-gray);
+        text-decoration: none;
+        display: block;
+    }
+
+    .blog-post-content {
+        display: flex;
+    }
+
+    .blog-post-image {
+        width: 100%;
+        max-width: 750px;
+        height: auto;
+        object-fit: cover;
+        object-position: center center;
+    }
+
+    .blog-post-excerpt {
+        display: flex;
+        margin: auto;
+        padding: 1.5rem;
+        color: var(--dark-gray);
+        line-height: 1.8;
+        font-size: clamp(0.875rem, 2vw, 1.125rem);
+    }
+
+    .blog-post-title:hover {
+        color: var(--primary-blue);
+    }
+
+    .blog-post-meta {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        color: var(--dark-gray);
+        opacity: 0.7;
+        font-size: clamp(0.75rem, 1vw, 0.875rem);
+    }
+
+        .blog-post-meta i {
+            color: var(--primary-orange);
+        }
+
+    /* Large screens */
+    @@media (min-width: 1200px) {
+        .blog-post:nth-child(odd) .blog-post-content
+
+    {
+        flex-direction: row;
+    }
+
+    .blog-post:nth-child(even) .blog-post-content {
+        flex-direction: row-reverse;
+    }
+
+    }
+
+    /* Medium screens */
+    @@media (max-width: 1024px) {
+        .blog-container
+
+    {
+        padding: 2rem 1rem;
+    }
+
+    .blog-post-content {
+        flex-wrap: wrap;
+    }
+
+    .blog-post-image {
+        max-width: 100%;
+        height: 300px;
+    }
+
+    }
+
+    /* Small screens */
+    @@media (max-width: 768px) {
+        .blog-container
+
+    {
+        padding: 1.5rem 1rem;
+    }
+
+    .blog-post-image {
+        height: 200px;
+    }
+
+    }
+</style>
+
+
+<div class="title-hero-container">
+    <div class="title-hero">
+        <img src="/public/images/dots.png" alt="" class="start-dots" />
+        <h1 class="blog-title">OUR BLOG</h1>
+        <img src="/public/images/dots.png" alt="" class="end-dots" />
+    </div>
+</div>
+
+<main class="blog-container">
+    <p class="blog-intro">
+        <span class="bold-intro"> Welcome to the Strong Towing Blog</span>
+        Here, we share expert tips, real stories from the road, and helpful
+        advice to keep you safe and prepared—wherever your journey takes you.
+    </p>
+
+    <div class="blog-posts">
+        <article class="blog-post">
+            <a asp-controller="Home" asp-action="Singleblog" class="blog-post-title">🧰 Why Roadside Assistancev Memberships Are Worth It</a>
+            <div class="blog-post-content">
+                <img src="/public/images/blog_1.png"
+                     alt="Roadside Assistance"
+                     class="blog-post-image" />
+                <p class="blog-post-excerpt">
+                    Having a roadside assistance membership gives you peace of mind
+                    every time you hit the road. Whether it’s a flat tire, dead
+                    battery, or you run out of fuel, help is just a call away—often at
+                    a much lower cost than one-time emergency services.
+                </p>
+            </div>
+        </article>
+
+        <article class="blog-post">
+            <a asp-controller="Home" asp-action="Singleblog" class="blog-post-title">🛻 What to Do If Your Car Gets Stuck Off-Road</a>
+            <div class="blog-post-content">
+                <img src="/public/images/blog_2.png"
+                     alt="Car Stuck Off-Road"
+                     class="blog-post-image" />
+                <p class="blog-post-excerpt">
+                    Getting stuck in sand, mud, or snow can be stressful—but staying
+                    calm is key. First, avoid spinning your tires. Try gently rocking
+                    the car back and forth, or use mats or boards for traction. If
+                    that doesn’t work, it’s best to call for professional towing or
+                    recovery help to avoid damage.
+                </p>
+            </div>
+        </article>
+
+        <article class="blog-post">
+            <a asp-controller="Home" asp-action="Singleblog" class="blog-post-title">⛽ Running Out of Fuel? Here’s What You Should Never Do</a>
+            <div class="blog-post-content">
+                <img src="/public/images/blog_3.png"
+                     alt="Car Stuck Off-Road"
+                     class="blog-post-image" />
+                <p class="blog-post-excerpt">
+                    If you run out of fuel, don’t panic—and never try to keep driving
+                    on fumes. Avoid pushing your car on busy roads or leaving it
+                    unattended. Instead, pull over safely, turn on your hazard lights,
+                    and call for fuel delivery or roadside assistance.
+                </p>
+            </div>
+        </article>
+
+        <article class="blog-post">
+            <a asp-controller="Home" asp-action="Singleblog" class="blog-post-title">🔋 Jump Starting a Car: A Quick & Safe Guide</a>
+            <div class="blog-post-content">
+                <img src="/public/images/blog_4.png"
+                     alt="Car Stuck Off-Road"
+                     class="blog-post-image" />
+                <p class="blog-post-excerpt">
+                    Jump starting a car is easy if you follow the right steps. Always
+                    connect the cables in the correct order, and make sure both
+                    vehicles are off before starting. Once connected, start the
+                    working car first, then try your engine. If it doesn't start,
+                    don't keep trying—call a professional for help.
+                </p>
+            </div>
+        </article>
+    </div>
+</main>

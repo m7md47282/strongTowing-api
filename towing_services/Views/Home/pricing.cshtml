@@ -1,0 +1,590 @@
+﻿<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+<style>
+    :root {
+        --primary-blue: #174d65;
+        --dark-blue: #226a9c;
+        --light-blue: #0084b4;
+        --primary-orange: #faa74a;
+        --orange-hover: #ec971f;
+        --light-gray: #f8f9fa;
+        --medium-gray: #e9ecef;
+        --dark-gray: #343a40;
+        --white: #ffffff;
+        --black: #000000;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        line-height: 1.5;
+        font-weight: 400;
+        background-color: var(--white);
+        color: var(--dark-gray);
+        font-synthesis: none;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        overflow-x: hidden;
+    }
+
+    body {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        overflow-x: hidden;
+    }
+
+    #app {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+
+    a {
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .container {
+        width: 100%;
+        max-width: 1350px;
+        margin: 0 auto;
+        padding: 0 16px;
+    }
+
+    .title-hero-container {
+        width: 100%;
+/*         max-width: 1350px;
+ */    }
+
+    .title-hero {
+        padding: 4.5rem 0;
+        text-align: center;
+        margin: 0px;
+        width: 100%;
+        background-color: var(--primary-blue);
+        position: relative;
+    }
+
+    .start-dots {
+        position: absolute;
+        top: 15px;
+        left: 10px;
+    }
+
+    .end-dots {
+        position: absolute;
+        bottom: 15px;
+        right: 10px;
+    }
+
+    .section-label {
+        color: var(--primary-orange);
+        font-size: 16px;
+        font-weight: 600;
+        display: flex;
+    }
+
+    .center-label {
+        justify-content: center;
+        justify-items: center;
+    }
+
+    .divider-label {
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+        .divider-label::before {
+            content: "";
+            height: 2px;
+            background-color: var(--primary-orange);
+            width: 24px;
+            margin: 0 12px;
+        }
+
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 16px;
+        border-radius: 4px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: none;
+        text-align: center;
+    }
+
+    .btn-primary {
+        background-color: var(--primary-blue);
+        color: var(--white);
+    }
+
+        .btn-primary:hover {
+            background-color: var(--dark-blue);
+        }
+
+    .btn-orange {
+        background-color: var(--primary-orange);
+        color: var(--white);
+    }
+
+        .btn-orange:hover {
+            background-color: var(--orange-hover);
+        }
+
+    .btn-outline {
+        background-color: transparent;
+        border: 1px solid var(--white);
+        color: var(--white);
+    }
+
+        .btn-outline:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+    .social-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 16px;
+        color: inherit;
+        font-size: 18px;
+    }
+
+    .arrow-icon {
+        margin-left: 8px;
+    }
+
+    .fa,
+    .fa-brands,
+    .fa-classic,
+    .fa-regular,
+    .fa-sharp,
+    .fa-solid,
+    .fab,
+    .far,
+    .fas {
+        line-height: normal;
+    }
+
+    /* Floating Actions */
+    .floating-actions {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        z-index: 1000;
+    }
+
+    .floating-btn {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 24px;
+        border-radius: 50px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+        .floating-btn i {
+            transition: transform 0.3s ease;
+        }
+
+        .floating-btn:hover i {
+            transform: translateX(4px);
+        }
+
+    .find-offers {
+        background-color: #1e6888;
+        color: var(--white);
+    }
+
+        .find-offers:hover {
+            background-color: var(--dark-blue);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+        }
+
+    .find-offers-arrow {
+        background-color: white;
+        color: #1e6888;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        margin: auto;
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+    }
+
+    .request-service {
+        background-color: var(--primary-orange);
+        color: var(--white);
+    }
+
+        .request-service:hover {
+            background-color: var(--orange-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+        }
+
+    .request-service-arrow {
+        background-color: white;
+        color: #faa74a;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        margin: auto;
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+    }
+
+    .contact-us-btn, .all-other-services-btn {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 24px;
+        border-radius: 50px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        background-color: var(--primary-orange);
+        color: var(--white);
+        width: fit-content;
+    }
+
+        .contact-us-btn i, .all-other-services-btn i {
+            transition: transform 0.3s ease;
+        }
+
+        .contact-us-btn:hover i, .all-other-services-btn:hover i {
+            transform: translateX(4px);
+        }
+
+        .contact-us-btn:hover, .all-other-services-btn:hover {
+            background-color: var(--orange-hover);
+            transform: translateX(4px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+        }
+
+    .contact-arrow, .all-other-services-arrow {
+        background-color: white;
+        color: #faa74a;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        margin: auto;
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+    }
+
+    .divider {
+        border: 0;
+        border-top: 1px solid #cccccc;
+        margin: 24px 0;
+    }
+
+    @@media (min-width: 1600px) {
+        .title-hero-container {
+            margin: 0 auto;
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .container {
+            padding: 0 12px;
+        }
+
+        .title-hero {
+            width: 100%;
+        }
+
+        .floating-actions {
+            bottom: 20px;
+            right: 10px;
+        }
+
+        .floating-btn {
+            padding: 10px 20px;
+            font-size: 14px;
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .floating-actions {
+            bottom: 16px;
+            right: 5px;
+        }
+
+        .floating-btn {
+            width: fit-content;
+            justify-content: center;
+        }
+    }
+
+    .pricing-title {
+        color: var(--white);
+        font-size: 36px;
+        font-weight: 700;
+        margin: 0;
+    }
+
+    .pricing-container {
+        max-width: 1350px;
+        width: 100%;
+        margin: 0 auto;
+        padding: 4rem 1.5rem;
+    }
+
+    .pricing-header {
+        text-align: center;
+        max-width: 600px;
+        margin: 0 auto 60px;
+    }
+
+        .pricing-header h2 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: var(--dark-gray);
+        }
+
+        .pricing-header p {
+            color: var(--dark-gray);
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+    .pricing-plans {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 2rem;
+        padding: 2rem 0;
+        margin-top: 10px;
+    }
+
+    .pricing-card {
+        background: var(--white);
+        border-radius: 1rem;
+        padding: 2rem;
+        text-align: left;
+        box-shadow: 8px 8px 40px rgba(0, 0, 0, 0.1);
+    }
+
+        .pricing-card.featured {
+            background-color: var(--primary-blue);
+            color: var(--white);
+        }
+
+        .pricing-card h3 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+    .plan-description {
+        color: inherit;
+        opacity: 0.8;
+        margin-bottom: 24px;
+    }
+
+    .price {
+        color: var(--light-blue);
+        margin: 24px 0;
+    }
+
+    .amount {
+        font-size: 36px;
+        font-weight: 700;
+    }
+
+    .period {
+        color: black;
+        font-size: 14px;
+    }
+
+    .features {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 32px;
+    }
+
+        .features li {
+            margin: 12px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .features i {
+            color: var(--primary-orange);
+        }
+
+    .featured .features i {
+        color: var(--white);
+    }
+
+    .buy-now {
+        background: var(--white);
+        color: var(--light-blue);
+        border: 1px solid var(--light-blue);
+        border-radius: 100px;
+        padding: 12px 32px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+        width: 100%;
+    }
+
+        .buy-now:hover {
+            background: var(--primary-blue);
+            color: white;
+        }
+
+    .featured .buy-now {
+        background: var(--white);
+        color: var(--primary-blue);
+    }
+
+        .featured .buy-now:hover {
+            background: var(--medium-gray);
+        }
+
+    @@media (max-width: 992px) {
+        .pricing-container
+
+    {
+        padding: 4rem 2.5rem;
+    }
+
+    .pricing-plans {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    }
+
+    @@media (max-width: 768px) {
+        .pricing-container
+
+    {
+        padding: 2rem 1rem;
+    }
+
+    .pricing-plans {
+        grid-template-columns: 1fr;
+        gap: 32px;
+    }
+
+    .pricing-card {
+        width: 80%;
+        margin: 0 auto;
+    }
+
+    }
+
+    @@media (max-width: 500px) {
+        .pricing-container
+
+    {
+        padding: 2rem 1rem;
+    }
+
+    .pricing-plans {
+        grid-template-columns: 1fr;
+        gap: 32px;
+    }
+
+    .pricing-card {
+        width: 95%;
+        margin: 0 auto;
+    }
+
+    }
+</style>
+
+<div class="title-hero-container">
+    <div class="title-hero">
+        <img src="/public/images/dots.png" alt="" class="start-dots" />
+        <h1 class="pricing-title">PRICING</h1>
+        <img src="/public/images/dots.png" alt="" class="end-dots" />
+    </div>
+</div>
+
+<main class="pricing-container">
+    <div class="pricing-header">
+        <h2>Choose your plan</h2>
+        <p>
+            We would love to hear from you! Whether you have questions, need a
+            quote, or want to schedule a service, our team is here to help.
+        </p>
+    </div>
+
+    <div class="pricing-plans">
+        <div class="pricing-card">
+            <h3>Basic Plan</h3>
+            <p class="plan-description">Tell us about your towing needs.</p>
+            <div class="price">
+                <span class="amount">$60.00</span>
+                <span class="period">/ Per month</span>
+            </div>
+            <ul class="features">
+                <li><i class="fas fa-check"></i> Towing Service</li>
+                <li><i class="fas fa-check"></i> Towing Service</li>
+                <li><i class="fas fa-check"></i> Towing Service</li>
+                <li><i class="fas fa-check"></i> Towing Service</li>
+            </ul>
+            <button class="buy-now">Buy Now</button>
+        </div>
+
+        <div class="pricing-card">
+            <h3>Standard Plan</h3>
+            <p class="plan-description">Tell us about your towing needs.</p>
+            <div class="price">
+                <span class="amount">$70.00</span>
+                <span class="period">/ Per month</span>
+            </div>
+            <ul class="features">
+                <li><i class="fas fa-check"></i> Towing Service</li>
+                <li><i class="fas fa-check"></i> Towing Service</li>
+                <li><i class="fas fa-check"></i> Towing Service</li>
+                <li><i class="fas fa-check"></i> Towing Service</li>
+            </ul>
+            <button class="buy-now">Buy Now</button>
+        </div>
+
+        <div class="pricing-card">
+            <h3>Premium Plan</h3>
+            <p class="plan-description">Tell us about your towing needs.</p>
+            <div class="price">
+                <span class="amount">$90.00</span>
+                <span class="period">/ Per month</span>
+            </div>
+            <ul class="features">
+                <li><i class="fas fa-check"></i> Towing Service</li>
+                <li><i class="fas fa-check"></i> Towing Service</li>
+                <li><i class="fas fa-check"></i> Towing Service</li>
+                <li><i class="fas fa-check"></i> Towing Service</li>
+            </ul>
+            <button class="buy-now">Buy Now</button>
+        </div>
+    </div>
+</main>

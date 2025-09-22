@@ -1,0 +1,95 @@
+﻿<style>
+    .error-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 80px 16px;
+        text-align: center;
+        flex: 1;
+    }
+
+    .error-tag {
+        color: var(--primary-orange);
+        font-size: clamp(14px, 1.5vw, 18px);
+        font-weight: 500;
+        margin-bottom: 16px;
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+        .error-tag::before, .error-tag::after {
+            content: "";
+            height: 2px;
+            background-color: var(--primary-orange);
+            width: 24px;
+            margin: 0 16px;
+        }
+
+    .error-heading {
+        font-size: clamp(28px, 5vw, 48px);
+        font-weight: 700;
+        margin-bottom: 16px;
+        color: var(--black);
+        text-transform: uppercase;
+    }
+
+    .error-text {
+        font-size: clamp(14px, 2vw, 16px);
+        color: var(--dark-gray);
+        margin-bottom: 24px;
+    }
+
+    .home-link {
+        font-size: clamp(14px, 2vw, 16px);
+        display: inline-flex;
+        align-items: center;
+        padding: 12px 24px;
+        background-color: var(--primary-orange);
+        color: var(--white);
+        border-radius: 9999px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+        .home-link:hover {
+            background-color: var(--orange-hover);
+            transform: translateY(-2px);
+        }
+
+        .home-link i {
+            margin-left: 8px;
+        }
+
+    @@media (max-width: 768px) {
+        .error-container
+
+    {
+        padding: 60px 16px;
+    }
+
+    }
+
+    @@media (max-width: 576px) {
+        .error-container
+
+    {
+        padding: 40px 16px;
+    }
+
+    .error-text {
+        font-size: clamp(12px, 3vw, 14px);
+    }
+
+    }
+</style>
+<main class="error-container">
+    <div class="error-tag">404 ERROR</div>
+    <h1 class="error-heading">PAGE NOT FOUND</h1>
+    <p class="error-text">Page was moved or it doesn't exist</p>
+    <a href="#" class="home-link">
+        Go to homepage
+        <i class="fas fa-arrow-right"></i>
+    </a>
+</main>

@@ -1,0 +1,686 @@
+﻿@using towing_services.Models
+@model Providersmodel
+
+@{
+    ViewData["Title"] = "Create Provider";
+}
+
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr"
+      crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-ndDqU0Gzau9qJ1lfW4pNLlhNTkCfHzAVBReH9diLvGRem5+R9g2FzA8ZGN954O5Q"
+        crossorigin="anonymous"></script>
+
+<style>
+
+    .required-star {
+        color: red;
+        margin-left: 4px; 
+    }
+
+    .form-label {
+        font-size:19px;
+        font-weight:bold
+    }
+
+    .form-check-label{
+        font-size: 19px;
+        font-weight: bold
+    }
+
+    .card-header {
+      
+    }
+</style>
+
+@{
+}
+
+@if (ViewBag.SuccessMessage != null)
+{
+    <div class="text-center mt-5">
+        <div style="
+        color: black;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 40px 20px;
+        font-size: 2rem;
+        font-weight: 700;
+margin-top:170px;
+margin-bottom:200px;
+
+        text-align: center;
+        ">
+            @ViewBag.SuccessMessage
+        </div>
+    </div>
+}
+else
+{
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-10 col-lg-8">
+            <div class="card shadow-lg rounded-3">
+                <div class="card-header bg-primary text-white text-center">
+                    <h4>Service Provider Application</h4>
+                    <h4>
+                        Contact Information
+
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form asp-action="Create_PROV" method="post" enctype="multipart/form-data">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="Provider.OwnerFirstName" class="form-label"></label>
+                                <span class="required-star">*</span>
+
+                                <input asp-for="Provider.OwnerFirstName" class="form-control" />
+                                <span asp-validation-for="Provider.OwnerFirstName" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="Provider.OwnerLastName" class="form-label"></label>
+                                <span class="required-star">*</span>
+
+                                <input asp-for="Provider.OwnerLastName" class="form-control" />
+                                <span asp-validation-for="Provider.OwnerLastName" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Provider.CompanyName" class="form-label"></label>
+                            <span class="required-star">*</span>
+
+                            <input asp-for="Provider.CompanyName" class="form-control" />
+                            <span asp-validation-for="Provider.CompanyName" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Provider.PreviouslyApplied" class="form-label"></label>
+                            <span class="required-star">*</span>
+
+                            <select asp-for="Provider.PreviouslyApplied" class="form-select">
+                                <option value="">Select</option> <!-- القيمة الافتراضية -->
+                                <option value="Previously in network"> Previously in network</option>
+                                <option value="applied but not activated">Previously applied but not activated</option>
+                                <option value="No prior strong toeing experience">No prior strong toeing experience</option>
+                            </select>
+                            <span asp-validation-for="Provider.PreviouslyApplied" class="text-danger"></span>
+                        </div>
+
+
+                        <div class="form-group mb-3">
+                            <label asp-for="Provider.ContactPhoneNumber" class="form-label"></label>
+                            <span class="required-star">*</span>
+
+                            <div class="input-group">
+                                <select id="AreaCode" name="AreaCode" class="form-select" required>
+                                    <option value="+1 (205) ">+1 205 (Alabama)</option>
+                                    <option value="+1 (907) ">+1 907 (Alaska)</option>
+                                    <option value="+1 (480) ">+1 480 (Arizona)</option>
+                                    <option value="+1 (501) ">+1 501 (Arkansas)</option>
+                                    <option value="+1 (310) ">+1 310 (California)</option>
+                                    <option value="+1 (303) ">+1 303 (Colorado)</option>
+                                    <option value="+1 (203) ">+1 203 (Connecticut)</option>
+                                    <option value="+1 (302) ">+1 302 (Delaware)</option>
+                                    <option value="+1 (305) ">+1 305 (Florida)</option>
+                                    <option value="+1 (470) ">+1 470 (Georgia)</option>
+                                    <option value="+1 (808) ">+1 808 (Hawaii)</option>
+                                    <option value="+1 (208) ">+1 208 (Idaho)</option>
+                                    <option value="+1 (312) ">+1 312 (Illinois)</option>
+                                    <option value="+1 (317) ">+1 317 (Indiana)</option>
+                                    <option value="+1 (515) ">+1 515 (Iowa)</option>
+                                    <option value="+1 (913) ">+1 913 (Kansas)</option>
+                                    <option value="+1 (502) ">+1 502 (Kentucky)</option>
+                                    <option value="+1 (225) ">+1 225 (Louisiana)</option>
+                                    <option value="+1 (207) ">+1 207 (Maine)</option>
+                                    <option value="+1 (301) ">+1 301 (Maryland)</option>
+                                    <option value="+1 (617) ">+1 617 (Massachusetts)</option>
+                                    <option value="+1 (231) ">+1 231 (Michigan)</option>
+                                    <option value="+1 (612) ">+1 612 (Minnesota)</option>
+                                    <option value="+1 (662) ">+1 662 (Mississippi)</option>
+                                    <option value="+1 (314) ">+1 314 (Missouri)</option>
+                                    <option value="+1 (406) ">+1 406 (Montana)</option>
+                                    <option value="+1 (231) ">+1 231 (Nebraska)</option>
+                                    <option value="+1 (702) ">+1 702 (Nevada)</option>
+                                    <option value="+1 (603) ">+1 603 (New Hampshire)</option>
+                                    <option value="+1 (973) ">+1 973 (New Jersey)</option>
+                                    <option value="+1 (505) ">+1 505 (New Mexico)</option>
+                                    <option value="+1 (212) ">+1 212 (New York)</option>
+                                    <option value="+1 (252) ">+1 252 (North Carolina)</option>
+                                    <option value="+1 (701) ">+1 701 (North Dakota)</option>
+                                    <option value="+1 (216) ">+1 216 (Ohio)</option>
+                                    <option value="+1 (405) ">+1 405 (Oklahoma)</option>
+                                    <option value="+1 (503) ">+1 503 (Oregon)</option>
+                                    <option value="+1 (215) ">+1 215 (Pennsylvania)</option>
+                                    <option value="+1 (401) ">+1 401 (Rhode Island)</option>
+                                    <option value="+1 (615) ">+1 615 (Tennessee)</option>
+                                    <option value="+1 (512) ">+1 512 (Texas)</option>
+                                    <option value="+1 (801) ">+1 801 (Utah)</option>
+                                    <option value="+1 (802) ">+1 802 (Vermont)</option>
+                                    <option value="+1 (703) " selected>+1 703 (Virginia)</option>
+                                    <option value="+1 (206) ">+1 206 (Washington)</option>
+                                    <option value="+1 (304) ">+1 304 (West Virginia)</option>
+                                    <option value="+1 (414) ">+1 414 (Wisconsin)</option>
+                                    <option value="+1 (307) ">+1 307 (Wyoming)</option>
+                                </select>
+
+                                <!-- إدخال رقم الهاتف -->
+                                <input asp-for="Provider.ContactPhoneNumber" id="ContactPhoneNumber" class="form-control" placeholder="Enter phone number" />
+                            </div>
+
+                            <span asp-validation-for="Provider.ContactPhoneNumber" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Provider.IsMobilePhone" class="form-label"></label>
+                            <span class="required-star">*</span>
+
+                            <select asp-for="Provider.IsMobilePhone" class="form-select">
+                                <option value="">Select</option>
+                                <option value="true">Yes</option>
+                                <option value="false">No</option>
+                            </select>
+                            <span asp-validation-for="Provider.IsMobilePhone" class="text-danger"></span>
+                        </div>
+
+
+                        <div class="mb-3">
+                            <label asp-for="Provider.ContactEmail" class="form-label"></label>
+                            <span class="required-star">*</span>
+
+                            <input asp-for="Provider.ContactEmail" class="form-control" />
+                            <span asp-validation-for="Provider.ContactEmail" class="text-danger"></span>
+                        </div>
+                        <div class="mb-3">
+                            <label asp-for="Provider.InboxAccess" class="form-label"></label>
+                            <span class="required-star">*</span>
+
+                            <select asp-for="Provider.InboxAccess" class="form-select">
+                                <option value="">Select</option>
+                                <option value="Only me">Only me</option>
+                                <option value="Only me + Management">Only me + Management</option>
+                                <option value="Read by all // Most employees">Read by all // Most employees</option>
+                            </select>
+                            <span asp-validation-for="Provider.InboxAccess" class="text-danger"></span>
+                        </div>
+
+
+                        <div class="mb-3">
+                            <label asp-for="Provider.FacilityAddress" class="form-label"></label>
+                            <span class="required-star">*</span>
+
+                            <input asp-for="Provider.FacilityAddress" class="form-control" />
+                            <span asp-validation-for="Provider.FacilityAddress" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Provider.FacilityAddressLine2" class="form-label"></label>
+                            <input asp-for="Provider.FacilityAddressLine2" class="form-control" />
+                            <span asp-validation-for="Provider.FacilityAddressLine2" class="text-danger"></span>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="Provider.FacilityCity" class="form-label"></label>
+                                <span class="required-star">*</span>
+
+                                <input asp-for="Provider.FacilityCity" class="form-control" />
+                                <span asp-validation-for="Provider.FacilityCity" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label asp-for="Provider.FacilityState" class="form-label"></label>
+                                <span class="required-star">*</span>
+
+                                <select asp-for="Provider.FacilityState" class="form-select">
+                                    <option value="">Select</option>
+                                    <option value="Alabama">Alabama</option>
+                                    <option value="Alaska">Alaska</option>
+                                    <option value="Arizona">Arizona</option>
+                                    <option value="Arkansas">Arkansas</option>
+                                    <option value="California">California</option>
+                                    <option value="Colorado">Colorado</option>
+                                    <option value="Connecticut">Connecticut</option>
+                                    <option value="Delaware">Delaware</option>
+                                    <option value="Florida">Florida</option>
+                                    <option value="Georgia">Georgia</option>
+                                    <option value="Hawaii">Hawaii</option>
+                                    <option value="Idaho">Idaho</option>
+                                    <option value="Illinois">Illinois</option>
+                                    <option value="Indiana">Indiana</option>
+                                    <option value="Iowa">Iowa</option>
+                                    <option value="Kansas">Kansas</option>
+                                    <option value="Kentucky">Kentucky</option>
+                                    <option value="Louisiana">Louisiana</option>
+                                    <option value="Maine">Maine</option>
+                                    <option value="Maryland">Maryland</option>
+                                    <option value="Massachusetts">Massachusetts</option>
+                                    <option value="Michigan">Michigan</option>
+                                    <option value="Minnesota">Minnesota</option>
+                                    <option value="Mississippi">Mississippi</option>
+                                    <option value="Missouri">Missouri</option>
+                                    <option value="Montana">Montana</option>
+                                    <option value="Nebraska">Nebraska</option>
+                                    <option value="Nevada">Nevada</option>
+                                    <option value="New Hampshire">New Hampshire</option>
+                                    <option value="New Jersey">New Jersey</option>
+                                    <option value="New Mexico">New Mexico</option>
+                                    <option value="New York">New York</option>
+                                    <option value="North Carolina">North Carolina</option>
+                                    <option value="North Dakota">North Dakota</option>
+                                    <option value="Ohio">Ohio</option>
+                                    <option value="Oklahoma">Oklahoma</option>
+                                    <option value="Oregon">Oregon</option>
+                                    <option value="Pennsylvania">Pennsylvania</option>
+                                    <option value="Rhode Island">Rhode Island</option>
+                                    <option value="South Carolina">South Carolina</option>
+                                    <option value="South Dakota">South Dakota</option>
+                                    <option value="Tennessee">Tennessee</option>
+                                    <option value="Texas">Texas</option>
+                                    <option value="Utah">Utah</option>
+                                    <option value="Vermont">Vermont</option>
+                                    <option value="Virginia">Virginia</option>
+                                    <option value="Washington">Washington</option>
+                                    <option value="West Virginia">West Virginia</option>
+                                    <option value="Wisconsin">Wisconsin</option>
+                                    <option value="Wyoming">Wyoming</option>
+
+                                </select>
+                                <span asp-validation-for="Provider.FacilityState" class="text-danger"></span>
+                            </div>
+
+
+
+                            <div class="col-md-3 mb-3">
+                                <label asp-for="Provider.FacilityZip" class="form-label"></label>
+                                <span class="required-star">*</span>
+
+                                <input asp-for="Provider.FacilityZip" class="form-control" />
+                                <span asp-validation-for="Provider.FacilityZip" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label asp-for="Provider.BillingSameAsFacility" class="form-label"></label>
+                            <span class="required-star">*</span>
+
+                            <select asp-for="Provider.BillingSameAsFacility" class="form-control">
+                                <option value="">select</option>
+                                <option value="Yes">Yes</option>
+                                <option value="No">No</option>
+                            </select>
+
+                            <span asp-validation-for="Provider.BillingSameAsFacility" class="text-danger"></span>
+                        </div>
+
+
+
+@*                         22222222222222222222222222222222222222222222
+ *@            
+                    <div class="card-header bg-primary text-white text-center" style="     margin-bottom: 50px;margin-top: 50px;">
+                            <h4>
+                                Services You Perform
+
+
+                            </h4>
+                        </div>
+
+                            <div class="mb-4">
+                                <label asp-for="Provider.SelectedServices" class="form-label"></label>
+                            <span class="required-star">*</span>
+
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="Provider.SelectedServices" value="Road-Only Services" id="service1" />
+
+                                    <label class="form-check-label" for="service1">Road-Only Services</label>
+                                </div>
+
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="Provider.SelectedServices" value="Light Duty Towing" id="service2" />
+                                    <label class="form-check-label" for="service2">Light Duty Towing</label>
+                                </div>
+
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="Provider.SelectedServices" value="Medium Duty Towing" id="service3" />
+                                    <label class="form-check-label" for="service3">Medium Duty Towing</label>
+                                </div>
+
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="Provider.SelectedServices" value="Heavy Duty Towing" id="service4" />
+                                    <label class="form-check-label" for="service4">Heavy Duty Towing</label>
+                                </div>
+
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="Provider.SelectedServices" value="Mobile Mechanic Services" id="service5" />
+                                    <label class="form-check-label" for="service5">Mobile Mechanic Services</label>
+                                </div>
+
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="Provider.SelectedServices" value="Medium/Heavy Tire Delivery Service" id="service6" />
+                                    <label class="form-check-label" for="service6">Medium/Heavy Tire Delivery Service</label>
+                                </div>
+
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="Provider.SelectedServices" value="Accident Scene Towing" id="service7" />
+                                    <label class="form-check-label" for="service7">Accident Scene Towing</label>
+                                </div>
+
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="Provider.SelectedServices" value="Secondary Tow with VCC Payout" id="service8" />
+                                    <label class="form-check-label" for="service8">Secondary Tow with VCC Payout</label>
+                                </div>
+
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="Provider.SelectedServices" value="Storage at Facility" id="service9" />
+                                    <label class="form-check-label" for="service9">Storage at Facility</label>
+                                </div>
+
+                                <span asp-validation-for="Provider.SelectedServices" class="text-danger"></span>
+                            </div>
+
+                        <div class="mb-4">
+                            <label asp-for="Provider.IsOpen247" class="form-label"></label>
+                            <span class="required-star">*</span>
+
+                            <input asp-for="Provider.IsOpen247" class="form-control" />
+                            <span asp-validation-for="Provider.IsOpen247" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-4">
+                            <label asp-for="Provider.RequestedTerritory" class="form-label"></label>
+                            <span class="required-star">*</span>
+
+                            <input type="file" name="zipFile" accept=".zip" class="form-control" required />
+                            <span asp-validation-for="Provider.RequestedTerritory" class="text-danger"></span>
+                        </div>
+
+
+                        <div class="mb-4">
+                            <label asp-for="Provider.ZipCodeList" class="form-label"></label>
+                            <input asp-for="Provider.ZipCodeList" class="form-control" />
+                            <span asp-validation-for="Provider.ZipCodeList" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-4">
+                            <label asp-for="Provider.WillProvideTowingInNVorTX" class="form-label"></label>
+                            <span class="required-star">*</span>
+
+                            <input asp-for="Provider.WillProvideTowingInNVorTX" class="form-control" />
+                            <span asp-validation-for="Provider.WillProvideTowingInNVorTX" class="text-danger"></span>
+                        </div>
+                   @*      p333333333333333 *@
+
+                        <div class="card-header bg-primary text-white text-center" style="     margin-bottom: 50px;margin-top: 50px;">
+                            <h4>
+                                IRS Information
+
+                            </h4>
+                        </div>
+                        <div class="form-group">
+                            <label asp-for="Provider.W9FilePath" class="form-label"></label>
+                            <span class="required-star">*</span>
+                            <input type="file" name="w9File" class="form-control" />
+                            <span asp-validation-for="Provider.W9FilePath" class="text-danger"></span>
+                        </div>
+
+                        <div class="form-group">
+                            <label asp-for="Provider.W9Address" class="form-label"></label>
+                            <span class="required-star">*</span>
+                            <select asp-for="Provider.W9Address" class="form-control">
+                                <option value="">select</option>
+                                <option value="Same as facility address">Same as facility address</option>
+                                <option value="Same as billing address">Same as billing address</option>
+                                <option value="Different from either of above">Different from either of above</option>
+                            </select>
+                            <span asp-validation-for="Provider.W9Address" class="text-danger"></span>
+                        </div>
+
+                        <div class="form-group form-check" style="padding:30px 20px">
+                            <input asp-for="Provider.IsNotSubjectToBackupWithholding" class="form-check-input" type="checkbox" />
+                            <label asp-for="Provider.IsNotSubjectToBackupWithholding" class="form-check-label"></label>
+                            <span class="required-star">*</span>
+
+                            <span asp-validation-for="Provider.IsNotSubjectToBackupWithholding" class="text-danger"></span>
+                        </div>
+
+                        <div class="form-group">
+                            <label asp-for="Provider.ElectronicSignature" class="form-label"></label>
+                            <span class="required-star">*</span>
+                            <input asp-for="Provider.ElectronicSignature" class="form-control" />
+                            <span asp-validation-for="Provider.ElectronicSignature" class="text-danger"></span>
+                        </div>
+
+                        <div class="form-group">
+                            <label asp-for="Provider.NumberOfEmployees" class="form-label"></label>
+                            <span class="required-star">*</span>
+                            <input asp-for="Provider.NumberOfEmployees" class="form-control" type="number" />
+                            <span asp-validation-for="Provider.NumberOfEmployees" class="text-danger"></span>
+                        </div>
+
+                        <div class="form-group">
+                            <label asp-for="Provider.BackgroundFilesPaths" class="form-label"></label>
+                            <span class="required-star">*</span>
+                            <input type="file" name="backgroundFile" class="form-control" />
+                            <span asp-validation-for="Provider.BackgroundFilesPaths" class="text-danger"></span>
+                        </div>
+
+@*                         4
+ *@                    
+
+    <div class="card-header bg-primary text-white text-center" style="     margin-bottom: 50px;margin-top: 50px;">
+                            <h4>
+                                Insurance Information
+
+
+                            </h4>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Certificate of Insurance <span class="text-danger">*</span></label>
+                            <input type="file" name="certificateFile" class="form-control" required />
+                            <span asp-validation-for="Provider.CertificateInsuranceFilePath" class="text-danger"></span>
+                        </div>
+
+                        @*                         555555555555555555555
+ *@                    
+ <div class="card-header bg-primary text-white text-center" style="     margin-bottom: 50px;margin-top: 50px;">
+                            <h4 >
+                                Additional Company Info
+                            </h4>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Provider.CompanyBusinessDuration" class="form-label"></label>
+                                <span class="required-star">*</span>
+
+                            <select asp-for="Provider.CompanyBusinessDuration" class="form-select">
+                                <option value="">-- Select duration --</option>
+                                <option value="0-2 years ">0-2 years</option>
+                                <option value="3-5 years">3-5 years</option>
+                                <option value="6-10 years">6-10 years</option>
+                                <option value="11-15 years">11-15 years</option>
+                                <option value="+15 years">+15years</option>
+                            </select>
+                            <span asp-validation-for="Provider.CompanyBusinessDuration" class="text-danger"></span>
+                        </div>
+
+
+                        <div class="mb-3">
+                            <label asp-for="Provider.HasElectricVehicleExperience" class="form-label"></label>
+                                <span class="required-star">*</span>
+
+                            <select asp-for="Provider.HasElectricVehicleExperience" class="form-select">
+                                <option value="">-- Select an option --</option>
+                                <option value="Yes">Yes</option>
+                                <option value="No">No</option>
+                            </select>
+                            <span asp-validation-for="Provider.HasElectricVehicleExperience" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Provider.UsesDigitalDispatchSoftware" class="form-label"></label>
+                                <span class="required-star">*</span>
+
+                            <select asp-for="Provider.UsesDigitalDispatchSoftware" class="form-select">
+                                <option value="">-- Select an option --</option>
+                                <option value="SWOOP">SWOOP</option>
+                                <option value="Towbook">Towbook</option>
+                                <option value="Beacon software">Beacon software</option>
+                                <option value="Pulsar">Pulsar</option>
+                                <option value="Phone only">Phone only</option>
+                                <option value="other">other</option>
+                            </select>
+                            <span asp-validation-for="Provider.UsesDigitalDispatchSoftware" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">@Html.DisplayNameFor(m => m.Provider.BusinessTypes)</label>
+
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="Provider.BusinessTypes" value="Family-Owned" id="bt1" />
+                                <label class="form-check-label" for="bt1">Family-Owned</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="Provider.BusinessTypes" value="Women-Owned" id="bt2" />
+                                <label class="form-check-label" for="bt2">Women-Owned</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="Provider.BusinessTypes" value="Minority-Owned" id="bt3" />
+                                <label class="form-check-label" for="bt3">Minority-Owned</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="Provider.BusinessTypes" value="Veteran-Owned" id="bt4" />
+                                <label class="form-check-label" for="bt4">Veteran-Owned</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="Provider.BusinessTypes" value="LBGTQ+-Owned" id="bt5" />
+                                <label class="form-check-label" for="bt5">LBGTQ+-Owned</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="Provider.BusinessTypes" value="Small Business" id="bt6" />
+                                <label class="form-check-label" for="bt6">Small Business</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="Provider.BusinessTypes" value="Small Disadvantaged Business" id="bt7" />
+                                <label class="form-check-label" for="bt7">Small Disadvantaged Business</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="Provider.BusinessTypes" value="Disadvantaged Business Enterprise" id="bt8" />
+                                <label class="form-check-label" for="bt8">Disadvantaged Business Enterprise</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="Provider.BusinessTypes" value="Other" id="bt9" />
+                                <label class="form-check-label" for="bt9">Other</label>
+                            </div>
+
+                            <span asp-validation-for="Provider.BusinessTypes" class="text-danger"></span>
+                        </div>
+
+
+                      
+                  <div class="text-center" style="padding:50px">
+                            <button type="submit" class="btn btn-success px-5">Submit</button>
+                        </div>
+                    </form>
+
+					</div> 
+                  
+            </div>
+        </div>
+    </div>
+</div>
+}
+
+@section Scripts {
+    @await Html.PartialAsync("_ValidationScriptsPartial")
+}
+<script>
+       document.addEventListener("DOMContentLoaded", function () {
+        const areaCode = document.getElementById("AreaCode");
+        const phoneNumber = document.getElementById("ContactPhoneNumber");
+        const form = document.querySelector("form");
+
+        // عند تحميل الصفحة، نضع مفتاح الدولة بداية رقم الهاتف إذا لم يكن موجود
+        if (!phoneNumber.value.startsWith(areaCode.value)) {
+            phoneNumber.value = areaCode.value;
+        }
+
+        // تحديث رقم الهاتف عند تغيير مفتاح الدولة
+        areaCode.addEventListener("change", function () {
+            if (!phoneNumber.value.startsWith(areaCode.value)) {
+                phoneNumber.value = areaCode.value;
+            }
+            hideError();
+        });
+
+        function showError(msg) {
+            let parent = phoneNumber.parentElement;
+            let errorMessage = parent.querySelector('.phone-error-msg');
+
+            if (!errorMessage) {
+                errorMessage = document.createElement('div');
+                errorMessage.className = 'phone-error-msg text-danger mt-1'; // تنسيق Bootstrap (لون أحمر ومسافة فوق الرسالة)
+                errorMessage.style.fontSize = '0.9em';
+                parent.insertBefore(errorMessage, phoneNumber.nextSibling);
+            }
+
+            errorMessage.textContent = msg;
+            errorMessage.style.display = 'block';
+        }
+
+        function hideError() {
+            let parent = phoneNumber.parentElement;
+            let errorMessage = parent.querySelector('.phone-error-msg');
+            if (errorMessage) {
+                errorMessage.style.display = 'none';
+            }
+        }
+
+        phoneNumber.addEventListener("input", function () {
+            let val = phoneNumber.value.trim();
+            const ac = areaCode.value;
+
+            if (val === '') {
+                phoneNumber.value = ac;
+                hideError();
+                return;
+            }
+
+            if (!val.startsWith(ac)) {
+                showError('It should be entered with the country code.');
+                phoneNumber.value = ac;
+                return;
+            }
+
+            // إزالة أي حروف غير الأرقام والرموز المقبولة
+            let escapedAreaCode = ac.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+            let newVal = val.replace(new RegExp(`^(\\+?${escapedAreaCode}\\s*)+`), `${ac} `);
+            newVal = newVal.replace(/[^+\d()\s]/g, '');
+
+            hideError();
+            phoneNumber.value = newVal;
+        });
+
+        phoneNumber.addEventListener("focusout", function () {
+            if (phoneNumber.value.trim() === '' || phoneNumber.value === areaCode.value) {
+                phoneNumber.value = areaCode.value;
+                hideError();
+            }
+        });
+
+        form.addEventListener("submit", function (e) {
+            let val = phoneNumber.value.trim();
+            if (val === areaCode.value || val.length <= areaCode.value.length) {
+                e.preventDefault();
+                showError('It should be entered the Phone number');
+                phoneNumber.focus();
+            } else {
+                hideError();
+            }
+        });
+    });
+
+</script>

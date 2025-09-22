@@ -1,0 +1,543 @@
+﻿<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+      <style>
+
+
+    :root {
+        --primary-blue: #174d65;
+        --dark-blue: #226a9c;
+        --light-blue: #0084b4;
+        --primary-orange: #faa74a;
+        --orange-hover: #ec971f;
+        --light-gray: #f8f9fa;
+        --medium-gray: #e9ecef;
+        --dark-gray: #343a40;
+        --white: #ffffff;
+        --black: #000000;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        line-height: 1.5;
+        font-weight: 400;
+        background-color: var(--white);
+        color: var(--dark-gray);
+        font-synthesis: none;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        overflow-x: hidden;
+    }
+
+    body {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        overflow-x: hidden;
+    }
+
+    #app {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+
+    a {
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .container {
+        width: 100%;
+        max-width: 1350px;
+        margin: 0 auto;
+        padding: 0 16px;
+    }
+
+    .title-hero-container {
+        width: 100%;
+/*         max-width: 1350px;
+ */    }
+
+    .title-hero {
+        padding: 4.5rem 0;
+        text-align: center;
+        margin: 0px;
+        width: 100%;
+        background-color: var(--primary-blue);
+        position: relative;
+    }
+
+    .start-dots {
+        position: absolute;
+        top: 15px;
+        left: 10px;
+    }
+
+    .end-dots {
+        position: absolute;
+        bottom: 15px;
+        right: 10px;
+    }
+
+    .section-label {
+        color: var(--primary-orange);
+        font-size: 16px;
+        font-weight: 600;
+        display: flex;
+    }
+
+    .center-label {
+        justify-content: center;
+        justify-items: center;
+    }
+
+    .divider-label {
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+        .divider-label::before {
+            content: "";
+            height: 2px;
+            background-color: var(--primary-orange);
+            width: 24px;
+            margin: 0 12px;
+        }
+
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 16px;
+        border-radius: 4px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: none;
+        text-align: center;
+    }
+
+    .btn-primary {
+        background-color: var(--primary-blue);
+        color: var(--white);
+    }
+
+        .btn-primary:hover {
+            background-color: var(--dark-blue);
+        }
+
+    .btn-orange {
+        background-color: var(--primary-orange);
+        color: var(--white);
+    }
+
+        .btn-orange:hover {
+            background-color: var(--orange-hover);
+        }
+
+    .btn-outline {
+        background-color: transparent;
+        border: 1px solid var(--white);
+        color: var(--white);
+    }
+
+        .btn-outline:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+    .social-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 16px;
+        color: inherit;
+        font-size: 18px;
+    }
+
+    .arrow-icon {
+        margin-left: 8px;
+    }
+
+    .fa,
+    .fa-brands,
+    .fa-classic,
+    .fa-regular,
+    .fa-sharp,
+    .fa-solid,
+    .fab,
+    .far,
+    .fas {
+        line-height: normal;
+    }
+
+    /* Floating Actions */
+    .floating-actions {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        z-index: 1000;
+    }
+
+    .floating-btn {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 24px;
+        border-radius: 50px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+        .floating-btn i {
+            transition: transform 0.3s ease;
+        }
+
+        .floating-btn:hover i {
+            transform: translateX(4px);
+        }
+
+    .find-offers {
+        background-color: #1e6888;
+        color: var(--white);
+    }
+
+        .find-offers:hover {
+            background-color: var(--dark-blue);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+        }
+
+    .find-offers-arrow {
+        background-color: white;
+        color: #1e6888;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        margin: auto;
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+    }
+
+    .request-service {
+        background-color: var(--primary-orange);
+        color: var(--white);
+    }
+
+        .request-service:hover {
+            background-color: var(--orange-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+        }
+
+    .request-service-arrow {
+        background-color: white;
+        color: #faa74a;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        margin: auto;
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+    }
+
+    .contact-us-btn, .all-other-services-btn {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 24px;
+        border-radius: 50px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        background-color: var(--primary-orange);
+        color: var(--white);
+        width: fit-content;
+    }
+
+        .contact-us-btn i, .all-other-services-btn i {
+            transition: transform 0.3s ease;
+        }
+
+        .contact-us-btn:hover i, .all-other-services-btn:hover i {
+            transform: translateX(4px);
+        }
+
+        .contact-us-btn:hover, .all-other-services-btn:hover {
+            background-color: var(--orange-hover);
+            transform: translateX(4px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+        }
+
+    .contact-arrow, .all-other-services-arrow {
+        background-color: white;
+        color: #faa74a;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        margin: auto;
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+    }
+
+    .divider {
+        border: 0;
+        border-top: 1px solid #cccccc;
+        margin: 24px 0;
+    }
+
+    @@media (min-width: 1600px) {
+        .title-hero-container
+
+    {
+        margin: 0 auto;
+    }
+
+    }
+    @@media (max-width: 768px) {
+        .container
+
+    {
+        padding: 0 12px;
+    }
+
+    .title-hero {
+        width: 100%;
+    }
+
+    .floating-actions {
+        bottom: 20px;
+        right: 10px;
+    }
+
+    .floating-btn {
+        padding: 10px 20px;
+        font-size: 14px;
+    }
+
+    }
+
+    @@media (max-width: 576px) {
+        .floating-actions
+
+    {
+        bottom: 16px;
+        right: 5px;
+    }
+
+    .floating-btn {
+        width: fit-content;
+        justify-content: center;
+    }
+
+    }
+
+
+    .faq-hero {
+        background-color: var(--primary-blue);
+        padding: 40px 0;
+        text-align: center;
+    }
+
+    .faq-title {
+        color: var(--white);
+        font-size: clamp(1.5rem, 4vw, 2.25rem);
+        font-weight: 700;
+        margin: 0;
+    }
+
+    .faq-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 60px 16px;
+    }
+
+    .faq-item {
+        border-bottom: 1px solid var(--medium-gray);
+        margin-bottom: 16px;
+        cursor: pointer;
+    }
+
+    .faq-question {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 0;
+        font-size: clamp(0.9375rem, 2.5vw, 1.125rem);
+        font-weight: 500;
+        color: var(--dark-gray);
+    }
+
+        .faq-question i {
+            transition: transform 0.3s ease;
+        }
+
+    .faq-item.active .faq-question i {
+        transform: rotate(180deg);
+    }
+
+    .faq-answer {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease;
+        padding: 0 16px;
+        font-size: clamp(0.875rem, 2.2vw, 1rem);
+        color: var(--dark-gray);
+        opacity: 0.8;
+        line-height: 1.6;
+    }
+
+    .faq-item.active .faq-answer {
+        max-height: 200px;
+        padding-bottom: 16px;
+    }
+
+    @@media (max-width: 768px) {
+        .faq-container
+
+    {
+        padding: 40px 16px;
+    }
+
+    }
+</style>
+<div class="title-hero-container">
+    <div class="title-hero">
+        <img src="/public/images/dots.png" alt="" class="start-dots" />
+        <h1 class="faq-title">FREQUENTLY ASKED QUESTIONS</h1>
+        <img src="/public/images/dots.png" alt="" class="end-dots" />
+    </div>
+</div>
+
+<main class="faq-container">
+    <div class="faq-item">
+        <div class="faq-question">
+            What areas do you serve?
+            <i class="fas fa-chevron-down"></i>
+        </div>
+        <div class="faq-answer">
+            We serve the entire Alexandria, VA area and surrounding regions
+            including Arlington, Springfield, and Fairfax.
+        </div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-question">
+            Do you handle small jobs?
+            <i class="fas fa-chevron-down"></i>
+        </div>
+        <div class="faq-answer">
+            Yes, we handle jobs of all sizes! From motorcycle towing to heavy-duty
+            vehicle recovery, no job is too small or too big.
+        </div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-question">
+            How soon can you arrive?
+            <i class="fas fa-chevron-down"></i>
+        </div>
+        <div class="faq-answer">
+            Our average response time is 30 minutes or less. We prioritize
+            emergency situations and strive to reach you as quickly as possible.
+        </div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-question">
+            Do you offer free estimates?
+            <i class="fas fa-chevron-down"></i>
+        </div>
+        <div class="faq-answer">
+            Yes, we provide free estimates for all our services. Contact us to get
+            a detailed quote for your specific needs.
+        </div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-question">
+            How much do your services cost?
+            <i class="fas fa-chevron-down"></i>
+        </div>
+        <div class="faq-answer">
+            Our pricing varies depending on the service required, distance, and
+            vehicle type. We maintain competitive rates and offer transparent
+            pricing.
+        </div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-question">
+            Do you offer emergency services?
+            <i class="fas fa-chevron-down"></i>
+        </div>
+        <div class="faq-answer">
+            Yes, we offer 24/7 emergency towing services. Our team is always ready
+            to help, regardless of the time or weather conditions.
+        </div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-question">
+            Are you licensed and insured?
+            <i class="fas fa-chevron-down"></i>
+        </div>
+        <div class="faq-answer">
+            Yes, we are fully licensed and insured. Our team is professionally
+            trained and certified to handle all types of towing operations.
+        </div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-question">
+            What services do you offer?
+            <i class="fas fa-chevron-down"></i>
+        </div>
+        <div class="faq-answer">
+            We offer a comprehensive range of services including emergency towing,
+            roadside assistance, accident recovery, flatbed towing, and more.
+        </div>
+    </div>
+</main>
+
+            <script>
+                    // Handle FAQ accordion
+    document.addEventListener("DOMContentLoaded", () => {
+      const faqItems = document.querySelectorAll(".faq-item");
+
+      faqItems.forEach((item) => {
+        item.addEventListener("click", () => {
+          const isActive = item.classList.contains("active");
+
+          // Close all items
+          faqItems.forEach((otherItem) => {
+            otherItem.classList.remove("active");
+          });
+
+          // Toggle clicked item
+          if (!isActive) {
+            item.classList.add("active");
+          }
+        });
+      });
+    });
+
+            </script>

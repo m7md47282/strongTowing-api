@@ -1,0 +1,1294 @@
+﻿@model Dal.Customer
+
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+<style>
+
+      :root {
+      --primary-blue: #174d65;
+      --dark-blue: #226a9c;
+      --light-blue: #0084b4;
+      --primary-orange: #faa74a;
+      --orange-hover: #ec971f;
+      --light-gray: #f8f9fa;
+      --medium-gray: #e9ecef;
+      --dark-gray: #343a40;
+      --white: #ffffff;
+      --black: #000000;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.5;
+      font-weight: 400;
+      background-color: var(--white);
+      color: var(--dark-gray);
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+  }
+
+
+  * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      overflow-x: hidden;
+  }
+  body {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      overflow-x: hidden;
+  }
+
+  #app {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+  }
+
+  a {
+      text-decoration: none;
+      color: inherit;
+  }
+
+  .container {
+      width: 100%;
+      max-width: 1350px;
+      margin: 0 auto;
+      padding: 0 16px;
+  }
+
+  .title-hero-container {
+      width: 100%;
+/*       max-width: 1350px;
+ */  }
+
+  .title-hero {
+      padding: 4.5rem 0;
+      text-align: center;
+      margin: 0px;
+      width: 100%;
+      background-color: var(--primary-blue);
+      position: relative;
+  }
+
+  .start-dots {
+      position: absolute;
+      top: 15px;
+      left: 10px;
+  }
+
+  .end-dots {
+      position: absolute;
+      bottom: 15px;
+      right: 10px;
+  }
+
+  .section-label {
+      color: var(--primary-orange);
+      font-size: 16px;
+      font-weight: 600;
+      display: flex;
+  }
+
+  .center-label {
+      justify-content: center;
+      justify-items: center;
+  }
+
+  .divider-label {
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      position: relative;
+      display: flex;
+      align-items: center;
+  }
+
+      .divider-label::before {
+          content: "";
+          height: 2px;
+          background-color: var(--primary-orange);
+          width: 24px;
+          margin: 0 12px;
+      }
+
+  .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border: none;
+      text-align: center;
+  }
+
+  .btn-primary {
+      background-color: var(--primary-blue);
+      color: var(--white);
+  }
+
+      .btn-primary:hover {
+          background-color: var(--dark-blue);
+      }
+
+  .btn-orange {
+      background-color: var(--primary-orange);
+      color: var(--white);
+  }
+
+      .btn-orange:hover {
+          background-color: var(--orange-hover);
+      }
+
+  .btn-outline {
+      background-color: transparent;
+      border: 1px solid var(--white);
+      color: var(--white);
+  }
+
+      .btn-outline:hover {
+          background-color: rgba(255, 255, 255, 0.1);
+      }
+
+  .social-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 16px;
+      color: inherit;
+      font-size: 18px;
+  }
+
+  .arrow-icon {
+      margin-left: 8px;
+  }
+
+  .fa,
+  .fa-brands,
+  .fa-classic,
+  .fa-regular,
+  .fa-sharp,
+  .fa-solid,
+  .fab,
+  .far,
+  .fas {
+      line-height: normal;
+  }
+
+  /* Floating Actions */
+  .floating-actions {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      z-index: 1000;
+  }
+
+  .floating-btn {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 24px;
+      border-radius: 50px;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+
+      .floating-btn i {
+          transition: transform 0.3s ease;
+      }
+
+      .floating-btn:hover i {
+          transform: translateX(4px);
+      }
+
+  .find-offers {
+      background-color: #1e6888;
+      color: var(--white);
+  }
+
+      .find-offers:hover {
+          background-color: var(--dark-blue);
+          transform: translateY(-2px);
+          box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+      }
+
+  .find-offers-arrow {
+      background-color: white;
+      color: #1e6888;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      margin: auto;
+      width: 25px;
+      height: 25px;
+      border-radius: 50%;
+  }
+
+  .request-service {
+      background-color: var(--primary-orange);
+      color: var(--white);
+  }
+
+      .request-service:hover {
+          background-color: var(--orange-hover);
+          transform: translateY(-2px);
+          box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+      }
+
+  .request-service-arrow {
+      background-color: white;
+      color: #faa74a;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      margin: auto;
+      width: 25px;
+      height: 25px;
+      border-radius: 50%;
+  }
+
+  .contact-us-btn, .all-other-services-btn {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 24px;
+      border-radius: 50px;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      background-color: var(--primary-orange);
+      color: var(--white);
+      width: fit-content;
+  }
+
+      .contact-us-btn i, .all-other-services-btn i {
+          transition: transform 0.3s ease;
+      }
+
+      .contact-us-btn:hover i, .all-other-services-btn:hover i {
+          transform: translateX(4px);
+      }
+
+      .contact-us-btn:hover, .all-other-services-btn:hover {
+          background-color: var(--orange-hover);
+          transform: translateX(4px);
+          box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+      }
+
+  .contact-arrow, .all-other-services-arrow {
+      background-color: white;
+      color: #faa74a;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      margin: auto;
+      width: 25px;
+      height: 25px;
+      border-radius: 50%;
+  }
+
+  .divider {
+      border: 0;
+      border-top: 1px solid #cccccc;
+      margin: 24px 0;
+  }
+
+  @@media (min-width: 1600px) {
+      .title-hero-container
+
+  {
+      margin: 0 auto;
+  }
+
+  }
+  @@media (max-width: 768px) {
+      .container
+
+  {
+      padding: 0 12px;
+  }
+
+  .title-hero {
+      width: 100%;
+  }
+
+  .floating-actions {
+      bottom: 20px;
+      right: 10px;
+  }
+
+  .floating-btn {
+      padding: 10px 20px;
+      font-size: 14px;
+  }
+
+  }
+
+  @@media (max-width: 576px) {
+      .floating-actions
+
+  {
+      bottom: 16px;
+      right: 5px;
+  }
+
+  .floating-btn {
+      width: fit-content;
+      justify-content: center;
+  }
+
+  }
+  .contact-hero {
+  background-color: var(--primary-blue);
+  padding: 40px 0;
+  text-align: center;
+}
+
+.contact-title {
+  color: var(--white);
+  font-size: 36px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.contact-container {
+  max-width: 1350px;
+  margin: 0 auto;
+  padding: 60px 16px;
+}
+
+.contact-section {
+  margin-bottom: 60px;
+}
+
+.section-title {
+  font-size: 32px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: var(--dark-gray);
+}
+
+.contact-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  align-items: start;
+}
+
+.contact-form {
+  background: #fafafa;
+  border: 1px solid #e1e1e1;
+  padding: 32px;
+  border-radius: 8px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--dark-gray);
+  font-weight: 500;
+}
+
+.form-group input,
+.form-group textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--medium-gray);
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.form-group textarea {
+  height: 120px;
+  resize: vertical;
+}
+
+.submit-btn {
+  background: var(--primary-orange);
+  color: var(--white);
+  border: none;
+  border-radius: 100px;
+  padding: 12px 32px;
+  font-weight: 500;
+  cursor: pointer;
+  width: 100%;
+  transition: background-color 0.3s ease;
+}
+
+.submit-btn:hover {
+  background: var(--orange-hover);
+}
+
+.contact-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.info-text {
+  color: var(--dark-gray);
+  opacity: 0.8;
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+
+.info-item {
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+  gap: 16px;
+}
+
+.info-item i {
+  color: var(--primary-orange);
+  font-size: 20px;
+  margin-top: 4px;
+}
+
+.info-item-content {
+  flex: 1;
+}
+
+.info-item-content h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--dark-gray);
+}
+
+.info-item-content p,
+.info-item-content a {
+  color: var(--dark-gray);
+  opacity: 0.8;
+  font-size: 14px;
+  line-height: 1.6;
+  width: 100%;
+}
+
+.info-item-content a:hover {
+  color: var(--primary-orange);
+  opacity: 1;
+}
+
+.map-section {
+  margin-top: 60px;
+}
+.map-title-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+}
+.map-container {
+  margin: 10px;
+  height: 600px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.map-container iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+@@media (max-width: 992px) {
+  .contact-content {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+
+  .contact-info {
+    order: -1;
+  }
+}
+
+@@media (max-width: 768px) {
+  .contact-container {
+    padding: 40px 16px;
+  }
+
+  .section-title {
+    font-size: 28px;
+  }
+
+  .map-container {
+    height: 300px;
+  }
+}
+
+    .input-group {
+        display: flex;
+        gap: 10px; /* مسافة بين الحقول */
+    }
+
+    .input-group select,
+    .input-group input {
+        height: 50px;
+        font-size: 16px;
+    }
+
+    .input-group select {
+        flex: 1; /* عرض تلقائي مناسب */
+        max-width: 40%;
+    }
+
+    .input-group input {
+        flex: 2; /* عرض أكبر من السلكت */
+    }
+
+
+
+</style>
+
+
+
+
+   <div class="title-hero-container">
+      <div class="title-hero">
+        <img src="/public/images/dots.png" alt="" class="start-dots" />
+        <h1 class="contact-title">CONTACT US</h1>
+        <img src="/public/images/dots.png" alt="" class="end-dots" />
+      </div>
+    </div>
+    <main class="contact-container">
+      <div class="contact-section">
+        <div class="contact-content">
+          <div class="contact-form">
+              <div class="container">
+    <div class="row justify-content-around text-white">
+        @if (ViewData["SuccessMessage"] != null)
+        {
+<div class="col-md-5 ">
+    <div class="alert alert-light text-center" style="padding:25px;font-size:25px;margin-top:60px">
+        <strong>@ViewData["SuccessMessage"]</strong>
+    </div>
+</div> 
+        }
+else
+
+{
+               <form asp-action="Contact">
+                                <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+                                <div class="form-group">
+                                    <label asp-for="Name" class="control-label"></label>
+                                    <input asp-for="Name" class="form-control" />
+                                    <span asp-validation-for="Name"></span>
+                                </div>
+
+                                <div class="form-group mb-3">
+                                    <label for="Phone" >Phone</label>
+                                    <div class="input-group">
+                                        <!-- اختيار مفتاح الولاية -->
+                                        <select id="areaCode" class="form-control" style="height:50px" required>
+                                            <option value="+1 (205) ">+1 205 (Alabama)</option>
+                                            <option value="+1 (907) ">+1 907 (Alaska)</option>
+                                            <option value="+1 (480) ">+1 480 (Arizona)</option>
+                                            <option value="+1 (501) ">+1 501 (Arkansas)</option>
+                                            <option value="+1 (310) ">+1 310 (California)</option>
+                                            <option value="+1 (303) ">+1 303 (Colorado)</option>
+                                            <option value="+1 (203) ">+1 203 (Connecticut)</option>
+                                            <option value="+1 (302) ">+1 302 (Delaware)</option>
+                                            <option value="+1 (305) ">+1 305 (Florida)</option>
+                                            <option value="+1 (470) ">+1 470 (Georgia)</option>
+                                            <option value="+1 (808) ">+1 808 (Hawaii)</option>
+                                            <option value="+1 (208) ">+1 208 (Idaho)</option>
+                                            <option value="+1 (312) ">+1 312 (Illinois)</option>
+                                            <option value="+1 (317) ">+1 317 (Indiana)</option>
+                                            <option value="+1 (515) ">+1 515 (Iowa)</option>
+                                            <option value="+1 (913) ">+1 913 (Kansas)</option>
+                                            <option value="+1 (502) ">+1 502 (Kentucky)</option>
+                                            <option value="+1 (225) ">+1 225 (Louisiana)</option>
+                                            <option value="+1 (207) ">+1 207 (Maine)</option>
+                                            <option value="+1 (301) ">+1 301 (Maryland)</option>
+                                            <option value="+1 (617) ">+1 617 (Massachusetts)</option>
+                                            <option value="+1 (231) ">+1 231 (Michigan)</option>
+                                            <option value="+1 (612) ">+1 612 (Minnesota)</option>
+                                            <option value="+1 (662) ">+1 662 (Mississippi)</option>
+                                            <option value="+1 (314) ">+1 314 (Missouri)</option>
+                                            <option value="+1 (406) ">+1 406 (Montana)</option>
+                                            <option value="+1 (231) ">+1 231 (Nebraska)</option>
+                                            <option value="+1 (702) ">+1 702 (Nevada)</option>
+                                            <option value="+1 (603) ">+1 603 (New Hampshire)</option>
+                                            <option value="+1 (973) ">+1 973 (New Jersey)</option>
+                                            <option value="+1 (505) ">+1 505 (New Mexico)</option>
+                                            <option value="+1 (212) ">+1 212 (New York)</option>
+                                            <option value="+1 (252) ">+1 252 (North Carolina)</option>
+                                            <option value="+1 (701) ">+1 701 (North Dakota)</option>
+                                            <option value="+1 (216) ">+1 216 (Ohio)</option>
+                                            <option value="+1 (405) ">+1 405 (Oklahoma)</option>
+                                            <option value="+1 (503) ">+1 503 (Oregon)</option>
+                                            <option value="+1 (215) ">+1 215 (Pennsylvania)</option>
+                                            <option value="+1 (401) ">+1 401 (Rhode Island)</option>
+                                            <option value="+1 (615) ">+1 615 (Tennessee)</option>
+                                            <option value="+1 (512) ">+1 512 (Texas)</option>
+                                            <option value="+1 (801) ">+1 801 (Utah)</option>
+                                            <option value="+1 (802) ">+1 802 (Vermont)</option>
+                                            <option value="+1 (703) " selected>+1 703 (Virginia)</option>
+                                            <option value="+1 (206) ">+1 206 (Washington)</option>
+                                            <option value="+1 (304) ">+1 304 (West Virginia)</option>
+                                            <option value="+1 (414) ">+1 414 (Wisconsin)</option>
+                                            <option value="+1 (307) ">+1 307 (Wyoming)</option>
+
+                                        </select>
+                                        <input type="text" id="phoneNumber" name="Phone" class="form-control" placeholder="Enter your phone number" required />
+                                    </div>
+                                    <span id="phoneError" class="text-danger"></span>
+                                </div>
+
+
+                                <div class="form-group">
+                                    <label asp-for="Email" class="control-label"></label>
+                                    <input asp-for="Email" class="form-control" />
+                                    <span asp-validation-for="Email"></span>
+                                </div>
+
+                                <div class="form-group">
+                                    <label asp-for="Address" class="control-label"></label>
+                                    <input asp-for="Address" class="form-control" />
+                                    <span asp-validation-for="Address"></span>
+                                </div>
+
+
+                             <div class="form-group">
+                                    <label asp-for="Message_or_inquiry" class="control-label">Message</label>
+                                    <textarea asp-for="Message_or_inquiry" class="form-control" id="Message_or_inquiry"maxlength="200"></textarea>
+                                    <span id="maxlength-message" class="text-danger" style="display: none;">You have reached the maximum 200 character limit.</span>
+                                </div>
+
+                                <div class="form-group text-center">
+                                    <button type="submit" class="submit-btn ">Submit</button>
+
+                                </div>
+                            </form>
+
+       
+          }
+
+</div>
+    </div>
+</div>                
+
+          <div class="contact-info">
+            <div class="section-label">
+              <span class="divider-label"> CONTACT US</span>
+            </div>
+            <h2 class="section-title">GET IN TOUCH WITH US</h2>
+            <p class="info-text">
+              Get in touch via phone, email, or by filling out our
+              form—whatever's easiest for you. We'll get back to you quickly to
+              help with all your towing needs.
+            </p>
+
+            <hr class="divider" />
+
+            <div class="info-item">
+              <i class="fas fa-map-marker-alt"></i>
+              <div class="info-item-content">
+                <h3>Address</h3>
+                <p>
+                  5021 Seminary Rd Apt # 1410, Alexandria VA 22311 Configure
+                </p>
+              </div>
+            </div>
+
+            <div class="info-item">
+              <i class="fas fa-phone"></i>
+              <div class="info-item-content">
+                <h3>Phone</h3>
+                <a href="tel:7032008836">7032008836</a>
+              </div>
+            </div>
+
+            <div class="info-item">
+              <i class="fas fa-envelope"></i>
+              <div class="info-item-content">
+                <h3>Email</h3>
+                <a href="mailto:example@example.com">example@example.com</a>
+              </div>
+            </div>
+
+            <div class="info-item">
+              <i class="far fa-clock"></i>
+              <div class="info-item-content">
+                <h3>Working Hours</h3>
+                <p>Available 24/7</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="map-section">
+        <div class="map-title-container">
+          <div class="section-label center-label">
+            <span class="divider-label"> LOCATION</span>
+          </div>
+          <h2 class="section-title">WHERE TO FIND US</h2>
+        </div>
+
+        <div class="map-container">
+          <iframe
+            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3107.4816959089744!2d-77.13373492346847!3d38.83332035701!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x89b7b3c8e2f1f6a7%3A0x7c3c4d4d4d4d4d4d!2s5021%20Seminary%20Rd%2C%20Alexandria%2C%20VA%2022311!5e0!3m2!1sen!2sus!4v1620000000000!5m2!1sen!2sus"
+            allowfullscreen=""
+            loading="lazy"
+          ></iframe>
+        </div>
+      </div>
+    </main>
+
+
+
+@* 
+
+<div class="container">
+    <div class="row justify-content-around text-white">
+        @if (ViewData["SuccessMessage"] != null)
+        {
+<div class="col-md-5 ">
+    <div class="alert alert-light text-center" style="padding:20px;font-size:30px;margin-top:130px">
+        <strong>@ViewData["SuccessMessage"]</strong>
+    </div>
+</div> }
+else
+
+{ <!-- عمود النموذج -->
+                <div class="col-md-7  card ">
+                    <div class=" form-card" style="border-radius: 10px;margin-top:20px ;animation: fadeInUp 1s;">
+                        <h1 class="h1s">
+                            Connect with Us
+
+                        </h1>
+                        <div class="avatar">
+                            <i class="bi bi-envelope"></i>
+                        </div>
+                        <div class="card-body ">
+                            <form asp-action="Contact">
+                                <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+                                <div class="form-group">
+                                    <label asp-for="Name" class="control-label"></label>
+                                    <input asp-for="Name" class="form-control" />
+                                    <span asp-validation-for="Name"></span>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="Phone" style="color:black;font-weight:600">Phone</label>
+                                    <div class="input-group">
+                                        <!-- اختيار مفتاح الولاية -->
+                                        <select id="areaCode" class="form-control" required>
+                                            <option value="+1 (205) ">+1 205 (Alabama)</option>
+                                            <option value="+1 (907) ">+1 907 (Alaska)</option>
+                                            <option value="+1 (480) ">+1 480 (Arizona)</option>
+                                            <option value="+1 (501) ">+1 501 (Arkansas)</option>
+                                            <option value="+1 (310) ">+1 310 (California)</option>
+                                            <option value="+1 (303) ">+1 303 (Colorado)</option>
+                                            <option value="+1 (203) ">+1 203 (Connecticut)</option>
+                                            <option value="+1 (302) ">+1 302 (Delaware)</option>
+                                            <option value="+1 (305) ">+1 305 (Florida)</option>
+                                            <option value="+1 (470) ">+1 470 (Georgia)</option>
+                                            <option value="+1 (808) ">+1 808 (Hawaii)</option>
+                                            <option value="+1 (208) ">+1 208 (Idaho)</option>
+                                            <option value="+1 (312) ">+1 312 (Illinois)</option>
+                                            <option value="+1 (317) ">+1 317 (Indiana)</option>
+                                            <option value="+1 (515) ">+1 515 (Iowa)</option>
+                                            <option value="+1 (913) ">+1 913 (Kansas)</option>
+                                            <option value="+1 (502) ">+1 502 (Kentucky)</option>
+                                            <option value="+1 (225) ">+1 225 (Louisiana)</option>
+                                            <option value="+1 (207) ">+1 207 (Maine)</option>
+                                            <option value="+1 (301) ">+1 301 (Maryland)</option>
+                                            <option value="+1 (617) ">+1 617 (Massachusetts)</option>
+                                            <option value="+1 (231) ">+1 231 (Michigan)</option>
+                                            <option value="+1 (612) ">+1 612 (Minnesota)</option>
+                                            <option value="+1 (662) ">+1 662 (Mississippi)</option>
+                                            <option value="+1 (314) ">+1 314 (Missouri)</option>
+                                            <option value="+1 (406) ">+1 406 (Montana)</option>
+                                            <option value="+1 (231) ">+1 231 (Nebraska)</option>
+                                            <option value="+1 (702) ">+1 702 (Nevada)</option>
+                                            <option value="+1 (603) ">+1 603 (New Hampshire)</option>
+                                            <option value="+1 (973) ">+1 973 (New Jersey)</option>
+                                            <option value="+1 (505) ">+1 505 (New Mexico)</option>
+                                            <option value="+1 (212) ">+1 212 (New York)</option>
+                                            <option value="+1 (252) ">+1 252 (North Carolina)</option>
+                                            <option value="+1 (701) ">+1 701 (North Dakota)</option>
+                                            <option value="+1 (216) ">+1 216 (Ohio)</option>
+                                            <option value="+1 (405) ">+1 405 (Oklahoma)</option>
+                                            <option value="+1 (503) ">+1 503 (Oregon)</option>
+                                            <option value="+1 (215) ">+1 215 (Pennsylvania)</option>
+                                            <option value="+1 (401) ">+1 401 (Rhode Island)</option>
+                                            <option value="+1 (615) ">+1 615 (Tennessee)</option>
+                                            <option value="+1 (512) ">+1 512 (Texas)</option>
+                                            <option value="+1 (801) ">+1 801 (Utah)</option>
+                                            <option value="+1 (802) ">+1 802 (Vermont)</option>
+                                            <option value="+1 (703) " selected>+1 703 (Virginia)</option>
+                                            <option value="+1 (206) ">+1 206 (Washington)</option>
+                                            <option value="+1 (304) ">+1 304 (West Virginia)</option>
+                                            <option value="+1 (414) ">+1 414 (Wisconsin)</option>
+                                            <option value="+1 (307) ">+1 307 (Wyoming)</option>
+
+                                        </select>
+                                        <input type="text" id="phoneNumber" name="Phone" class="form-control" placeholder="Enter your phone number" required />
+                                    </div>
+                                    <span id="phoneError" class="text-danger"></span>
+                                </div>
+
+                                <div class="form-group">
+                                    <label asp-for="Email" class="control-label"></label>
+                                    <input asp-for="Email" class="form-control" />
+                                    <span asp-validation-for="Email"></span>
+                                </div>
+
+                                <div class="form-group">
+                                    <label asp-for="Address" class="control-label"></label>
+                                    <input asp-for="Address" class="form-control" />
+                                    <span asp-validation-for="Address"></span>
+                                </div>
+
+
+                             <div class="form-group">
+                                    <label asp-for="Message_or_inquiry" class="control-label">Message</label>
+                                    <textarea asp-for="Message_or_inquiry" class="form-control" id="Message_or_inquiry"maxlength="200"></textarea>
+                                    <span id="maxlength-message" class="text-danger" style="display: none;">You have reached the maximum 200 character limit.</span>
+                                </div>
+
+                                <div class="form-group text-center">
+                                    <button type="submit" class="btn ">Submit</button>
+
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>}
+
+
+    </div>
+</div>                
+ *@
+
+@section Scripts {
+
+<script>
+    setTimeout(() => {
+        const alert = document.querySelector('.alert-success');
+        if (alert) {
+            alert.style.display = 'none';
+        }
+    }, 600000);
+
+
+     const textarea = document.getElementById('Message_or_inquiry');
+        const message = document.getElementById('maxlength-message');
+
+        textarea.addEventListener('input', function () {
+            if (textarea.value.length === textarea.maxLength) {
+                message.style.display = 'block'; // Show message when max length is reached
+            } else {
+                message.style.display = 'none'; // Hide message if less than max length
+            }
+        });
+
+
+    const areaCode = document.getElementById("areaCode");
+    const phoneNumber = document.getElementById("phoneNumber");
+
+    // عند تغيير مفتاح الدولة، يتم تعيين الحقل إلى مفتاح الدولة فقط
+    areaCode.addEventListener("change", function () {
+        phoneNumber.value = areaCode.value; // تعيين الحقل بمفتاح الدولة الجديد
+    });
+
+    // // // // تحديث الرقم عند الكتابة
+    // // // phoneNumber.addEventListener("input", function () {
+    // // //     let currentValue = phoneNumber.value;
+
+    // // //     // إذا كانت القيمة فارغة، إعادة مفتاح الدولة فقط
+    // // //     if (currentValue.trim() === '') {
+    // // //         phoneNumber.value = areaCode.value;
+    // // //         return;
+    // // //     }
+    // // //     //// تعريف منطقة الرقم (رمز الدولة) مع الهروب من أي رموز خاصة
+    // // //     //const escapedAreaCode = areaCode.value.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
+
+    // // //     //// إزالة أي تكرارات لمفتاح الدولة في النص الحالي، مع الحفاظ على التنسيق
+    // // //     //let sanitizedValue = currentValue.replace(new RegExp(`^(\\+?${escapedAreaCode}\\s*)+`), `${escapedAreaCode} `);
+
+    // // //     //// تنظيف الرقم مع الحفاظ على التنسيق (+، الأقواس، والمسافات)
+    // // //     //sanitizedValue = sanitizedValue.replace(/[^+\d()\s]/g, '');
+
+    // // //     //// تحديث حقل رقم الهاتف بالقيمة المعالجة
+    // // //     //phoneNumber.value = sanitizedValue;
+    // // //     // تعريف منطقة الرقم (رمز الدولة) مع الهروب من أي رموز خاصة
+
+
+    // // //     // إذا كانت القيمة فارغة، إعادة مفتاح الدولة فقط
+
+
+    // // //     // تعريف منطقة الرقم (رمز الدولة) مع الهروب من أي رموز خاصة
+    // // //     const escapedAreaCode = areaCode.value.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
+
+    // // //     // التحقق مما إذا كان رمز الدولة محذوفًا يدويًا
+    // // //     if (!currentValue.startsWith(areaCode.value)) {
+    // // //         // عرض رسالة خطأ بجانب الحقل
+    // // //         const errorMessage = document.getElementById('phoneError');
+    // // //         if (errorMessage) {
+    // // //             errorMessage.textContent = 'It should be entered with the country code.';
+    // // //             errorMessage.style.display = 'block';
+    // // //         } else {
+    // // //             const errorElement = document.createElement('div');
+    // // //             errorElement.id = 'phoneError';
+    // // //             errorElement.textContent = 'It should be entered with the country code.';
+    // // //             errorElement.style.color = 'red';
+    // // //             errorElement.style.marginTop = '5px';
+    // // //             errorElement.style.fontSize = '0.9em';
+    // // //             phoneNumber.parentElement.appendChild(errorElement);
+    // // //         }
+
+    // // //         phoneNumber.value = areaCode.value; // إعادة رمز الدولة فقط
+    // // //         return;
+    // // //     }
+
+    // // //     // إزالة أي تكرارات لمفتاح الدولة في النص الحالي، مع الحفاظ على التنسيق
+    // // //     let sanitizedValue = currentValue.replace(new RegExp(`^(\\+?${escapedAreaCode}\\s*)+`), `${escapedAreaCode} `);
+
+    // // //     // تنظيف الرقم مع الحفاظ على التنسيق (+، الأقواس، والمسافات)
+    // // //     sanitizedValue = sanitizedValue.replace(/[^+\d()\s]/g, '');
+
+    // // //     // إخفاء رسالة الخطأ إذا كان الإدخال صحيحًا
+    // // //     const errorMessage = document.getElementById('phoneError');
+    // // //     if (errorMessage) {
+    // // //         errorMessage.style.display = 'none';
+    // // //     }
+
+    // // //     // تحديث حقل رقم الهاتف بالقيمة المعالجة
+    // // //     phoneNumber.value = sanitizedValue;
+
+
+
+    // // // });
+
+    // // // // التأكد من وجود مفتاح الدولة عند فقدان التركيز
+    // // // phoneNumber.addEventListener("focusout", function () {
+    // // //     if (phoneNumber.value.trim() === '' || phoneNumber.value === areaCode.value) {
+    // // //         phoneNumber.value = areaCode.value; // إعادة مفتاح الدولة فقط إذا كان الحقل فارغًا
+    // // //     }
+    // // // });
+
+    // // // // تحديث حقل مفتاح الدولة ليعرض المفتاح فقط عند تغييره
+    // // // areaCode.addEventListener("change", function () {
+    // // //     const selectedOption = areaCode.options[areaCode.selectedIndex];
+    // // //     areaCode.value = selectedOption.value; // عرض المفتاح فقط
+    // // // });
+    // // // document.addEventListener("DOMContentLoaded", function () {
+    // // //     const areaCode = document.getElementById("areaCode");
+    // // //     const phoneNumber = document.getElementById("phoneNumber");
+
+    // // //     // تعيين مفتاح الولاية الافتراضي عند تحميل الصفحة
+    // // //     phoneNumber.value = areaCode.value;
+
+    // // //     // عند تغيير مفتاح الولاية، تحديث الرقم
+    // // //     areaCode.addEventListener("change", function () {
+    // // //         phoneNumber.value = areaCode.value; // تعيين الحقل بمفتاح الولاية
+    // // //     });
+    // // // });
+
+
+
+
+    // // // // التأكد من وجود مفتاح الدولة عند فقدان التركيز
+    // // // phoneNumber.addEventListener("focusout", function () {
+    // // //     if (!phoneNumber.value.startsWith(areaCode.value)) {
+    // // //         // إضافة مفتاح الدولة فقط إذا كان مفقودًا
+    // // //         phoneNumber.value = areaCode.value + phoneNumber.value;
+    // // //     }
+    // // // });
+
+    // // // // تحديث حقل مفتاح الدولة ليعرض المفتاح فقط عند تغييره
+    // // // areaCode.addEventListener("change", function () {
+    // // //     const selectedOption = areaCode.options[areaCode.selectedIndex];
+    // // //     areaCode.value = selectedOption.value; // عرض المفتاح فقط
+    // // // });
+
+    // // // document.addEventListener("DOMContentLoaded", function () {
+    // // //     const areaCode = document.getElementById("areaCode");
+    // // //     const phoneNumber = document.getElementById("phoneNumber");
+
+    // // //     // تعيين مفتاح الدولة الافتراضي عند تحميل الصفحة
+    // // //     phoneNumber.value = areaCode.value;
+
+    // // //     // عند تغيير مفتاح الدولة، تحديث الرقم
+    // // //     areaCode.addEventListener("change", function () {
+    // // //         phoneNumber.value = areaCode.value; // تعيين الحقل بمفتاح الدولة
+    // // //     });
+    // // // });
+
+
+
+
+           document.addEventListener("DOMContentLoaded", function () {
+                const areaCode = document.getElementById("areaCode");
+                const phoneNumber = document.getElementById("phoneNumber");
+                const form = document.querySelector("form");
+
+                // تعيين مفتاح الدولة الافتراضي عند تحميل الصفحة
+                phoneNumber.value = areaCode.value;
+
+                // عند تغيير مفتاح الدولة، يتم تعيين الحقل إلى مفتاح الدولة فقط
+                areaCode.addEventListener("change", function () {
+                    phoneNumber.value = areaCode.value; // تعيين الحقل بمفتاح الدولة الجديد
+                });
+
+                // تحديث الرقم عند الكتابة
+                phoneNumber.addEventListener("input", function () {
+                    let currentValue = phoneNumber.value;
+
+                    // إذا كانت القيمة فارغة، إعادة مفتاح الدولة فقط
+                    if (currentValue.trim() === '') {
+                        phoneNumber.value = areaCode.value;
+                        return;
+                    }
+
+                    const escapedAreaCode = areaCode.value.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
+
+                    // التحقق مما إذا كان رمز الدولة محذوفًا يدويًا
+                    if (!currentValue.startsWith(areaCode.value)) {
+                        // عرض رسالة خطأ بجانب الحقل
+                        const errorMessage = document.getElementById('phoneError');
+                        if (errorMessage) {
+                            errorMessage.textContent = 'It should be entered with the country code.';
+                            errorMessage.style.display = 'block';
+                        } else {
+                            const errorElement = document.createElement('div');
+                            errorElement.id = 'phoneError';
+                            errorElement.textContent = 'It should be entered with the country code.';
+                            errorElement.style.color = 'red';
+                            errorElement.style.marginTop = '5px';
+                            errorElement.style.fontSize = '0.9em';
+                            phoneNumber.parentElement.appendChild(errorElement);
+                        }
+
+                        phoneNumber.value = areaCode.value; // إعادة رمز الدولة فقط
+                        return;
+                    }
+
+                    // إزالة أي تكرارات لمفتاح الدولة في النص الحالي، مع الحفاظ على التنسيق
+                    let sanitizedValue = currentValue.replace(new RegExp(`^(\\+?${escapedAreaCode}\\s*)+`), `${escapedAreaCode} `);
+
+                    // تنظيف الرقم مع الحفاظ على التنسيق (+، الأقواس، والمسافات)
+                    sanitizedValue = sanitizedValue.replace(/[^+\d()\s]/g, '');
+
+                    // إخفاء رسالة الخطأ إذا كان الإدخال صحيحًا
+                    const errorMessage = document.getElementById('phoneError');
+                    if (errorMessage) {
+                        errorMessage.style.display = 'none';
+                    }
+
+                    // تحديث حقل رقم الهاتف بالقيمة المعالجة
+                    phoneNumber.value = sanitizedValue;
+                });
+
+                // التأكد من وجود مفتاح الدولة عند فقدان التركيز
+                phoneNumber.addEventListener("focusout", function () {
+                    if (phoneNumber.value.trim() === '' || phoneNumber.value === areaCode.value) {
+                        phoneNumber.value = areaCode.value; // إعادة مفتاح الدولة فقط إذا كان الحقل فارغًا
+                    }
+                });
+
+                // التحقق من صحة النموذج قبل الإرسال
+                form.addEventListener("submit", function (event) {
+                    const errorMessage = document.getElementById('phoneError');
+                    if (phoneNumber.value.trim() === areaCode.value || phoneNumber.value.trim().length <= areaCode.value.length) {
+                        event.preventDefault(); // منع إرسال النموذج
+                        if (errorMessage) {
+                                errorMessage.textContent = 'It should be entered  the Phone number';
+                            errorMessage.style.display = 'block';
+                        }
+                        phoneNumber.focus(); // التركيز على حقل رقم الهاتف
+                    } else if (errorMessage) {
+                        errorMessage.style.display = 'none'; // إخفاء رسالة الخطأ إذا كان الإدخال صحيحًا
+                    }
+                });
+            });
+
+
+
+
+
+    //const areaCode = document.getElementById("areaCode");
+    //const phoneNumber = document.getElementById("phoneNumber");
+
+    //// عند تغيير مفتاح الدولة، يتم تعيين الحقل إلى مفتاح الدولة فقط
+    //areaCode.addEventListener("change", function () {
+    //    phoneNumber.value = areaCode.value; // تعيين الحقل بمفتاح الدولة الجديد
+    //});
+
+    //// تحديث الرقم عند الكتابة
+    //phoneNumber.addEventListener("input", function () {
+    //    let currentValue = phoneNumber.value;
+
+    //    // إذا كانت القيمة فارغة، إعادة مفتاح الدولة فقط
+    //    if (currentValue.trim() === '') {
+    //        phoneNumber.value = areaCode.value;
+    //        return;
+    //    }
+
+    //    // إزالة أي تكرارات لمفتاح الدولة داخل النص
+    //    let sanitizedValue = currentValue.replace(new RegExp(`^(${areaCode.value})+`), areaCode.value);
+
+    //    // تحديث الحقل بالقيمة المعالجة
+    //    phoneNumber.value = sanitizedValue;
+    //});
+
+    //// التأكد من وجود مفتاح الدولة عند فقدان التركيز
+    //phoneNumber.addEventListener("focusout", function () {
+    //    if (phoneNumber.value.trim() === '' || phoneNumber.value === areaCode.value) {
+    //        phoneNumber.value = areaCode.value; // إعادة مفتاح الدولة فقط إذا كان الحقل فارغًا
+    //    }
+    //});
+
+    //// تحديث حقل مفتاح الدولة ليعرض المفتاح فقط عند تغييره
+    //areaCode.addEventListener("change", function () {
+    //    const selectedOption = areaCode.options[areaCode.selectedIndex];
+    //    areaCode.value = selectedOption.value; // عرض المفتاح فقط
+    //});
+    //document.addEventListener("DOMContentLoaded", function () {
+    //    const areaCode = document.getElementById("areaCode");
+    //    const phoneNumber = document.getElementById("phoneNumber");
+
+    //    // تعيين مفتاح الولاية الافتراضي عند تحميل الصفحة
+    //    phoneNumber.value = areaCode.value;
+
+    //    // عند تغيير مفتاح الولاية، تحديث الرقم
+    //    areaCode.addEventListener("change", function () {
+    //        phoneNumber.value = areaCode.value; // تعيين الحقل بمفتاح الولاية
+    //    });
+    //});
+
+    ////     document.addEventListener("DOMContentLoaded", function () {
+    ////    const areaCode = document.getElementById("areaCode");
+    ////    const phoneNumber = document.getElementById("phoneNumber");
+    ////    const form = document.querySelector("form"); // استبدل "form" بمحدد النموذج الخاص بك إذا كان لديك أكثر من نموذج
+
+    ////    // تحديث الرقم مع رمز الدولة عند تغيير الرمز
+    ////    areaCode.addEventListener("change", function () {
+    ////        updatePhoneNumber();
+    ////    });
+
+    ////    // تحديث الرقم مع رمز الدولة عند إدخال الرقم
+    ////    phoneNumber.addEventListener("input", function () {
+    ////        updatePhoneNumber();
+    ////    });
+
+    ////    // منع الإرسال إذا كان الرقم غير صالح
+    ////    form.addEventListener("submit", function (event) {
+    ////        if (!isPhoneNumberValid()) {
+    ////            event.preventDefault(); // منع إرسال النموذج
+    ////            alert("Please enter a valid phone number.");
+    ////        }
+    ////    });
+
+    ////    function updatePhoneNumber() {
+    ////        const code = areaCode.value;
+    ////        const number = phoneNumber.value.replace(new RegExp(`^${code}`), "").trim(); // إزالة الرمز القديم
+    ////        phoneNumber.value = `${code} ${number}`; // دمج الرمز الجديد
+    ////    }
+
+    ////    function isPhoneNumberValid() {
+    ////        const code = areaCode.value;
+    ////        const number = phoneNumber.value.replace(code, "").trim(); // إزالة رمز الدولة للتحقق فقط من الرقم
+    ////        const phoneRegex = /^[0-9]{6,15}$/; // التحقق من الأرقام بين 6 و15 رقم
+    ////        return phoneRegex.test(number); // صحيح إذا كان الرقم يطابق النمط
+    ////    }
+    ////});
+
+
+
+    //document.addEventListener("DOMContentLoaded", function () {
+    //    const areaCode = document.getElementById("areaCode");
+    //    const phoneNumber = document.getElementById("phoneNumber");
+    //    const errorSpan = document.getElementById("phoneError");
+    //    const form = document.querySelector("form"); // استبدل "form" بمحدد النموذج الخاص بك إذا لزم
+
+    //    // تحديث الرقم مع رمز الدولة
+    //    areaCode.addEventListener("change", function () {
+    //        phoneNumber.value = areaCode.value;
+    //    });
+
+    //    // تحديث الرقم عند الكتابة
+    //    phoneNumber.addEventListener("input", function () {
+    //        let currentValue = phoneNumber.value;
+
+    //        // إذا كانت القيمة فارغة، إعادة مفتاح الدولة فقط
+    //        if (currentValue.trim() === '') {
+    //            phoneNumber.value = areaCode.value;
+    //            return;
+    //        }
+
+    //        // إزالة أي تكرارات لمفتاح الدولة داخل النص
+    //        let sanitizedValue = currentValue.replace(new RegExp(`^(${areaCode.value})+`), areaCode.value);
+    //        phoneNumber.value = sanitizedValue;
+
+    //        clearError(); // إزالة رسالة الخطأ عند الكتابة
+    //    });
+
+    //    // منع الإرسال إذا كان الرقم غير صالح
+    //    form.addEventListener("submit", function (event) {
+    //        if (!isPhoneNumberValid()) {
+    //            event.preventDefault(); // منع إرسال النموذج
+    //            showError("Please enter a valid phone number."); // عرض رسالة الخطأ
+    //        }
+    //    });
+
+    //    // دالة لإظهار رسالة الخطأ
+    //    function showError(message) {
+    //        errorSpan.textContent = message;
+    //    }
+
+    //    // دالة لإزالة رسالة الخطأ
+    //    function clearError() {
+    //        errorSpan.textContent = "";
+    //    }
+
+    //    // التحقق من صلاحية رقم الهاتف
+    //    function isPhoneNumberValid() {
+    //        const code = areaCode.value;
+    //        const number = phoneNumber.value.replace(code, "").trim(); // إزالة رمز الدولة للتحقق فقط من الرقم
+    //        const phoneRegex = /^[0-9]{6,15}$/; // التحقق من الأرقام بين 6 و15 رقم
+    //        return phoneRegex.test(number);
+    //    }
+    //});
+    //****/
+    document.querySelectorAll('.faq h3').forEach(question => {
+        question.addEventListener('click', () => {
+            question.classList.toggle('active');
+        });
+    });
+</script>}
+
+
+
+
+
+
+
+
+
+
+
+
+@*<script src="../assets/dist/js/bootstrap.bundle.min.js"></script>*@

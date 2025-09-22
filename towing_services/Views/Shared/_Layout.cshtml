@@ -1,0 +1,1521 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Strong Towing</title>
+    <link rel="icon" href="/public/images/truck.png" type="image/x-icon">
+
+    <meta name="description" content="Fast and professional vehicle towing services in your area. Contact us now for emergency towing assistance." />
+    <meta name="keywords" content="towing services, vehicle towing, car towing, emergency towing, roadside assistance" />
+    <meta name="author" content="  Strong Towing " />
+    <meta property="og:title" content="Fast and Reliable Towing Services in Your Area" />
+    <meta property="og:description" content="We provide the fastest towing services at competitive prices. Call us now for assistance!" />
+    <meta property="og:url" content="https://strongtowing.services" />
+    <meta property="og:type" content="website" />
+    <link rel="canonical" href="https://strongtowing.services" />
+
+
+
+    <style>
+        :root {
+            --primary-blue: #174d65;
+            --dark-blue: #226a9c;
+            --light-blue: #0084b4;
+            --primary-orange: #faa74a;
+            --orange-hover: #ec971f;
+            --light-gray: #f8f9fa;
+            --medium-gray: #e9ecef;
+            --dark-gray: #343a40;
+            --white: #ffffff;
+            --black: #000000;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.5;
+            font-weight: 400;
+            background-color: var(--white);
+            color: var(--dark-gray);
+            font-synthesis: none;
+            text-rendering: optimizeLegibility;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            overflow-x: hidden;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+        }
+
+        #app {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        a {
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1350px;
+            margin: 0 auto;
+            padding: 0 16px;
+        }
+
+        .title-hero-container {
+            width: 100%;
+/*             max-width: 1350px;
+ */        }
+
+        .title-hero {
+            padding: 4.5rem 0;
+            text-align: center;
+            margin: 0px;
+            width: 100%;
+            background-color: var(--primary-blue);
+            position: relative;
+        }
+
+        .start-dots {
+            position: absolute;
+            top: 15px;
+            left: 10px;
+        }
+
+        .end-dots {
+            position: absolute;
+            bottom: 15px;
+            right: 10px;
+        }
+
+        .section-label {
+            color: var(--primary-orange);
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+        }
+
+        .center-label {
+            justify-content: center;
+            justify-items: center;
+        }
+
+        .divider-label {
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+            .divider-label::before {
+                content: "";
+                height: 2px;
+                background-color: var(--primary-orange);
+                width: 24px;
+                margin: 0 12px;
+            }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-blue);
+            color: var(--white);
+        }
+
+            .btn-primary:hover {
+                background-color: var(--dark-blue);
+            }
+
+        .btn-orange {
+            background-color: var(--primary-orange);
+            color: var(--white);
+        }
+
+            .btn-orange:hover {
+                background-color: var(--orange-hover);
+            }
+
+        .btn-outline {
+            background-color: transparent;
+            border: 1px solid var(--white);
+            color: var(--white);
+        }
+
+            .btn-outline:hover {
+                background-color: rgba(255, 255, 255, 0.1);
+            }
+
+        .social-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 16px;
+            color: inherit;
+            font-size: 18px;
+        }
+
+        .arrow-icon {
+            margin-left: 8px;
+        }
+
+        .fa,
+        .fa-brands,
+        .fa-classic,
+        .fa-regular,
+        .fa-sharp,
+        .fa-solid,
+        .fab,
+        .far,
+        .fas {
+            line-height: normal;
+        }
+
+        /* Floating Actions */
+        .floating-actions {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            z-index: 1000;
+        }
+
+        .floating-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 24px;
+            border-radius: 50px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+            .floating-btn i {
+                transition: transform 0.3s ease;
+            }
+
+            .floating-btn:hover i {
+                transform: translateX(4px);
+            }
+
+        .find-offers {
+            background-color: #1e6888;
+            color: var(--white);
+        }
+
+            .find-offers:hover {
+                background-color: var(--dark-blue);
+                transform: translateY(-2px);
+                box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+            }
+
+        .find-offers-arrow {
+            background-color: white;
+            color: #1e6888;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            margin: auto;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+        }
+
+        .request-service {
+            background-color: var(--primary-orange);
+            color: var(--white);
+        }
+
+            .request-service:hover {
+                background-color: var(--orange-hover);
+                transform: translateY(-2px);
+                box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+            }
+
+        .request-service-arrow {
+            background-color: white;
+            color: #faa74a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            margin: auto;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+        }
+
+        .contact-us-btn,
+        .all-other-services-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 24px;
+            border-radius: 50px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            background-color: var(--primary-orange);
+            color: var(--white);
+            width: fit-content;
+        }
+
+            .contact-us-btn i,
+            .all-other-services-btn i {
+                transition: transform 0.3s ease;
+            }
+
+            .contact-us-btn:hover i,
+            .all-other-services-btn:hover i {
+                transform: translateX(4px);
+            }
+
+            .contact-us-btn:hover,
+            .all-other-services-btn:hover {
+                background-color: var(--orange-hover);
+                transform: translateX(4px);
+                box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+            }
+
+        .contact-arrow,
+        .all-other-services-arrow {
+            background-color: white;
+            color: #faa74a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            margin: auto;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+        }
+
+        .divider {
+            border: 0;
+            border-top: 1px solid #cccccc;
+            margin: 24px 0;
+        }
+
+        .phone-container {
+            display: flex;
+            margin: auto 0;
+        }
+
+        .phone-content {
+            display: inline-flex;
+            align-items: center;
+            padding: 8px 8px 8px 16px;
+            background-color: var(--primary-orange);
+            color: var(--white);
+            border-radius: 50px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            margin-left: auto;
+            gap: 10px;
+        }
+
+            .phone-content i {
+                padding: 6px;
+                background-color: white;
+                border-radius: 50%;
+                color: var(--primary-orange);
+                margin-left: 8px;
+                font-size: 1rem;
+            }
+
+            .phone-content:hover {
+                background-color: var(--orange-hover);
+            }
+
+        @@media (min-width: 1600px) {
+            .title-hero-container
+
+        {
+            margin: 0 auto;
+        }
+
+        }
+        @@media (max-width: 768px) {
+            .container
+
+        {
+            padding: 0 12px;
+        }
+
+        .title-hero {
+            width: 100%;
+        }
+
+        .floating-actions {
+            bottom: 20px;
+            right: 10px;
+        }
+
+        .floating-btn {
+            padding: 10px 20px;
+            font-size: 14px;
+        }
+
+        }
+
+        @@media (max-width: 992px) {
+            .phone-content
+
+        {
+            margin-left: 0;
+            margin-top: 0;
+            align-self: flex-start;
+        }
+
+        }
+
+        @@media (max-width: 576px) {
+            .floating-actions
+
+        {
+            bottom: 16px;
+            right: 5px;
+        }
+
+        .floating-btn {
+            width: fit-content;
+            justify-content: center;
+        }
+
+        }
+
+        .header {
+            width: 100%;
+            position: relative;
+            z-index: 1000;
+        }
+
+        /* Top Bar Styles */
+        .top-bar {
+            background-color: var(--white);
+            padding: 20px 20px 0px 20px;
+        }
+
+        .top-bar-inner {
+            padding: 5px 50px;
+            border-bottom: 1px solid var(--medium-gray);
+            margin: 0 20px;
+        }
+
+        .top-bar .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1400px;
+        }
+
+        .social-links {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+            .social-links a {
+                color: var(--dark-gray);
+                font-size: 20px;
+                transition: color 0.3s ease;
+            }
+
+                .social-links a:hover {
+                    color: var(--primary-blue);
+                }
+
+        .top-bar .container .header-contact-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .phone-number {
+            display: flex;
+            align-items: center;
+            color: var(--dark-gray);
+            font-weight: 500;
+            font-size: 16px;
+            transition: color 0.3s ease;
+        }
+
+            .phone-number:hover {
+                color: var(--primary-blue);
+            }
+
+            .phone-number i {
+                margin-right: 8px;
+            }
+
+        .availability {
+            display: flex;
+            align-items: center;
+            color: var(--dark-gray);
+            font-size: 16px;
+        }
+
+            .availability i {
+                margin-right: 8px;
+            }
+
+        .flag-icon {
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+        }
+
+        /* Main Navigation Styles */
+        .main-nav {
+            background-color: var(--white);
+            padding: 15px 0;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            width: 100%;
+            transition: top 0.3s;
+        }
+
+            .main-nav.fixed {
+                position: fixed;
+                top: 0;
+                z-index: 1000;
+            }
+
+        .nav-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        .header-site {
+            display: flex;
+            align-items: center;
+        }
+
+        .site-logo {
+            display: flex;
+            align-items: center;
+            padding-right: 24px;
+            border-right: 1px solid var(--dark-gray);
+            margin-right: 24px;
+        }
+
+        .nav-links {
+            display: flex;
+            list-style: none;
+            gap: 32px;
+        }
+
+        .nav-link {
+            color: var(--dark-gray);
+            font-weight: 500;
+            font-size: 15px;
+            transition: color 0.3s ease;
+            position: relative;
+        }
+
+            .nav-link:hover {
+                color: var(--light-blue);
+            }
+
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .swift-login {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--primary-blue);
+            font-weight: 500;
+            font-size: 15px;
+            transition: opacity 0.3s ease;
+        }
+
+            .swift-login:hover {
+                opacity: 0.8;
+            }
+
+        .contact-btn {
+            padding: 10px 24px;
+            background-color: var(--primary-orange);
+            color: var(--white);
+            border-radius: 50px;
+            font-weight: 500;
+            font-size: 14px;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+
+            .contact-btn:hover {
+                background-color: var(--orange-hover);
+            }
+
+        .provider-btn {
+            padding: 10px 24px;
+            background-color: var(--primary-blue);
+            color: var(--white);
+            border-radius: 4px;
+            font-weight: 500;
+            font-size: 14px;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+
+            .provider-btn:hover {
+                background-color: var(--dark-blue);
+            }
+
+        /* Menu Toggle */
+        .menu-toggle {
+            display: none;
+            flex-direction: column;
+            gap: 6px;
+            cursor: pointer;
+            z-index: 200;
+            width: 30px;
+            height: 24px;
+            position: relative;
+        }
+
+            .menu-toggle span {
+                width: 30px;
+                height: 3px;
+                background-color: var(--dark-gray);
+                border-radius: 3px;
+                transition: all 0.3s ease-in-out;
+                transform-origin: center;
+            }
+
+            .menu-toggle.active span:nth-child(1) {
+                transform: translateY(9px) rotate(45deg);
+            }
+
+            .menu-toggle.active span:nth-child(2) {
+                opacity: 0;
+            }
+
+            .menu-toggle.active span:nth-child(3) {
+                transform: translateY(-9px) rotate(-45deg);
+            }
+
+        /* Mobile Menu */
+        .mobile-menu {
+            display: none;
+            width: 100%;
+            background-color: var(--white);
+            padding: 0;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease, padding 0.3s ease;
+        }
+
+            .mobile-menu.active {
+                display: block;
+                max-height: 500px;
+                padding: 20px 0;
+                border-top: 1px solid var(--medium-gray);
+            }
+
+        .mobile-nav-links {
+            list-style: none;
+            margin-bottom: 20px;
+        }
+
+            .mobile-nav-links li {
+                margin-bottom: 16px;
+            }
+
+        .mobile-nav-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+            .mobile-nav-actions .swift-login,
+            .mobile-nav-actions .contact-btn,
+            .mobile-nav-actions .provider-btn {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                width: 100%;
+            }
+
+        /* Main Content Styles */
+        .main-content {
+            padding: 60px 0;
+            background-color: var(--light-gray);
+            text-align: center;
+            flex-grow: 1;
+        }
+
+            .main-content h1 {
+                margin-bottom: 16px;
+                color: var(--primary-blue);
+                font-size: 2.5rem;
+            }
+
+        /* Responsive Font Sizes */
+        @@media (max-width: 1100px) {
+            .nav-links
+
+        {
+            gap: 24px;
+        }
+
+        .top-bar .container .header-contact-info {
+            gap: 16px;
+        }
+
+        .nav-link,
+        .swift-login {
+            font-size: 14px;
+        }
+
+        .contact-btn,
+        .provider-btn {
+            font-size: 13px;
+        }
+
+        .phone-number,
+        .availability {
+            font-size: 14px;
+        }
+
+        .main-content h1 {
+            font-size: 2rem;
+        }
+
+        .nav-links {
+            gap: 16px;
+        }
+
+        .nav-link {
+            font-size: 13px;
+        }
+
+        .contact-btn,
+        .provider-btn {
+            font-size: 12px;
+        }
+
+        .main-content h1 {
+            font-size: 1.8rem;
+        }
+
+        }
+
+        @@media (max-width: 992px) {
+            .top-bar .container
+
+        {
+            flex-direction: row;
+            gap: 12px;
+        }
+
+        .top-bar .container .header-contact-info {
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .menu-toggle {
+            display: flex;
+        }
+
+        .site-logo {
+            border-right: none;
+        }
+
+        .nav-container {
+            position: relative;
+        }
+
+        .header-site .nav-links {
+            display: none;
+        }
+
+        .nav-actions {
+            display: none;
+        }
+
+        .phone-number,
+        .availability {
+            font-size: 13px;
+        }
+
+        .main-content h1 {
+            font-size: 1.5rem;
+        }
+
+        }
+
+        @@media (max-width: 576px) {
+            .top-bar
+
+        {
+            display: none;
+        }
+
+        .top-bar .container .header-contact-info {
+            flex-direction: row;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .top-bar-inner {
+            padding: 5px 0;
+        }
+
+        .mobile-menu.active {
+            padding: 16px 0;
+            margin: 10px 0px;
+        }
+
+        .swift-login {
+            font-size: 12px;
+        }
+
+        .contact-btn,
+        .provider-btn {
+            font-size: 11px;
+        }
+
+        .main-content h1 {
+            font-size: 1.3rem;
+        }
+
+        .phone-number,
+        .availability {
+            font-size: 12px;
+        }
+
+        }
+
+        .footer {
+            background-color: var(--primary-blue);
+            color: var(--white);
+            padding: 40px 0 20px;
+        }
+
+        .footer-container {
+            max-width: 1350px;
+            margin: 0 auto;
+            padding: 0 16px;
+        }
+
+        .footer-top {
+            display: flex;
+            justify-content: space-between;
+            justify-items: center;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
+        }
+
+        .footer-heading {
+            font-size: clamp(1.8rem, 4vw, 2.5rem);
+            font-weight: 700;
+            max-width: 500px;
+            line-height: 1.2;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .footer-divider {
+            height: 2px;
+            background-color: rgba(255, 255, 255, 0.2);
+            margin: 24px 0;
+        }
+
+        .footer-content {
+            display: flex;
+            flex-wrap: wrap;
+        }
+
+        .footer-info {
+            flex: 1;
+            min-width: 250px;
+            margin-bottom: 24px;
+        }
+
+        .footer-brand {
+            display: flex;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+            .footer-brand i {
+                margin-right: 8px;
+                color: var(--primary-orange);
+            }
+
+        .footer-brand-text {
+            font-size: clamp(1rem, 2vw, 1.125rem);
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .footer-tagline {
+            font-size: clamp(0.85rem, 1.3vw, 1rem);
+            margin-bottom: 16px;
+            max-width: 300px;
+            line-height: 1.6;
+        }
+
+        .footer-social {
+            display: flex;
+            margin-top: 16px;
+        }
+
+            .footer-social a {
+                margin-right: 16px;
+                font-size: clamp(1.1rem, 2vw, 1.25rem);
+                color: var(--white);
+                transition: color 0.3s ease;
+            }
+
+                .footer-social a:hover {
+                    color: var(--primary-orange);
+                }
+
+        .footer-links {
+            flex: 1;
+            min-width: 150px;
+            margin-bottom: 24px;
+        }
+
+        .footer-title {
+            font-size: clamp(1rem, 1.5vw, 1.125rem);
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .footer-nav {
+            list-style: none;
+        }
+
+            .footer-nav li {
+                margin-bottom: 8px;
+            }
+
+            .footer-nav a {
+                font-size: clamp(0.9rem, 1.2vw, 1rem);
+                color: var(--white);
+                transition: color 0.3s ease;
+            }
+
+                .footer-nav a:hover {
+                    color: var(--primary-orange);
+                    padding-left: 4px;
+                }
+
+        .footer-contact {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .contact-item {
+            font-size: clamp(0.8rem, 1vw, 0.9rem);
+            display: flex;
+            margin-bottom: 16px;
+            align-items: center;
+        }
+
+            .contact-item i {
+                margin-right: 10px;
+                margin-bottom: 2px;
+                color: var(--primary-orange);
+            }
+
+            .contact-item a {
+                color: var(--white);
+                transition: color 0.3s ease;
+            }
+
+        .footer-contact-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+            .footer-contact-info span {
+                margin-bottom: 4px;
+            }
+
+        .footer-actions {
+            display: flex;
+            margin-top: 24px;
+            gap: 16px;
+        }
+
+        .footer-btn {
+            display: inline-flex;
+            align-items: center;
+            padding: 8px 16px;
+            background-color: transparent;
+            color: var(--white);
+            border: 1px solid var(--white);
+            border-radius: 9999px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            font-size: clamp(0.9rem, 1.1vw, 1rem);
+        }
+
+            .footer-btn i {
+                margin-left: 8px;
+            }
+
+            .footer-btn:hover {
+                background-color: rgba(255, 255, 255, 0.1);
+                transform: translateY(-2px);
+            }
+
+            .footer-btn.orange {
+                background-color: var(--primary-orange);
+                border: none;
+            }
+
+                .footer-btn.orange:hover {
+                    background-color: var(--orange-hover);
+                }
+
+        .footer-bottom {
+            font-size: clamp(0.8rem, 1vw, 0.9rem);
+            text-align: center;
+            padding-top: 16px;
+            margin-top: 16px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        @@media (max-width: 992px) {
+            .footer-heading
+
+        {
+            font-size: clamp(1.5rem, 5vw, 2rem);
+        }
+
+        .footer-top {
+            flex-direction: column;
+        }
+
+        }
+
+        @@media (max-width: 768px) {
+            .footer-content
+
+        {
+            flex-direction: column;
+        }
+
+        .footer-info,
+        .footer-links,
+        .footer-contact {
+            margin-bottom: 32px;
+        }
+
+        .footer-actions {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .footer-btn {
+            margin-bottom: 16px;
+        }
+
+        }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <div class="top-bar container">
+            <div class="top-bar-inner">
+                <div class="container">
+                    <div class="social-links">
+                        <a href="#" aria-label="Instagram">
+                            <i class="fab fa-instagram"></i>
+                        </a>
+                        <a href="#" aria-label="YouTube">
+                            <i class="fab fa-youtube"></i>
+                        </a>
+                        <a href="#" aria-label="TikTok"><i class="fab fa-tiktok"></i></a>
+                    </div>
+                    <div class="header-contact-info">
+                        <a href="tel:7032008836" class="phone-number">
+                            <i class="fa-solid fa-phone"></i>
+                            703-200-8836
+						</a>
+
+                        <div class="login-link">
+                            <i class="fa-solid fa-user"></i>
+                            <a class="nav-link" asp-controller="Home" asp-action="login" >Swift login</a>
+                        </div>
+
+
+                        <div class="availability">
+                            <i class="far fa-clock"></i>
+                            Available 24/7
+                        </div>
+
+
+
+                        <div class="flag-icon">
+                            <img src="/public/images/flag.svg" alt="Country Flag" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <nav class="main-nav">
+            <div class="container">
+                <div class="nav-container">
+                    <div class="header-site">
+                        <a href="#" class="site-logo">
+                            <img src="/public/images/logo.svg"
+                                 alt="Strong Towing"
+                                 height="35" />
+                        </a>
+                        <ul class="nav-links">
+                            <li><a  class="nav-link"  asp-controller="Home" asp-action="Home">Home</a></li>
+                            <li><a class="nav-link" asp-controller="Home" asp-action="About">About</a></li>
+                            <li><a class="nav-link" asp-controller="Home" asp-action="SERvices">Services</a></li>
+                            <li><a class="nav-link" asp-controller="Home" asp-action="Order_Req">Services Request</a></li>
+
+                            <li><a class="nav-link" asp-controller="Home" asp-action="Offers">Offers</a></li>
+                            <li><a class="nav-link" asp-controller="Home" asp-action="pricing">Pricing</a></li>
+                            <li><a class="nav-link" asp-controller="Home" asp-action="blog">Blog</a></li>
+
+                        </ul>
+                    </div>
+
+                    <div class="menu-toggle" id="menu-toggle">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+
+                    <div class="nav-actions">
+
+                        <a class="contact-btn" asp-controller="Home" asp-action="Contact">Contact Us</a>
+                        <button class="provider-btn" onclick="location.href='/Home/menu_page'">
+                            Join Our Provider Network
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mobile-menu" id="mobile-menu">
+                    <ul class="mobile-nav-links">
+                        <li><a class="nav-link" asp-controller="Home" asp-action="Home">Home</a></li>
+                        <li><a class="nav-link" asp-controller="Home" asp-action="About">About</a></li>
+                        <li><a class="nav-link" asp-controller="Home" asp-action="SERvices">Services</a></li>
+                        <li><a class="nav-link" asp-controller="Home" asp-action="Order_Req">Services Request</a></li>
+                        <li><a class="nav-link" asp-controller="Home" asp-action="Offers">Offers</a></li>
+                        <li><a class="nav-link" asp-controller="Home" asp-action="pricing">Pricing</a></li>
+                        <li><a class="nav-link" asp-controller="Home" asp-action="blog">Blog</a></li>
+                        <a class="nav-link" asp-controller="Home" asp-action="login">Swift login</a>
+
+
+                    </ul>
+                    <div class="mobile-nav-actions">
+                   
+                        <a  class="contact-btn" asp-controller="Home" asp-action="Contact">Contact Us</a>
+                        <button class="provider-btn" onclick="location.href='/Home/menu_page'">
+                            Join Our Provider Network
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+
+
+
+
+@* 
+
+    <header class="header">
+        <div class="top-bar container">
+            <div class="top-bar-inner">
+                <div class="container">
+                    <div class="social-links">
+                        <a href="#" aria-label="Instagram">
+                            <i class="fab fa-instagram"></i>
+                        </a>
+                        <a href="#" aria-label="YouTube">
+                            <i class="fab fa-youtube"></i>
+                        </a>
+                        <a href="#" aria-label="TikTok"><i class="fab fa-tiktok"></i></a>
+                    </div>
+                    <div class="header-contact-info">
+                        <a href="tel:7032008836" class="phone-number">
+                            <i class="fa-solid fa-phone"></i>
+                            703-200-8836
+                        </a>
+                        <div class="availability">
+                            <i class="far fa-clock"></i>
+                            Available 24/7
+                        </div>
+                        <div class="flag-icon">
+                            <img src="/public/images/flag.svg" alt="Country Flag" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <nav class="main-nav">
+            <div class="container">
+                <div class="nav-container">
+                    <div class="header-site">
+                        <a href="#" class="site-logo">
+                            <img src="./public/images/logo.svg"
+                                 alt="Strong Towing"
+                                 height="35" />
+                        </a>
+                        <ul class="nav-links">
+                            <li><a href="#" class="nav-link">Home</a></li>
+                            <li><a href="#" class="nav-link">About</a></li>
+                            <li><a href="#" class="nav-link">Services</a></li>
+                            <li><a href="#" class="nav-link">Offers</a></li>
+                            <li><a href="#" class="nav-link">Pricing</a></li>
+                        </ul>
+                    </div>
+
+                    <div class="menu-toggle" id="menu-toggle">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+
+                    <div class="nav-actions">
+                        <a href="#" class="swift-login">
+                            <img src="./public/images/swift_login.svg" alt="Swift" />
+                        </a>
+                        <a href="#" class="contact-btn">Contact Us</a>
+                        <a href="#" class="provider-btn">Join Our Provider Network</a>
+                    </div>
+                </div>
+
+                <div class="mobile-menu" id="mobile-menu">
+                    <ul class="mobile-nav-links">
+                        <li><a href="#" class="nav-link">Home</a></li>
+                        <li><a href="#" class="nav-link">About</a></li>
+                        <li><a href="#" class="nav-link">Services</a></li>
+                        <li><a href="#" class="nav-link">Offers</a></li>
+                        <li><a href="#" class="nav-link">Pricing</a></li>
+                    </ul>
+                    <div class="mobile-nav-actions">
+                        <a href="#" class="swift-login">
+                            <img src="./public/images/swift_login.svg" alt="Swift" />
+                        </a>
+                        <a href="#" class="contact-btn">Contact Us</a>
+                        <a href="#" class="provider-btn">Join Our Provider Network</a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+ *@
+
+
+
+
+
+
+
+
+    <div class="container-fluid">
+        <main role="main" class="pb-3">
+            @RenderBody()
+        </main>
+    </div>
+
+
+    @{
+    var path = Context.Request.Path;
+}
+    
+    @if (
+    !(
+    path.StartsWithSegments("/Home/Login", StringComparison.OrdinalIgnoreCase) ||
+    path.StartsWithSegments("/Home/EnterOtp", StringComparison.OrdinalIgnoreCase) ||
+    path.StartsWithSegments("/Home/Register", StringComparison.OrdinalIgnoreCase) ||
+    path.StartsWithSegments("/Home/ResetPasswordWithOtp", StringComparison.OrdinalIgnoreCase) ||
+    path.StartsWithSegments("/Home/VerifyOtp", StringComparison.OrdinalIgnoreCase) ||
+    path.StartsWithSegments("/Home/PendingApproval", StringComparison.OrdinalIgnoreCase) ||
+    path.StartsWithSegments("/Home/TrackOrder", StringComparison.OrdinalIgnoreCase) ||
+    path.StartsWithSegments("/Home/menu_page", StringComparison.OrdinalIgnoreCase) ||
+    path.StartsWithSegments("/Home/Create_PROV", StringComparison.OrdinalIgnoreCase) ||
+
+    path.StartsWithSegments("/Home/ForgotPassword", StringComparison.OrdinalIgnoreCase)
+    )
+    )
+    {
+    <footer class="footer">
+        <div class="footer-container">
+            <div class="footer-top">
+                <h2 class="footer-heading">LET US SOLVE YOUR TOWING PROBLEMS</h2>
+                <div class="footer-phone-container">
+                    <a href="tel:7032008836" class="footer-phone">
+                        <span> 7032008836 </span>
+                        <i class="fas fa-phone"></i>
+                    </a>
+                </div>
+            </div>
+
+            <div class="footer-divider"></div>
+
+            <div class="footer-content">
+                <div class="footer-info">
+                    <div class="footer-brand">
+                        <i class="fas fa-bolt"></i>
+                        <div class="footer-brand-text">STRONG TOWING</div>
+                    </div>
+                    <p class="footer-tagline">
+                        Expert solutions for all your towing needs - fast, safe, and
+                        efficient.
+                    </p>
+                    <div class="footer-social">
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                        <a href="#"><i class="fab fa-youtube"></i></a>
+                        <a href="#"><i class="fab fa-tiktok"></i></a>
+                    </div>
+                </div>
+
+                <div class="footer-links">
+                    <h3 class="footer-title">PAGES</h3>
+                    <ul class="footer-nav">
+                            <li><a asp-controller="Home" asp-action="Home">Home</a></li>
+                            <li><a asp-controller="Home" asp-action="About">About</a></li>
+                        <li><a asp-controller="Home" asp-action="SERvices">Services</a></li>
+                            <li><a asp-controller="Home" asp-action="Offers">Offers</a></li>
+                            <li><a asp-controller="Home" asp-action="pricing">Pricing</a></li>
+                            <li><a asp-controller="Home" asp-action="blog">Blog</a></li>
+                            <li><a asp-controller="Home" asp-action="FAQ">FAQ</a></li>
+
+                    </ul>
+                </div>
+
+                <div class="footer-contact">
+                    <h3 class="footer-title">CONTACT</h3>
+                    <div class="contact-item">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <div class="footer-contact-info">
+                            <span>
+                                5021 Seminary Rd Apt # 1410, Alexandria VA 22311 Configure
+                            </span>
+                        </div>
+                    </div>
+                    <div class="contact-item">
+                        <i class="fas fa-phone"></i>
+                        <a href="tel:7032008836">7032008836</a>
+                    </div>
+                    <div class="contact-item">
+                        <i class="fas fa-envelope"></i>
+                        <a href="mailto:info@strongtowing.services">info@strongtowing.services</a>
+                    </div>
+                    <div class="contact-item">
+                        <i class="far fa-clock"></i>
+                        <span>Available 24/7</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="footer-bottom">© 2025 Strong Towing</div>
+        </div>
+    </footer>
+
+    <section class="floating-actions">
+            <a asp-controller="Home" asp-action="Offers" class="floating-btn find-offers">
+            Find your offers!
+            <span class="find-offers-arrow">
+                <i class="fas fa-arrow-right"></i>
+            </span>
+        </a>
+            <a asp-controller="Home" asp-action="Order_Req" class="floating-btn request-service">
+            Request Service
+            <span class="request-service-arrow">
+                <i class="fas fa-arrow-right"></i>
+            </span>
+        </a>
+    </section>
+
+    }
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+
+
+
+
+
+
+</body>
+</html>
+
+
+
+
+
+<script>
+        document.addEventListener("DOMContentLoaded", function () {
+        const toggleButton = document.getElementById("toggleButton");
+        const navbarNav = document.getElementById("navbarNav");
+
+        toggleButton.addEventListener("click", function () {
+            // تبديل حالة الزر
+            this.classList.toggle("active");
+
+            // فتح أو إغلاق القائمة مع الأنيميشن
+            navbarNav.classList.toggle("show");
+        });
+    });
+
+  
+    // document.addEventListener('DOMContentLoaded', function() {
+    //     // الحصول على العنصر dropdown-content
+    //     const dropdownContent = document.querySelector('.dropdown-content');
+    //     const dropdownButton = document.querySelector('.green-btn');
+
+    //     // عرض القائمة عند الضغط على الزر
+    //     dropdownButton.addEventListener('click', function(event) {
+    //         // منع تفعيل أي حدث آخر مثل التمرير
+    //         event.stopPropagation();
+
+    //         // التبديل بين إظهار وإخفاء القائمة
+    //         if (dropdownContent.style.display === 'block') {
+    //             dropdownContent.style.display = 'none';
+    //         } else {
+    //             dropdownContent.style.display = 'block';
+    //         }
+    //     });
+
+    //     // إخفاء القائمة عند التمرير على الصفحة
+    //     window.addEventListener('scroll', function() {
+    //         dropdownContent.style.display = 'none';
+    //     });
+
+    //     // إخفاء القائمة إذا تم الضغط في أي مكان آخر على الصفحة
+    //     document.addEventListener('click', function(event) {
+    //         if (!dropdownButton.contains(event.target) && !dropdownContent.contains(event.target)) {
+    //             dropdownContent.style.display = 'none';
+    //         }
+    //     });
+    // });
+        document.addEventListener("DOMContentLoaded", function () {
+      const menuToggle = document.getElementById("menu-toggle");
+      const mobileMenu = document.getElementById("mobile-menu");
+
+      // Function to toggle the mobile menu
+      function toggleMobileMenu() {
+        menuToggle.classList.toggle("active");
+        mobileMenu.classList.toggle("active");
+
+        // Optional: Prevent scrolling when menu is open
+        document.body.classList.toggle("menu-open");
+      }
+
+      // Event listener for menu toggle button
+      menuToggle.addEventListener("click", toggleMobileMenu);
+
+      // Close menu when clicking outside
+      document.addEventListener("click", function (event) {
+        const isClickInsideMenu = mobileMenu.contains(event.target);
+        const isClickOnToggle = menuToggle.contains(event.target);
+
+        if (
+          mobileMenu.classList.contains("active") &&
+          !isClickInsideMenu &&
+          !isClickOnToggle
+        ) {
+          toggleMobileMenu();
+        }
+      });
+
+      // Close menu when window is resized to desktop size
+      window.addEventListener("resize", function () {
+        if (window.innerWidth > 768 && mobileMenu.classList.contains("active")) {
+          menuToggle.classList.remove("active");
+          mobileMenu.classList.remove("active");
+          document.body.classList.remove("menu-open");
+        }
+      });
+
+      // Add smooth scroll behavior for navigation links
+      const navLinks = document.querySelectorAll(".nav-link");
+
+      navLinks.forEach((link) => {
+        link.addEventListener("click", function (e) {
+          const href = this.getAttribute("href");
+
+          // Only prevent default if it's an anchor link
+          if (href.startsWith("#") && href.length > 1) {
+            e.preventDefault();
+
+            const targetElement = document.querySelector(href);
+
+            if (targetElement) {
+              // Close mobile menu if open
+              if (mobileMenu.classList.contains("active")) {
+                toggleMobileMenu();
+              }
+
+              // Smooth scroll to the target element
+              targetElement.scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+              });
+            }
+          }
+        });
+      });
+
+      // Add hover effect for buttons
+      const buttons = document.querySelectorAll(".contact-btn, .provider-btn");
+
+      buttons.forEach((button) => {
+        button.addEventListener("mouseenter", function () {
+          this.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.1)";
+        });
+
+        button.addEventListener("mouseleave", function () {
+          this.style.boxShadow = "none";
+        });
+      });
+    });
+
+</script>
+
+

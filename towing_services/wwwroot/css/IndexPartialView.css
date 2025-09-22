@@ -1,0 +1,274 @@
+﻿/* Please see documentation at https://docs.microsoft.com/aspnet/core/client-side/bundling-and-minification
+for details on configuring this project to bundle and minify static web assets. */
+
+/*****Indexpartalview****/
+
+body {
+    background: #f0f0f0
+}
+
+
+/* تنسيق القائمة المنسدلة */
+.nav-item .dropdown-menu {
+    background-color: #f0f0f0; /* لون الخلفية */
+    border: none;
+    border-radius: 20px; /* زوايا مستديرة */
+    box-shadow: 0px 8px 15px rgb(6 34 57 / 0.10); /* ظل ناعم */
+    padding: 4px;
+    /* إبعاد القائمة عن الحافة اليمنى */
+    margin-left: -50px; /* إضافة مسافة من الحافة اليمنى */
+}
+
+
+/* عناصر القائمة المنسدلة */
+.dropdown-item {
+    font-size: 18px;
+    color: #333;
+    padding: 10px 20px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+    /* تأثير عند المرور على عنصر القائمة المنسدلة */
+    .dropdown-item:hover {
+        background-color: #0b2644; /* لون الخلفية عند المرور */
+        color: #fff; /* لون النص عند المرور */
+        transform: scale(1.05); /* تكبير بسيط */
+    }
+
+/* تصميم السهم */
+.nav-link.dropdown-toggle::after {
+    content: ' ▼'; /* إضافة سهم */
+    font-size: 12px;
+    color: inherit; /* نفس لون النص */
+    margin-left: 5px;
+    transition: transform 0.3s ease;
+}
+
+/* دوران السهم عند الفتح */
+.nav-link.dropdown-toggle[aria-expanded="true"]::after {
+    transform: rotate(180deg);
+}
+
+/* تأثير الظهور التدريجي للقائمة */
+.nav-item .dropdown-menu {
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+    /* عند عرض القائمة */
+    .nav-item .dropdown-menu.show {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+
+
+.table-wrapper::-webkit-scrollbar {
+    width: 5px !important; /* عرض السكروول */
+}
+
+.table-wrapper::-webkit-scrollbar-thumb {
+    background-color: #516f90; /* لون السكروول */
+    border-radius: 5px;
+    height: 1px !important; /* تحديد طول المقبض (الزر المتحرك) */
+}
+
+
+.table {
+    border-radius: 10px;
+    border-collapse: collapse;
+    font-size: 19px;
+    font-weight: 500;
+    line-height: 1.8; /* زيادة المسافة بين السطور */
+    font-family: Roboto;
+    word-wrap: break-word; /* تقسيم الكلمات الطويلة */
+    display: block; /* جعل النص يظهر تحت بعضه */
+    white-space: normal; /* التأكد من أن النص يتكسر عندما يصل إلى نهاية الخلية */
+}
+
+.table-wrapper {
+    overflow: auto; /* تفعيل التمرير العمودي */
+    max-height: 800px; /* تعيين ارتفاع ثابت لظهور التمرير */
+}
+
+.table th, .table td {
+    padding: 15px;
+    text-align: left;
+    border-bottom: 2px solid #ddd;
+}
+
+.table th {
+    background-color: rgba(255, 255, 255, 0.1); /* تغيير لون رأس الجدول */
+    color: black;
+    font-size: 1.2rem; /* تكبير خط الرأس */
+}
+
+
+
+@media (max-width: 768px) {
+    .form-group {
+        margin-bottom: 1rem;
+    }
+
+    .form-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .form-group {
+        width: 100%;
+    }
+
+    .table {
+        white-space: nowrap; /* التأكد من أن النص يتكسر عندما يصل إلى نهاية الخلية */
+    }
+
+    .table-wrapper {
+        overflow: auto; /* تفعيل التمرير العمودي */
+        max-height: 500px; /* تعيين ارتفاع ثابت لظهور التمرير */
+    }
+}
+
+.form-control {
+    font-size: 22px
+}
+
+
+.btn {
+    position: relative;
+    padding: 0.70em 1.2em;
+    background-color: #38ACEC;
+    border: 4px solid #fff; /* تحديد حدود الزر بلون أبيض */
+    color: black;
+    font-size: 1.33rem;
+    text-transform: uppercase;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 5px;
+    overflow: hidden;
+    transition: color 0.3s, border-color 0.3s;
+    z-index: 1; /* تأكد أن التأثير يأتي خلف النص */
+    margin: 0 auto
+}
+
+    .btn::before {
+        content: ''; /* محتوى خالي فقط لإنشاء عنصر إضافي */
+        position: absolute;
+        top: 0;
+        left: -100%; /* وضع العنصر خارج الزر من اليسار */
+        width: 100%;
+        height: 100%;
+        background-color: #15317E; /* لون الخلفية الجديد */
+        transition: left 0.5s ease; /* حركة من اليسار إلى اليمين */
+        z-index: -1; /* تأكد أن التأثير يأتي خلف النص */
+    }
+
+    .btn:hover {
+        color: black;
+        border-color: #3b5bdb;
+    }
+
+        .btn:hover::before {
+            left: 0;
+        }
+
+
+    .btn:hover {
+        color: #ddd;
+    }
+
+.alerts {
+    width: 400px;
+    height: 105px;
+    background: #087918;
+    margin: 0px auto;
+    margin-bottom: 10px;
+    text-align: center;
+    padding: 20px;
+    font-size: 23px;
+    color: white;
+}
+
+@media (max-width: 1024px) {
+    .table {
+        white-space: nowrap; /* التأكد من أن النص يتكسر عندما يصل إلى نهاية الخلية */
+    }
+
+    .table-wrapper {
+        overflow: auto; /* تفعيل التمرير العمودي */
+        max-height: 500px; /* تعيين ارتفاع ثابت لظهور التمرير */
+    }
+}
+
+/* إضافة الاستجابة للأجهزة الصغيرة */
+@media (max-width: 768px) {
+    .btn {
+        font-size: 1.1rem; /* تقليل حجم الخط على الشاشات الصغيرة */
+        padding: 0.5em 1em; /* تقليل المسافة داخل الزر */
+    }
+
+    .alerts {
+        width: 90%; /* جعل التنبيه عرضًا مرنًا */
+        font-size: 18px; /* تقليل حجم الخط على الشاشات الصغيرة */
+        height: auto; /* السماح للتنبيه بالتكيف مع المحتوى */
+        padding: 15px; /* تقليل المسافة داخل التنبيه */
+    }
+}
+
+/* للأجهزة الصغيرة جدًا (مثل الهواتف المحمولة) */
+@media (max-width: 480px) {
+    .btn {
+        font-size: 1rem; /* تقليل حجم الخط أكثر */
+        padding: 0.4em 0.8em; /* تقليل المسافة بشكل أكبر */
+    }
+
+    .alerts {
+        width: 95%; /* توسيع التنبيه ليشغل معظم عرض الشاشة */
+        font-size: 16px; /* تقليل حجم الخط أكثر */
+        padding: 12px; /* تقليل المسافة داخل التنبيه أكثر */
+    }
+}
+/* ستايل الزر */
+.btn-assign {
+    display: inline-block;
+    padding: 10px 20px;
+    background-color: #0089a1;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15); /* الظل البسيط */
+
+    color: black;
+    text-decoration: none;
+    border-radius: 5px;
+    font-weight: bold;
+    text-align: center;
+    white-space: nowrap; /* التأكد من أن النص يتكسر عندما يصل إلى نهاية الخلية */
+
+    transition: all 0.3s ease; /* لتطبيق الحركة */
+}
+
+    /* حركة تأثير عند التفاعل */
+    .btn-assign:hover {
+        background-color: white;
+        color: dodgerblue !important;
+        border: none;
+        transform: scale(1.1); /* تكبير الزر عند المرور عليه */
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* إضافة ظل */
+    }
+
+/* تأثير انسمتن */
+@media (max-width: 768px) {
+    .btn-assign {
+        width: 100%; /* الزر سيكون ملء العرض على الشاشات الصغيرة */
+        box-sizing: border-box;
+    }
+}
+
+/* في حالة عدم وجود فعل متاح */
+.text-muted {
+    font-style: italic;
+    color: #6c757d;
+}
+
+
+

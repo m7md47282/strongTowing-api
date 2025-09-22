@@ -1,0 +1,2818 @@
+﻿
+
+<title>Strong Towing Services</title>
+
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+
+<!-- رابط CSS مكتبة Splide -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@@splidejs/splide@latest/dist/css/splide.min.css">
+
+<!-- رابط JS مكتبة Splide -->
+<script src="https://cdn.jsdelivr.net/npm/@@splidejs/splide@latest/dist/js/splide.min.js"></script>
+
+
+
+
+<style>
+    :root {
+        --primary-blue: #174d65;
+        --dark-blue: #226a9c;
+        --light-blue: #0084b4;
+        --primary-orange: #faa74a;
+        --orange-hover: #ec971f;
+        --light-gray: #f8f9fa;
+        --medium-gray: #e9ecef;
+        --dark-gray: #343a40;
+        --white: #ffffff;
+        --black: #000000;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        line-height: 1.5;
+        font-weight: 400;
+        background-color: var(--white);
+        color: var(--dark-gray);
+        font-synthesis: none;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    html {
+        overflow-x: hidden;
+    }
+
+    body {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        overflow-x: hidden;
+    }
+
+    #app {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+
+    a {
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .container {
+        width: 100%;
+        max-width: 1350px;
+        margin: 0 auto;
+        padding: 0 16px;
+    }
+
+    .title-hero-container {
+        width: 100%;
+
+        max-width: 1350px;
+    }
+
+    .title-hero {
+        padding: 4.5rem 0;
+        text-align: center;
+        margin: 0px;
+        width: 80%;
+        background-color: var(--primary-blue);
+        position: relative;
+
+    }
+
+    .start-dots {
+        position: absolute;
+        top: 15px;
+        left: 10px;
+    }
+
+    .end-dots {
+        position: absolute;
+        bottom: 15px;
+        right: 10px;
+    }
+
+    .section-label {
+        color: var(--primary-orange);
+        font-size: 16px;
+        font-weight: 600;
+        display: flex;
+    }
+
+    .center-label {
+        justify-content: center;
+        justify-items: center;
+    }
+
+    .divider-label {
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+        .divider-label::before {
+            content: "";
+            height: 2px;
+            background-color: var(--primary-orange);
+            width: 24px;
+            margin: 0 12px;
+        }
+
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 16px;
+        border-radius: 4px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: none;
+        text-align: center;
+    }
+
+    .btn-primary {
+        background-color: var(--primary-blue);
+        color: var(--white);
+    }
+
+        .btn-primary:hover {
+            background-color: var(--dark-blue);
+        }
+
+    .btn-orange {
+        background-color: var(--primary-orange);
+        color: var(--white);
+    }
+
+        .btn-orange:hover {
+            background-color: var(--orange-hover);
+        }
+
+    .btn-outline {
+        background-color: transparent;
+        border: 1px solid var(--white);
+        color: var(--white);
+    }
+
+        .btn-outline:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+    .social-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 16px;
+        color: inherit;
+        font-size: 18px;
+    }
+
+    .arrow-icon {
+        margin-left: 8px;
+    }
+
+    .fa,
+    .fa-brands,
+    .fa-classic,
+    .fa-regular,
+    .fa-sharp,
+    .fa-solid,
+    .fab,
+    .far,
+    .fas {
+        line-height: normal;
+    }
+
+    /* Floating Actions */
+    .floating-actions {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        z-index: 1000;
+    }
+
+    .floating-btn {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 24px;
+        border-radius: 50px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+        .floating-btn i {
+            transition: transform 0.3s ease;
+        }
+
+        .floating-btn:hover i {
+            transform: translateX(4px);
+        }
+
+    .find-offers {
+        background-color: #1e6888;
+        color: var(--white);
+    }
+
+        .find-offers:hover {
+            background-color: var(--dark-blue);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+        }
+
+    .find-offers-arrow {
+        background-color: white;
+        color: #1e6888;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        margin: auto;
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+    }
+
+    .request-service {
+        background-color: var(--primary-orange);
+        color: var(--white);
+    }
+
+        .request-service:hover {
+            background-color: var(--orange-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+        }
+
+    .request-service-arrow {
+        background-color: white;
+        color: #faa74a;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        margin: auto;
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+    }
+
+    .contact-us-btn,
+    .all-other-services-btn {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 24px;
+        border-radius: 50px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        background-color: var(--primary-orange);
+        color: var(--white);
+        width: fit-content;
+    }
+
+        .contact-us-btn i,
+        .all-other-services-btn i {
+            transition: transform 0.3s ease;
+        }
+
+        .contact-us-btn:hover i,
+        .all-other-services-btn:hover i {
+            transform: translateX(4px);
+        }
+
+        .contact-us-btn:hover,
+        .all-other-services-btn:hover {
+            background-color: var(--orange-hover);
+            transform: translateX(4px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+        }
+
+    .contact-arrow,
+    .all-other-services-arrow {
+        background-color: white;
+        color: #faa74a;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        margin: auto;
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+    }
+
+    .divider {
+        border: 0;
+        border-top: 1px solid #cccccc;
+        margin: 24px 0;
+    }
+
+    .phone-container {
+        display: flex;
+        margin: auto 0;
+    }
+
+    .phone-content {
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 8px 8px 16px;
+        background-color: var(--primary-orange);
+        color: var(--white);
+        border-radius: 50px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        margin-left: auto;
+        gap: 10px;
+    }
+
+        .phone-content i {
+            padding: 6px;
+            background-color: white;
+            border-radius: 50%;
+            color: var(--primary-orange);
+            margin-left: 8px;
+            font-size: 1rem;
+        }
+
+        .phone-content:hover {
+            background-color: var(--orange-hover);
+        }
+
+    @@media (min-width: 1600px) {
+        .title-hero-container
+
+    {
+        margin: 0 auto;
+    }
+
+    }
+    @@media (max-width: 768px) {
+        .container
+
+    {
+        padding: 0 12px;
+    }
+
+    .title-hero {
+        width: 100%;
+    }
+
+    .floating-actions {
+        bottom: 20px;
+        right: 10px;
+    }
+
+    .floating-btn {
+        padding: 10px 20px;
+        font-size: 14px;
+    }
+
+    }
+
+    @@media (max-width: 992px) {
+        .phone-content
+
+    {
+        margin-left: 0;
+        margin-top: 0;
+        align-self: flex-start;
+    }
+
+    }
+
+    @@media (max-width: 576px) {
+        .floating-actions
+
+    {
+        bottom: 16px;
+        right: 5px;
+    }
+
+    .floating-btn {
+        width: fit-content;
+        justify-content: center;
+    }
+
+    }
+    /* Hero Section Styles */
+    .hero-section {
+        position: relative;
+        height: 84vh;
+        min-height: 75vh;
+        color: var(--white);
+        overflow: hidden;
+    }
+
+        .hero-section .splide,
+        .hero-section #hero-slider .splide__track,
+        .hero-section .splide__list,
+        .hero-section .splide__slide {
+            height: 100%;
+        }
+
+        .hero-section .splide__slide {
+            position: relative;
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            align-items: center;
+        }
+
+            .hero-section .splide__slide:nth-child(1) {
+                background-image: linear-gradient(rgba(6, 34, 86, 0.5), rgba(0, 0, 0, 0.5)), url("public/images/slider_thumbnail_1.png");
+            }
+
+            .hero-section .splide__slide:nth-child(2) {
+                background-image: linear-gradient(rgba(6, 34, 86, 0.5), rgba(0, 0, 0, 0.5)), url("public/images/slider_thumbnail_2.png");
+            }
+
+            .hero-section .splide__slide:nth-child(3) {
+                background-image: linear-gradient(rgba(6, 34, 86, 0.5), rgba(0, 0, 0, 0.5)), url("public/images/slider_thumbnail_3.png");
+            }
+
+    .hero-content {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        padding: 0 8%;
+        gap: 2rem;
+    }
+
+    .hero-text {
+        max-width: 650px;
+    }
+
+        .hero-text h1 {
+            color: white;
+            font-size: clamp(1.5rem, 4vw, 2.5rem);
+            font-weight: 700;
+            margin-bottom: 2rem;
+            line-height: 1.2;
+            overflow-y: hidden;
+        }
+
+        .hero-text h3 {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            margin-bottom: 1rem;
+        }
+
+        .hero-text p {
+            font-size: clamp(1rem, 2vw, 1.1rem);
+            margin-bottom: 2rem;
+        }
+
+    .search-container {
+        display: flex;
+        margin: 2rem 0;
+        max-width: 450px;
+        background-color: none;
+        width: 100%;
+    }
+
+    .search-input {
+        flex: 1;
+        padding: 15px 20px;
+        border: none !important;
+        border-radius: 25px 0 0 25px;
+        font-size: clamp(0.95rem, 2vw, 1rem);
+    }
+
+        .search-input:focus {
+            outline: none;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+        }
+
+    .search-btn {
+        background-color: var(--light-blue);
+        color: var(--white);
+        padding: 15px 25px;
+        border: none;
+        border-radius: 0 25px 25px 0;
+        font-weight: bold;
+        font-size: clamp(0.95rem, 2vw, 1rem);
+        transition: background-color 0.3s ease, transform 0.2s ease;
+        cursor: pointer;
+    }
+
+        .search-btn:hover {
+            background-color: var(--primary-blue);
+            transform: scale(1.025);
+        }
+
+    .hero-buttons {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .explore-btn {
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 16px;
+        border-radius: 50px;
+        font-weight: 500;
+        font-size: clamp(1rem, 2vw, 1.1rem);
+        transition: var(--transition);
+        margin-left: auto;
+        gap: 10px;
+    }
+
+    .explore-btn {
+        background-color: transparent;
+        border: 1px solid var(--white);
+        color: var(--white);
+    }
+
+        .explore-btn:hover {
+            background-color: var(--white);
+            color: var(--dark-blue);
+        }
+
+    .right-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+    }
+
+    .price-tag {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 2.5rem;
+        gap: 2.5rem;
+        text-align: center;
+        margin-top: 2.5rem;
+        color: var(--primary-orange);
+    }
+
+        .price-tag h2 {
+            font-size: clamp(2.5rem, 8vw, 5.5rem);
+            margin-bottom: 0;
+            line-height: 1;
+            font-weight: 600;
+            overflow-y: hidden;
+        }
+
+        .price-tag p {
+            font-size: clamp(1.2rem, 4vw, 2rem);
+        }
+
+    #hero-slider .splide__track .splide__arrow {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: var(--light-blue);
+        color: var(--white);
+        box-shadow: var(--box-shadow);
+        z-index: 10;
+        transition: var(--transition);
+    }
+
+        #hero-slider .splide__track .splide__arrow:hover {
+            background-color: var(--primary-blue);
+        }
+
+        #hero-slider .splide__track .splide__arrow i {
+            font-size: clamp(16px, 2vw, 20px);
+        }
+
+    .what-we-do-section {
+        padding: 60px 16px;
+    }
+
+    .what-we-do-container,
+    .our-services-container,
+    .features-container,
+    .partners-container {
+        max-width: 1350px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+    }
+
+    .operate-container {
+        max-width: 1350px;
+        margin: 0 auto;
+        display: flex;
+        gap: 1.25rem;
+        flex-direction: row;
+    }
+
+    .what-we-do-content {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+
+    .what-we-do-heading {
+        font-size: 42px;
+        font-weight: 700;
+        color: var(--dark-gray);
+        text-transform: uppercase;
+    }
+
+    .what-we-do-text {
+        color: var(--dark-gray);
+        opacity: 0.8;
+        font-size: 16px;
+        line-height: 1.6;
+    }
+
+    .grid-services {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 2rem;
+        padding: 1rem 0;
+    }
+
+    .service-card {
+        background: #fafafa;
+        padding: 32px;
+        border-radius: 16px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        height: 400px;
+        display: flex;
+        flex-direction: column;
+        justify-items: center;
+        text-align: center;
+        align-items: center;
+        justify-content: center;
+        gap: 2rem;
+        position: relative;
+        cursor: pointer;
+    }
+
+        .service-card:hover {
+            transform: translateY(-15px);
+            box-shadow: 3px 6px 18px #124860;
+        }
+
+    .towing-services {
+        background: linear-gradient(#143f4f7f, #143f4f7f), url("public/images/towing_services_thumbnail.png");
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+    }
+
+    .roadside-assistance-services {
+        background: linear-gradient(#143f4f7f, #143f4f7f), url("public/images/roadside_assistance_services_thumbnail.png");
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+    }
+
+    .other-services {
+        background: linear-gradient(#143f4f7f, #143f4f7f), url("public/images/other_services_thumbnail.png");
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+    }
+
+    .service-title {
+        font-size: 32px;
+        font-weight: 700;
+        color: var(--white);
+        margin-bottom: 12px;
+    }
+
+    .features-section {
+        padding: 60px 16px;
+    }
+
+    .features-heading {
+        font-size: 32px;
+        font-weight: 700;
+        color: var(--dark-gray);
+        text-transform: uppercase;
+    }
+
+    .features-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 2.5rem;
+    }
+
+    .features-grid {
+        padding: 2rem 0;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 24px;
+    }
+
+    .feature-item {
+        background-color: #fafafa;
+        text-align: left;
+        border: 1px solid #e1e1e1;
+        border-radius: 16px;
+        padding: 2.5rem 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .feature-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 8px;
+        background: #ffffff;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+        .feature-icon i {
+            font-size: 24px;
+            color: var(--primary-orange);
+        }
+
+    .feature-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--dark-gray);
+        margin-bottom: 8px;
+    }
+
+    .feature-description {
+        color: var(--dark-gray);
+        opacity: 0.8;
+        font-size: 14px;
+        line-height: 1.6;
+    }
+
+    .learn-more-link {
+        display: flex;
+        align-items: center;
+        justify-items: center;
+        color: var(--primary-orange);
+        font-weight: 500;
+        text-decoration: none;
+        font-size: 14px;
+    }
+
+        .learn-more-link a {
+            display: flex;
+            align-items: center;
+            justify-items: center;
+            gap: 8px;
+        }
+
+        .learn-more-link:hover {
+            text-decoration: underline;
+        }
+
+    .operate-section {
+        padding: 60px 16px;
+        text-align: center;
+        background-color: var(--primary-blue);
+    }
+
+    .operate-image {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+        .operate-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+    .operate-content {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+        color: var(--white);
+        text-align: start;
+        justify-content: start;
+    }
+
+    .operate-heading {
+        font-size: 32px;
+        font-weight: 700;
+    }
+
+    .operate-text {
+        font-size: 16px;
+        color: #cccccc;
+        opacity: 0.8;
+        line-height: 1.6;
+    }
+
+    .operate-list-container {
+        padding: 2rem 0;
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        gap: 2rem;
+    }
+
+    .states-box {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .states-number {
+        display: block;
+        font-size: 36px;
+        font-weight: 700;
+        color: var(--white);
+        transition: all 0.3s ease-in-out;
+    }
+
+    .states-text {
+        font-size: 16px;
+        color: #cccccc;
+        opacity: 0.8;
+    }
+
+    .what-is-swift-section {
+        padding: 60px 16px;
+    }
+
+    .what-is-swift-container {
+        max-width: 1350px;
+        margin: 0 auto;
+    }
+
+    .what-is-swift-content {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        align-items: center;
+        gap: 3rem;
+        text-align: left;
+    }
+
+    .what-is-swift-image img {
+        width: 100%;
+        max-width: 500px;
+        height: auto;
+        border-radius: 16px;
+    }
+
+    .what-is-swift-text h1 {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        color: var(--light-blue);
+        text-transform: uppercase;
+    }
+
+    .what-is-swift-text p {
+        font-size: 1.125rem;
+        line-height: 1.6;
+        max-width: 600px;
+        color: #999;
+    }
+
+    .swift-banner-section {
+        padding: 60px 16px;
+        background-color: var(--primary-blue);
+    }
+
+    .swift-banner-container {
+        max-width: 1350px;
+        margin: 0 auto;
+    }
+
+    .swift-banner-content {
+        display: flex;
+        justify-content: space-between;
+        gap: 3rem;
+    }
+
+    .swift-banner-text {
+        display: flex;
+        justify-content: space-between;
+        gap: 1.5rem;
+        flex-direction: column;
+        flex-wrap: wrap;
+        color: var(--white);
+    }
+
+        .swift-banner-text h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+        }
+
+        .swift-banner-text h3 {
+            font-size: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .swift-banner-text h5 {
+            font-size: 1.125rem;
+            line-height: 1.6;
+            max-width: 600px;
+        }
+
+    .swift-banner-image img {
+        width: 100%;
+        max-width: 500px;
+        height: auto;
+        border-radius: 16px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    }
+
+    .faq-section {
+        padding: 60px 16px;
+    }
+
+    .faq-container {
+        max-width: 1350px;
+        margin: 0 auto;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2rem;
+        align-items: flex-start;
+        justify-content: center;
+    }
+
+    .faq-left {
+        flex: 1;
+        min-width: 300px;
+    }
+
+        .faq-left h2 {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+        }
+
+            .faq-left h2 span {
+                color: orange;
+                font-size: 1rem;
+                font-weight: 500;
+            }
+
+    .accordion-item {
+        border-bottom: 1px solid #cccccc8a;
+    }
+
+    .accordion-header {
+        padding: 1rem 0;
+        font-weight: 600;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: pointer;
+    }
+
+        .accordion-header .icons {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            margin-left: auto;
+        }
+
+    .icon-up {
+        display: none;
+    }
+
+    .accordion-header.active .icon-down {
+        display: none;
+    }
+
+    .accordion-header.active .icon-up {
+        display: inline;
+    }
+
+    .accordion-content {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease;
+        padding: 0;
+        color: #555;
+    }
+
+        .accordion-content.open {
+            padding: 0.45rem 0;
+        }
+
+    .faq-right {
+        flex: 1;
+        display: flex;
+        min-width: 250px;
+        justify-content: end;
+    }
+
+        .faq-right img {
+            width: 90%;
+            border-radius: 2rem;
+            object-fit: cover;
+            object-position: center center;
+        }
+
+    .more-faq-btn,
+    .more-testimonials-btn {
+        display: flex;
+        width: fit-content;
+        gap: 0.5rem;
+        background-color: #faa94a;
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 25px;
+        font-weight: bold;
+        margin-top: 1.5rem;
+        cursor: pointer;
+    }
+
+    .testimonials-section {
+        padding: 60px 16px;
+        background-color: var(--primary-blue);
+        position: relative;
+    }
+
+    .testimonials-start-dots {
+        position: absolute;
+        top: 35px;
+        left: 2.5px;
+    }
+
+    .testimonials-end-dots {
+        position: absolute;
+        bottom: 35px;
+        right: 2.55px;
+    }
+
+    .testimonials-container {
+        max-width: 1350px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+    }
+
+    .testimonials-title {
+        font-size: 1.25rem;
+        text-transform: uppercase;
+        color: var(--white);
+    }
+
+    .testimonials-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 2rem;
+    }
+
+    .testimonial-card {
+        background: #fafafa;
+        border-radius: 8px;
+        padding: 24px 24px 6px 24px;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        cursor: pointer;
+    }
+
+        .testimonial-card:hover {
+            transform: translateY(-5px);
+        }
+
+    .rating {
+        color: var(--primary-orange);
+        margin-bottom: 16px;
+    }
+
+        .rating i {
+            margin-right: 4px;
+        }
+
+    .testimonial-text {
+        color: var(--dark-gray);
+        font-size: clamp(0.875rem, 2.5vw, 1rem);
+        line-height: 1.6;
+        margin-bottom: 20px;
+        min-height: 120px;
+    }
+
+    .testimonial-author {
+        display: flex;
+        margin: auto;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 15px 30px;
+        background: #f4f4f6;
+        border-radius: 1rem;
+        width: fit-content;
+    }
+
+    .author-image {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+
+    .author-info h3 {
+        font-size: clamp(1rem, 2.5vw, 1.125rem);
+        font-weight: 600;
+        color: var(--dark-gray);
+        margin: 0;
+    }
+
+    .author-info p {
+        font-size: clamp(0.875rem, 2.5vw, 1rem);
+        color: var(--dark-gray);
+        opacity: 0.8;
+        margin: 4px 0 0;
+    }
+
+    /* About Section */
+    .about-section {
+        background: linear-gradient(135deg, #1e3a8a, #0f766e);
+        padding: 100px 0;
+        color: white;
+    }
+
+    .about-content {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 80px;
+        align-items: center;
+    }
+
+    .about-image-container {
+        position: relative;
+        overflow: visible; /* <=== أضف هذا */
+    }
+
+    .about-content,
+    .about-section {
+        overflow: visible;
+    }
+
+    .about-image {
+        width: 100%;
+        height: 400px;
+        object-fit: cover;
+        border-radius: 20px;
+    }
+
+    .experience-badge {
+        position: absolute;
+        bottom: -30px;
+        right: -30px;
+        background: var(--orange-hover);
+        color: white;
+        padding: 32px;
+        border-radius: 16px;
+        text-align: center;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+    }
+
+    .experience-number {
+        font-size: 48px;
+        font-weight: 700;
+        line-height: 1;
+        margin-bottom: 8px;
+        overflow:hidden
+    }
+
+    .experience-text {
+        font-size: 14px;
+        font-weight: 500;
+        line-height: 1.4;
+    }
+
+    .about-text-content .section-label {
+        color: var(--primary-orange);
+    }
+
+    .about-title {
+        font-size: 48px;
+        font-weight: 700;
+        line-height: 1.2;
+        margin-bottom: 32px;
+        overflow:hidden
+    }
+
+    .about-description {
+        font-size: 16px;
+        line-height: 1.8;
+        color: #e2e8f0;
+        margin-bottom: 24px;
+    }
+
+    .about-details {
+        font-size: 16px;
+        line-height: 1.8;
+        color: #e2e8f0;
+        margin-bottom: 32px;
+    }
+
+    .learn-more {
+        color: var(--primary-orange);
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        transition: color 0.3s ease;
+    }
+
+        .learn-more:hover {
+            color: var(--orange-hover);
+        }
+
+        .learn-more::after {
+            content: "→";
+            margin-left: 8px;
+            transition: transform 0.3s ease;
+        }
+
+        .learn-more:hover::after {
+            transform: translateX(4px);
+        }
+
+    /* Stats Section */
+    .stats-container {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 60px;
+        margin-top: 80px;
+        text-align: center;
+    }
+
+    .stat-item {
+        color: white;
+    }
+
+    .stat-number {
+        font-size: 64px;
+        font-weight: 700;
+        line-height: 1;
+        margin-bottom: 16px;
+        color: #ffffff;
+        overflow-y: hidden;
+    }
+
+    .stat-label {
+        font-size: 16px;
+        color: #e2e8f0;
+        font-weight: 500;
+    }
+
+    /* Blog Section */
+    .blog-section {
+        background-color: #f8f9fa;
+        padding: 80px 0;
+    }
+
+    .blog-section-label {
+        color: var(--primary-orange);
+        font-size: 14px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+    }
+
+        .blog-section-label::before {
+            content: "";
+            width: 30px;
+            height: 2px;
+            background-color: var(--primary-orange);
+            margin-right: 12px;
+        }
+
+    .main-title {
+        font-size: 48px;
+        font-weight: 700;
+        color: #1a1a1a;
+        line-height: 1.2;
+        margin-bottom: 60px;
+        max-width: 800px;
+    }
+
+    .blog-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+        gap: 40px;
+        margin-top: 60px;
+    }
+
+    .blog-card {
+        background: white;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+        .blog-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.12);
+        }
+
+    .blog-image {
+        width: 100%;
+        height: 280px;
+        object-fit: cover;
+    }
+
+    .blog-content {
+        padding: 32px;
+    }
+
+    .blog-date {
+        color: var(--primary-orange);
+        font-size: 14px;
+        font-weight: 500;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+    }
+
+        .blog-date::before {
+            content: "📅";
+            margin-right: 8px;
+        }
+
+    .blog-title {
+        font-size: 24px;
+        font-weight: 700;
+        color: #1a1a1a;
+        margin-bottom: 16px;
+        line-height: 1.3;
+    }
+
+    .blog-excerpt {
+        color: #6b7280;
+        font-size: 16px;
+        line-height: 1.6;
+        margin-bottom: 24px;
+    }
+
+    .read-more {
+        color: var(--primary-orange);
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        transition: color 0.3s ease;
+    }
+
+        .read-more:hover {
+            color: #ea580c;
+        }
+
+        .read-more::after {
+            content: "→";
+            margin-left: 8px;
+            transition: transform 0.3s ease;
+        }
+
+        .read-more:hover::after {
+            transform: translateX(4px);
+        }
+
+    .partners-section {
+        padding: 3rem 1rem;
+        text-align: center;
+    }
+
+    .partners-container {
+        max-width: 1350px;
+        margin: auto;
+    }
+
+    .partners-content {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        justify-items: center;
+        align-items: center;
+        gap: 4rem;
+    }
+
+    .partners-title {
+        font-size: 2rem;
+        font-weight: bold;
+        color: var(--light-blue);
+        text-transform: uppercase;
+        width: 100%;
+    }
+
+    #partneres .splide__slide {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 0 !important;
+    }
+
+
+    #partneres img {
+        max-height: 150px;
+        width: 50%;
+        object-fit: contain;
+
+    }
+
+
+
+
+    #partneres .splide__arrow {
+        background-color: transparent;
+        border: none;
+        font-weight: bold;
+        color: var(--light-blue);
+        font-size: 3rem;
+        opacity: 1;
+    }
+
+    #partneres .splide__arrow--prev {
+        position: absolute;
+        left: -40px !important;
+    }
+
+    #partneres .splide__arrow--next {
+        position: absolute;
+        right: -40px !important;
+    }
+
+
+  
+
+
+
+
+    @@media (max-width: 1200px) {
+        .hero-content
+
+    {
+        padding: 0 3vw;
+        gap: 1.5rem;
+    }
+
+    .hero-text {
+        max-width: 500px;
+    }
+
+    .testimonials-start-dots,
+    .testimonials-end-dots {
+        display: none;
+    }
+
+    }
+
+    @@media (max-width: 1024px) {
+        .about-content
+
+    {
+        gap: 60px;
+    }
+
+    .main-title,
+    .about-title {
+        font-size: 40px;
+    }
+
+    .blog-grid {
+        grid-template-columns: 1fr;
+    }
+
+    }
+
+    @@media (max-width: 992px) {
+        .hero-content
+
+    {
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 2rem;
+        padding: 0 2vw;
+    }
+
+    .right-content {
+        width: 76%;
+        margin-top: 2rem;
+    }
+
+    .price-tag {
+        padding: 2rem;
+        gap: 1.5rem;
+        margin-top: 1.5rem;
+    }
+
+    .hero-buttons {
+        justify-content: center;
+    }
+
+    .features-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .features-header {
+        flex-direction: column;
+        align-items: start;
+    }
+
+    .operate-container {
+        flex-direction: column;
+    }
+
+    .grid-services {
+        padding: 1rem;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    }
+
+    .what-is-swift-content {
+        display: flex;
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .what-is-swift-text h1 {
+        font-size: 2rem;
+    }
+
+    .what-is-swift-text p {
+        font-size: 1rem;
+    }
+
+    .testimonials-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    }
+
+    @@media (max-width: 768px) {
+        .hero-section
+
+    {
+        min-height: 550px;
+    }
+
+    .hero-content {
+        flex-direction: column;
+        align-items: center;
+        padding: 0 1vw;
+        gap: 1.5rem;
+    }
+
+    .right-content {
+        margin-top: 0;
+    }
+
+    .hero-text h1 {
+        font-size: clamp(1.2rem, 6vw, 2rem);
+    }
+
+    .hero-text h3 {
+        font-size: clamp(1rem, 4vw, 1.2rem);
+    }
+
+    .price-tag h2 {
+        font-size: clamp(2rem, 10vw, 3.5rem);
+    }
+
+    .price-tag p {
+        font-size: clamp(1rem, 5vw, 1.5rem);
+    }
+
+    .map-stats {
+        flex-direction: column;
+        gap: 24px;
+    }
+
+    .features-heading {
+        font-size: 28px;
+    }
+
+    .stat-number {
+        font-size: 36px;
+    }
+
+    .services-header h2 {
+        font-size: 2rem;
+    }
+
+    .swift-banner-content {
+        display: flex;
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .swift-banner-text h1 {
+        font-size: 2.2rem;
+    }
+
+    .swift-banner-text h3 {
+        font-size: 1.25rem;
+    }
+
+    .swift-banner-text h5 {
+        font-size: 1rem;
+        max-width: 100%;
+    }
+
+    .swift-banner-image img {
+        max-width: 100%;
+    }
+
+    .faq-container {
+        flex-direction: column;
+    }
+
+    .faq-right {
+        justify-content: center;
+    }
+
+        .faq-right img {
+            border-radius: 1rem;
+        }
+
+    .testimonials-grid {
+        grid-template-columns: 1fr;
+        gap: 32px;
+    }
+
+    .testimonial-text {
+        min-height: auto;
+    }
+
+    .blog-section,
+    .about-section {
+        padding: 60px 0;
+    }
+
+    .main-title,
+    .about-title {
+        font-size: 32px;
+    }
+
+    .blog-grid {
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+
+    .blog-card {
+        margin: 0 auto;
+        max-width: 500px;
+    }
+
+    .about-content {
+        grid-template-columns: 1fr;
+        gap: 40px;
+        text-align: center;
+    }
+
+    .experience-badge {
+        position: static;
+        margin: 20px auto 0;
+        width: fit-content;
+    }
+
+    .stats-container {
+        grid-template-columns: 1fr;
+        gap: 40px;
+        margin-top: 60px;
+    }
+
+    .stat-number {
+        font-size: 48px;
+    }
+
+    .partners-content {
+        flex-direction: column;
+        gap: 2rem;
+    }
+
+    }
+
+    @@media (max-width: 576px) {
+        .features-grid
+
+    {
+        grid-template-columns: 1fr;
+    }
+
+    .hero-section {
+        min-height: 350px;
+    }
+
+    .hero-content {
+        padding: 0 0.5rem;
+        gap: 1rem;
+    }
+
+    .hero-text h1 {
+        font-size: clamp(1rem, 8vw, 1.5rem);
+    }
+
+    .hero-text h3 {
+        font-size: clamp(0.9rem, 5vw, 1rem);
+    }
+
+    .price-tag h2 {
+        font-size: clamp(1.5rem, 12vw, 3rem);
+    }
+
+    .price-tag p {
+        font-size: clamp(0.9rem, 6vw, 1.2rem);
+    }
+
+    .search-container {
+        flex-direction: column;
+        max-width: 100%;
+    }
+
+    .search-input,
+    .search-btn {
+        border-radius: 5px !important;
+        width: 100%;
+        margin-bottom: 8px;
+        font-size: clamp(0.9rem, 4vw, 1rem);
+    }
+
+    .search-btn {
+        margin-bottom: 0;
+    }
+
+    .hero-buttons {
+        gap: 1.5rem;
+        width: 100%;
+    }
+
+    .explore-btn {
+        margin: 0;
+    }
+
+    .features-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .grid-services {
+        grid-template-columns: 1fr;
+    }
+
+    .partners-title {
+        font-size: 1.5rem;
+    }
+
+    #hero-slider .splide__track .splide__arrow {
+        display: none;
+    }
+
+    }
+
+    @@media (max-width: 480px) {
+        .main-title, .about-title
+
+    {
+        font-size: 28px;
+    }
+
+    .blog-content {
+        padding: 24px;
+    }
+
+    .blog-title {
+        font-size: 20px;
+    }
+
+    .experience-badge {
+        padding: 24px;
+    }
+
+    .experience-number {
+        font-size: 36px;
+    }
+
+    }
+
+    @@media (max-width: 424px) {
+        .hero-section
+
+    {
+        min-height: 700px;
+    }
+
+    .hero-content {
+        flex-direction: column;
+        align-items: center;
+        padding: 0.75rem 0.75rem;
+        gap: 0.25rem;
+    }
+
+    .price-tag {
+        padding: 0.5rem;
+        gap: 0.5rem;
+        margin-top: 0;
+    }
+
+    }
+
+   
+</style>
+
+<section class="hero-section">
+    <div id="hero-slider" class="splide">
+        <div class="splide__track">
+            <div class="splide__arrows">
+                <button class="splide__arrow splide__arrow--prev">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </button>
+                <button class="splide__arrow splide__arrow--next">
+                    <i class="fa-solid fa-chevron-right"></i>
+                </button>
+            </div>
+            <ul class="splide__list">
+                <li class="splide__slide">
+
+                    <div class="hero-content">
+                        <div class="hero-text">
+                            <h1>
+                                TRUSTED TOWING SERVICES,<br />RIGHT WHEN YOU NEED THEM
+                            </h1>
+
+                            <div class="search-container">
+                                <input type="text"
+                                       placeholder="Search..."
+                                       class="search-input" />
+                                <button class="search-btn">SEARCH</button>
+                            </div>
+
+                            <h3>Skilled Towing Solutions for Every Situation</h3>
+                            <h3>Towing you can trust – fast, secure, and hassle-free</h3>
+                        </div>
+                        <div class="right-content">
+                            <div class="price-tag">
+                                <h2>75$</h2>
+                                <p>FOR THE FIRST 10 MILES</p>
+                            </div>
+                            <div class="hero-buttons">
+                                <div class="phone-container">
+                                    <a href="tel:7032008836" class="phone-content">
+                                        <span> 7032008836 </span>
+                                        <i class="fas fa-phone"></i>
+                                    </a>
+                                </div>
+                                <a asp-controller="Home" asp-action="SERvices" class="explore-btn">Explore Our Services</a>
+                            </div>
+                        </div>
+                    </div>
+                </li>
+                <li class="splide__slide">
+                    <div class="hero-content">
+                        <div class="hero-text">
+                            <h1>FAST RESPONSE,<br />WHEN EVERY SECOND COUNTS</h1>
+
+                            <div class="search-container">
+                                <input type="text"
+                                       placeholder="Search..."
+                                       class="search-input" />
+                                <button class="search-btn">SEARCH</button>
+                            </div>
+
+                            <h3>Emergency towing without the wait</h3>
+                            <h3>Get back on the road quickly and safely</h3>
+                        </div>
+                        <div class="right-content">
+                            <div class="price-tag">
+                                <h2>90$</h2>
+                                <p>WITHIN CITY LIMITS</p>
+                            </div>
+                            <div class="hero-buttons">
+                                <div class="phone-container">
+                                    <a href="tel:7032008836" class="phone-content">
+                                        <span> 7032008836 </span>
+                                        <i class="fas fa-phone"></i>
+                                    </a>
+                                </div>
+                                <a asp-controller="Home" asp-action="SERvices" class="explore-btn">Explore Our Services</a>
+                            </div>
+                        </div>
+                    </div>
+                </li>
+                <li class="splide__slide">
+                    <div class="hero-content">
+                        <div class="hero-text">
+                            <h1>YOUR VEHICLE’S SAFETY,<br />IS OUR TOP PRIORITY</h1>
+
+                            <div class="search-container">
+                                <input type="text"
+                                       placeholder="Search..."
+                                       class="search-input" />
+                                <button class="search-btn">SEARCH</button>
+                            </div>
+
+                            <h3>Professional care from pickup to drop-off</h3>
+                            <h3>Trust our team to handle your car with precision</h3>
+                        </div>
+                        <div class="right-content">
+                            <div class="price-tag">
+                                <h2>65$</h2>
+                                <p>FLAT RATE FOR LOCAL TOWS</p>
+                            </div>
+                            <div class="hero-buttons">
+                                <div class="phone-container">
+                                    <a href="tel:7032008836" class="phone-content">
+                                        <span> 7032008836 </span>
+                                        <i class="fas fa-phone"></i>
+                                    </a>
+                                </div>
+                                <a asp-controller="Home" asp-action="SERvices" class="explore-btn">Explore Our Services</a>
+                            </div>
+                        </div>
+                    </div>
+                </li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<section class="what-we-do-section">
+    <div class="what-we-do-container">
+        <div class="what-we-do-content">
+            <div class="section-label">
+                <span class="divider-label">Services</span>
+            </div>
+            <h2 class="what-we-do-heading">What we do?</h2>
+            <p class="what-we-do-text">
+                At Strong Towing, we provide fast and reliable towing and roadside
+                assistance services, 24/7. Our team is ready to meet all your needs,
+                from rescue to mobile maintenance.
+            </p>
+        </div>
+    </div>
+</section>
+
+<section class="our-services-section">
+    <div class="our-services-container">
+        <div class="section-label">
+            <span class="divider-label">our Services</span>
+        </div>
+        <div class="grid-services">
+            <div class="service-card towing-services">
+                <a asp-controller="Home" asp-action="SERvices" class="">
+                    <h3 class="service-title">Towing Services</h3>
+                    <a asp-controller="Home" asp-action="SERvices" class="all-other-services-btn">
+                        all service options
+                        <span class="all-other-services-arrow">
+                            <i class="fas fa-arrow-right"></i>
+                        </span>
+                    </a>
+                </a>
+            </div>
+            <div class="service-card roadside-assistance-services">
+                <a asp-controller="Home" asp-action="roadside_assistance_services" class="">
+                    <h3 class="service-title">Roadside Assistance Services</h3>
+                    <a asp-controller="Home" asp-action="roadside_assistance_services" class="all-other-services-btn">
+                        all service options
+                        <span class="all-other-services-arrow">
+                            <i class="fas fa-arrow-right"></i>
+                        </span>
+                    </a>
+                </a>
+            </div>
+            <div class="service-card other-services">
+                <a asp-controller="Home" asp-action="ather_services" class="">
+                    <h3 class="service-title">other-services</h3>
+                    <a asp-controller="Home" asp-action="ather_services" class="all-other-services-btn">
+                        all service options
+                        <span class="all-other-services-arrow">
+                            <i class="fas fa-arrow-right"></i>
+                        </span>
+                    </a>
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="operate-section">
+    <div class="operate-container">
+        <div class="operate-content">
+            <div class="section-label">
+                <span class="divider-label">Area</span>
+            </div>
+            <h2 class="operate-heading">Where we operate</h2>
+            <p class="operate-text">
+                We provide expert towing services across three states and over 100
+                cities. From small repairs to large projects, we deliver reliable
+                and efficient solutions wherever you need us.
+            </p>
+            <div class="operate-list-container">
+                <div class="states-box">
+                    <span class="states-number" data-target="3" data-suffix="">0</span>
+                    <span class="states-text">States we operate in</span>
+                </div>
+                <div class="states-box">
+                    <span class="states-number" data-target="100" data-suffix="+">0</span>
+                    <span class="states-text">Cities in our service area</span>
+                </div>
+            </div>
+        </div>
+        <div class="operate-image">
+            <img src="/public/images/area_map.png" alt="Operate Section Image" />
+        </div>
+    </div>
+</section>
+
+<section class="features-section">
+    <div class="features-container">
+        <div class="features-header">
+            <div class="">
+                <div class="section-label">
+                    <span class="divider-label">Why us?</span>
+                </div>
+                <h2 class="features-heading">Reliable and Efficient</h2>
+            </div>
+            <div class="">
+                We understand that when you're stuck on the road, you need fast and
+                reliable help.
+                Our skilled team delivers professional towing and
+                roadside services with a strong focus on safety, speed, and quality
+                — so you can get back on track without the stress.
+            </div>
+        </div>
+        <div class="features-grid">
+            <div class="feature-item">
+                <div class="feature-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <h3 class="feature-title">Swift Response</h3>
+                <p class="feature-description">
+                    Count on us for prompt service when you need it most.
+                </p>
+                <div class="learn-more-link">
+                    <a href="/#"> Learn More <i class="fas fa-arrow-right"></i></a>
+                </div>
+            </div>
+
+            <div class="feature-item">
+                <div class="feature-icon">
+                    <i class="fas fa-tools"></i>
+                </div>
+                <h3 class="feature-title">Trusted Experts</h3>
+                <p class="feature-description">
+                    Our electricians are certified and experienced, ensuring top-
+                    quality work.
+                </p>
+                <div class="learn-more-link">
+                    <a href="/#"> Learn More <i class="fas fa-arrow-right"></i></a>
+                </div>
+            </div>
+
+            <div class="feature-item">
+                <div class="feature-icon">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <div class="feature-title">Safety First</div>
+                <p class="feature-description">
+                    We prioritize safety in every project, keeping your home or
+                    business secure.
+                </p>
+                <div class="learn-more-link">
+                    <a href="/#"> Learn More <i class="fas fa-arrow-right"></i></a>
+                </div>
+            </div>
+
+            <div class="feature-item">
+                <div class="feature-icon">
+                    <i class="fa-solid fa-wallet"></i>
+                </div>
+                <h3 class="feature-title">Affordable Solutions</h3>
+                <p class="feature-description">
+                    High-quality service at prices that work for you.
+                </p>
+                <div class="learn-more-link">
+                    <a href="/#"> Learn More <i class="fas fa-arrow-right"></i></a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- About Section -->
+<section class="about-section">
+    <div class="container">
+        <div class="about-content">
+            <div class="about-image-container">
+                <img src="https://images.pexels.com/photos/2244746/pexels-photo-2244746.jpeg?auto=compress&cs=tinysrgb&w=1200"
+                     alt="Professional electrician working"
+                     class="about-image" />
+                <div class="experience-badge">
+                    <div class="experience-number">15 YEARS</div>
+                    <div class="experience-text">
+                        Of experience in<br />electrical work
+                    </div>
+                </div>
+            </div>
+
+            <div class="about-text-content">
+                <div class="section-label">ABOUT US</div>
+                <h2 class="about-title">PROVEN EXPERTISE YOU CAN TRUST</h2>
+                <p class="about-description">
+                    With over a decade and a half of hands-on experience, we've
+                    mastered the art of delivering top-quality electrical services
+                    that consistently exceed expectations.
+                </p>
+                <p class="about-details">
+                    From complex troubleshooting and minor repairs to comprehensive
+                    installations and system upgrades, we ensure that every job is
+                    completed to the highest standards—right the first time, every
+                    time.
+                </p>
+                <a href="#" class="learn-more">Learn more</a>
+            </div>
+        </div>
+
+        <div class="stats-container">
+            <div class="stat-item">
+                <div class="stat-number">20+</div>
+                <div class="stat-label">Certifications</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">6,000+</div>
+                <div class="stat-label">Completed jobs</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">24/7</div>
+                <div class="stat-label">Emergency availability</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="what-is-swift-section">
+    <div class="what-is-swift-container">
+        <div class="what-is-swift-content">
+            <div class="what-is-swift-image">
+                <img src="/public/images/what_is_swift.png" alt="What is Swift" />
+            </div>
+            <div class="what-is-swift-text">
+                <h1>What is Swift dispatch software</h1>
+                <p>
+                    Swift is an advanced dispatch software that helps optimize
+                    operations, automate tasks, and ensure efficient resource
+                    management in real-time logistics and delivery workflows.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="swift-banner-section">
+    <div class="swift-banner-container">
+        <div class="swift-banner-content">
+            <div class="swift-banner-text">
+                <h1>swift</h1>
+                <h3>
+                    🚀 "Manage Your Towing Services Smarter, Faster, and Easier."
+                </h3>
+                <h3>🚚 About Our Dispatch System</h3>
+                <h5>
+                    Our towing management system makes everything easier from the
+                    moment you request help to the second your car is safely back on
+                    the road!
+                </h5>
+            </div>
+            <div class="swift-banner-image">
+                <img src="/public/images/swift_banner.png" alt="Swift Banner" />
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="faq-section">
+    <div class="faq-container">
+        <div class="faq-left">
+            <div class="section-label">
+                <span class="divider-label">FAO</span>
+            </div>
+            <h2>FREQUENTLY ASKED<br />QUESTIONS</h2>
+
+            <div class="accordion">
+                <div class="accordion-item">
+                    <div class="accordion-header">
+                        What areas do you serve?
+                        <span class="icons">
+                            <i class="fa-solid fa-chevron-down icon-down"></i>
+                            <i class="fa-solid fa-chevron-up icon-up"></i>
+                        </span>
+                    </div>
+                    <div class="accordion-content">
+                        We serve the greater metropolitan area and surrounding suburbs.
+                    </div>
+                </div>
+                <div class="accordion-item">
+                    <div class="accordion-header">
+                        Do you handle small jobs?
+                        <span class="icons">
+                            <i class="fa-solid fa-chevron-down icon-down"></i>
+                            <i class="fa-solid fa-chevron-up icon-up"></i>
+                        </span>
+                    </div>
+                    <div class="accordion-content">
+                        Yes, we handle both small and large towing jobs with the same
+                        care.
+                    </div>
+                </div>
+                <div class="accordion-item">
+                    <div class="accordion-header">
+                        How soon can you arrive?
+                        <span class="icons">
+                            <i class="fa-solid fa-chevron-down icon-down"></i>
+                            <i class="fa-solid fa-chevron-up icon-up"></i>
+                        </span>
+                    </div>
+                    <div class="accordion-content">
+                        We aim to arrive within 30–60 minutes depending on your
+                        location.
+                    </div>
+                </div>
+                <div class="accordion-item">
+                    <div class="accordion-header">
+                        Do you offer free estimates?
+                        <span class="icons">
+                            <i class="fa-solid fa-chevron-down icon-down"></i>
+                            <i class="fa-solid fa-chevron-up icon-up"></i>
+                        </span>
+                    </div>
+                    <div class="accordion-content">
+                        Yes, we provide no-obligation estimates free of charge.
+                    </div>
+                </div>
+                <div class="accordion-item">
+                    <div class="accordion-header">
+                        How much do your services cost?
+                        <span class="icons">
+                            <i class="fa-solid fa-chevron-down icon-down"></i>
+                            <i class="fa-solid fa-chevron-up icon-up"></i>
+                        </span>
+                    </div>
+                    <div class="accordion-content">
+                        Our rates are competitive and based on distance, service, and
+                        time of day.
+                    </div>
+                </div>
+                <div class="accordion-item">
+                    <div class="accordion-header">
+                        Do you offer emergency services?
+                        <span class="icons">
+                            <i class="fa-solid fa-chevron-down icon-down"></i>
+                            <i class="fa-solid fa-chevron-up icon-up"></i>
+                        </span>
+                    </div>
+                    <div class="accordion-content">
+                        Yes, we offer 24/7 emergency towing services.
+                    </div>
+                </div>
+            </div>
+
+            <a asp-controller="Home" asp-action="FAQ" class="more-faq-btn request-service">
+                More questions
+                <span class="request-service-arrow">
+                    <i class="fas fa-arrow-right"></i>
+                </span>
+            </a>
+        </div>
+        <div class="faq-right">
+            <img src="/public/images/truck.png" alt="Truck" />
+        </div>
+    </div>
+</section>
+
+<section class="testimonials-section">
+    <img src="/public/images/dots.png"
+         alt=""
+         class="testimonials-start-dots" />
+    <img src="/public/images/dots.png"
+         alt=""
+         class="testimonials-end-dots" />
+    <div class="testimonials-container">
+        <div class="section-label">
+            <span class="divider-label">Testimonials</span>
+        </div>
+        <div class="testimonials-title">
+            <h1>we helped these clients</h1>
+        </div>
+        <div class="testimonials-grid">
+            <div class="testimonial-card">
+                <div class="rating">
+                    <i class="fas fa-star"></i>
+                    <i class="fas fa-star"></i>
+                    <i class="fas fa-star"></i>
+                    <i class="fas fa-star"></i>
+                    <i class="fas fa-star"></i>
+                </div>
+                <p class="testimonial-text">
+                    Fantastic service! The team was prompt, professional, and handled
+                    the tow quickly and safely. They even shared helpful tips to stay
+                    safe on the road. Highly recommend Strong Towing for anyone
+                    needing reliable roadside support!
+                </p>
+                <div class="testimonial-author">
+                    <img src="https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg"
+                         alt="John R."
+                         class="author-image" />
+                    <div class="author-info">
+                        <h3>John R.</h3>
+                        <p>Chicago, IL</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="testimonial-card">
+                <div class="rating">
+                    <i class="fas fa-star"></i>
+                    <i class="fas fa-star"></i>
+                    <i class="fas fa-star"></i>
+                    <i class="fas fa-star"></i>
+                    <i class="fas fa-star"></i>
+                </div>
+                <p class="testimonial-text">
+                    Strong Towing saved the day! Quick, careful, and super
+                    professional - they made a stressful situation easy. 100% happy
+                    with the service and definitely my go-to for any towing needs!
+                </p>
+                <div class="testimonial-author">
+                    <img src="https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg"
+                         alt="Emily S."
+                         class="author-image" />
+                    <div class="author-info">
+                        <h3>Emily S.</h3>
+                        <p>Dallas, TX</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="testimonial-card">
+                <div class="rating">
+                    <i class="fas fa-star"></i>
+                    <i class="fas fa-star"></i>
+                    <i class="fas fa-star"></i>
+                    <i class="fas fa-star"></i>
+                    <i class="fas fa-star"></i>
+                </div>
+                <p class="testimonial-text">
+                    Called Strong Towing for an emergency at night, and they arrived
+                    within 30 minutes. They handled everything quickly and
+                    professionally. Exceptional service, fair pricing — glad I found
+                    such a dependable team!
+                </p>
+                <div class="testimonial-author">
+                    <img src="https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg"
+                         alt="Michael T."
+                         class="author-image" />
+                    <div class="author-info">
+                        <h3>Michael T.</h3>
+                        <p>Orlando, FL</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <a href="#" class="more-testimonials-btn request-service">
+            More testimonials
+            <span class="request-service-arrow">
+                <i class="fas fa-arrow-right"></i>
+            </span>
+        </a>
+    </div>
+</section>
+
+<!-- Blog Section -->
+<section class="blog-section">
+    <div class="container">
+        <div class="blog-section-label">BLOG</div>
+        <h1 class="main-title">SKILLED TOWING SOLUTIONS FOR EVERY SITUATION</h1>
+
+        <div class="blog-grid">
+            <article class="blog-card">
+                <img src="https://images.pexels.com/photos/3807277/pexels-photo-3807277.jpeg?auto=compress&cs=tinysrgb&w=1200"
+                     alt="Towing service professional at work"
+                     class="blog-image" />
+                <div class="blog-content">
+                    <div class="blog-date">August 29, 2024</div>
+                    <h2 class="blog-title">
+                        From Breakdown to Back on the Road - We've Got You
+                    </h2>
+                    <p class="blog-excerpt">
+                        With a commitment to speed, safety, and professionalism, we
+                        bring the muscle when you need it most. From light-duty to
+                        heavy-duty towing, our team handles every job with precision and
+                        care.
+                    </p>
+                    <a href="#" class="read-more">Read more</a>
+                </div>
+            </article>
+
+            <article class="blog-card">
+                <img src="https://images.pexels.com/photos/13861/IMG_3496bfree.jpg?auto=compress&cs=tinysrgb&w=1200"
+                     alt="Car being towed on flatbed"
+                     class="blog-image" />
+                <div class="blog-content">
+                    <div class="blog-date">July 15, 2024</div>
+                    <h2 class="blog-title">
+                        When the Road Gets Tough, We Get Stronger
+                    </h2>
+                    <p class="blog-excerpt">
+                        At Strong Towing, we're more than just a towing service - we're
+                        your trusted partner for roadside emergencies.
+                    </p>
+                    <a href="#" class="read-more">Read more</a>
+                </div>
+            </article>
+        </div>
+    </div>
+</section>
+<section class="partners-section">
+    <div class="partners-container">
+        <div class="partners-content">
+            <h1 class="partners-title">SIMPLE CUSTOMER</h1>
+
+            <div id="partneres" class="splide">
+                <div class="splide__arrows">
+                    <button class="splide__arrow splide__arrow--prev">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+                    <button class="splide__arrow splide__arrow--next">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </div>
+                <div class="splide__track">
+                    <ul class="splide__list">
+                        <li class="splide__slide">
+                            <img src="~/custom/geico.jpeg" alt="Geico" />
+                        </li>
+
+                        <li class="splide__slide">
+                            <img src="~/custom/agero.jpeg" alt="Agero" />
+                        </li>
+
+                        <li class="splide__slide">
+                            <img src="~/custom/aaa.jpeg" alt="Aaa" />
+                        </li>
+                        <li class="splide__slide">
+                            <img src="~/custom/allstate.jpeg" alt="Allstate" />
+                        </li>
+                        <li class="splide__slide">
+                            <img src="~/custom/lmia_motor_club.jpeg" alt="Lmia Motor Club" />
+                        </li>
+                        <li class="splide__slide">
+                            <img src="~/custom/mca.jpeg" alt="Mca" />
+                        </li>
+                        <li class="splide__slide">
+                            <img src="~/custom/national_automobile_club.jpeg" alt="National Automobile Club" />
+                        </li>
+                        <li class="splide__slide">
+                            <img src="~/custom/nsd.jpeg" alt="Nsd" />
+                        </li>
+                        <li class="splide__slide">
+                            <img src="~/custom/state_faem.jpeg" alt="State Faem" />
+                        </li>
+                        <li class="splide__slide">
+                            <img src="~/custom/urgently.jpeg" alt="Urgently" />
+                        </li>
+                        <li class="splide__slide">
+                            <img src="~/custom/usaa.jpeg" alt="Usaa" />
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+
+
+@* 
+<div class="container-fluid my-5">
+    <div class="row highlights">
+        <div class="col-md-3 ">
+            <h2 class="brandc">
+                Sample
+                Customers
+            </h2>
+        </div>
+
+        <div class="col-md-9">
+            <div id="carouselExampleControl" class="carousel " data-ride="carousel" data-interval="5000" style="margin-top: 3px;">
+                <div class="carousel-inner">
+                
+
+
+                    <!-- Carousel item 1 -->
+                    <div class="carousel-item active">
+                        <div class="ssw">
+                            <div class="image-row">
+                                <img src="~/custom/6.png" class="d-block d" alt="Image 1">
+                                <img src="~/custom/sx2.png" class="d-block d" alt="Image 2">
+                                <img src="~/custom/aaa.png" class="d-block d" alt="Image 3">
+                                <img src="~/custom/opsp.png" class="d-block d" alt="Image 4">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Carousel item 2 -->
+                    <div class="carousel-item">
+                        <div class="ssw" >
+                            <div class="image-row a1q"style="">
+                                <img src="~/custom/opaqp (1).jpeg" class="d-block a1qs " alt="Image 1">
+                                <img src="~/custom/opaqp (2).jpeg" class="d-block a1qs" alt="Image 2">
+                                <img src="~/custom/opaqp (3).jpeg" class="d-block a1qs" alt="Image 3">
+                                <img src="~/custom/opaqp (4).jpeg" class="d-block a1qs" alt="Image 4">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Carousel item 3 -->
+                    <div class="carousel-item">
+                            <div class="ssw">
+                            <div class="image-row a2q" style="">
+                                <img src="~/custom/opaqp (5).jpeg" class="d-block a2qs" alt="Image 1" >
+                                <img src="~/custom/opaqp (6).jpeg" class="d-block a2qs" alt="Image 1" >
+                                <img src="~/custom/opaqp (7).jpeg" class="d-block a2qs" alt="Image 1" >
+
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Carousel controls -->
+                <a class="carousel-control-prev a785" href="#carouselExampleControl" role="button" data-slide="prev">
+                    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                    <span class="sr-only">Previous</span>
+                </a>
+                <a class="carousel-control-next a785" href="#carouselExampleControl" role="button" data-slide="next">
+                    <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                    <span class="sr-only">Next</span>
+                </a>
+            </div>
+        </div>
+
+    </div>
+</div>
+ *@
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/@@splidejs/splide@4.1.4/dist/js/splide.min.js"></script>
+
+
+
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+      /* ---------- Hero slider ---------- */
+      var heroSlider = new Splide("#hero-slider", {
+        type: "fade",
+        rewind: true,
+        autoplay: true,
+        interval: 2500,
+        speed: 1000,
+        arrows: true,
+        pagination: true,
+      }).mount();
+
+      /* ---------- Partners slider ---------- */
+      var partnersSlider = new Splide("#partneres", {
+        type: "loop",
+        perPage: 4,
+        rewind: true,
+        autoplay: true,
+        interval: 2500,
+        speed: 1000,
+        arrows: true,
+        pagination: true,
+        breakpoints: {
+          1024: { perPage: 3 },
+          768: { perPage: 2 },
+          480: { perPage: 1 },
+        },
+      }).mount();
+        
+
+
+
+      /* ---------- Search button logic ---------- */
+      var searchBtn = document.querySelector(".search-btn");
+      if (searchBtn) {
+        searchBtn.addEventListener("click", function () {
+          var searchInput = document.querySelector(".search-input");
+          var searchTerm = searchInput.value.trim();
+          if (searchTerm) {
+            console.log("Searching for:", searchTerm);
+            searchInput.value = "";
+          }
+        });
+      }
+
+      /* ---------- Enter key for search ---------- */
+      var searchInput = document.querySelector(".search-input");
+      if (searchInput) {
+        searchInput.addEventListener("keypress", function (e) {
+          if (e.key === "Enter") {
+            var searchBtn = document.querySelector(".search-btn");
+            if (searchBtn) searchBtn.click();
+          }
+        });
+      }
+
+      /* ---------- Counter animation ---------- */
+      const counters = document.querySelectorAll(".states-number");
+      const animateCounter = (el) => {
+        const target = +el.getAttribute("data-target");
+        const suffix = el.getAttribute("data-suffix") || "";
+        const duration = 750;
+        const stepTime = Math.max(Math.floor(duration / target), 30);
+        let current = 0;
+        const counterInterval = setInterval(() => {
+          current++;
+          el.innerText = current + suffix;
+          if (current >= target) {
+            el.innerText = target + suffix;
+            clearInterval(counterInterval);
+          }
+        }, stepTime);
+      };
+      const numberObserver = new IntersectionObserver((entries, obs) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            animateCounter(entry.target);
+            obs.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 1.0 });
+      counters.forEach((counter) => numberObserver.observe(counter));
+
+      /* ---------- Accordion ---------- */
+      document.querySelectorAll(".accordion-header").forEach((header) => {
+        header.addEventListener("click", () => {
+          const content = header.nextElementSibling;
+          const isOpen = content.classList.contains("open");
+
+          document.querySelectorAll(".accordion-content").forEach((c) => {
+            c.style.maxHeight = null;
+            c.classList.remove("open");
+            c.previousElementSibling.classList.remove("active");
+          });
+
+          if (!isOpen) {
+            content.classList.add("open");
+            content.style.maxHeight = content.scrollHeight + "px";
+            header.classList.add("active");
+          }
+        });
+      });
+
+      /* ---------- Scroll animation ---------- */
+      const scrollObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.style.opacity = "1";
+            entry.target.style.transform = "translateY(0)";
+          }
+        });
+      }, {
+        threshold: 0.1,
+        rootMargin: "0px 0px -50px 0px"
+      });
+
+      const animateElements = document.querySelectorAll(
+        ".blog-card, .about-content, .stat-item"
+      );
+
+      animateElements.forEach((el) => {
+        el.style.opacity = "0";
+        el.style.transform = "translateY(30px)";
+        el.style.transition = "opacity 0.6s ease, transform 0.6s ease";
+        scrollObserver.observe(el);
+      });
+
+      /* ---------- Stats counter ---------- */
+      function animateStatCounter(element, target, duration = 2000) {
+        const increment = target / (duration / 16);
+        let current = 0;
+
+        const timer = setInterval(() => {
+          current += increment;
+          if (current >= target) {
+            current = target;
+            clearInterval(timer);
+          }
+
+          if (element.textContent.includes("+")) {
+            element.textContent = Math.floor(current).toLocaleString() + "+";
+          } else if (element.textContent.includes("/")) {
+            element.textContent = Math.floor(current) + "/7";
+          } else {
+            element.textContent = Math.floor(current).toLocaleString();
+          }
+        }, 16);
+      }
+
+      const statsObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const statNumbers = entry.target.querySelectorAll(".stat-number");
+            statNumbers.forEach((stat) => {
+              const text = stat.textContent;
+              let target = 0;
+
+              if (text.includes("20+")) target = 20;
+              else if (text.includes("6,000+")) target = 6000;
+              else if (text.includes("24/7")) target = 24;
+
+              if (target > 0) animateStatCounter(stat, target);
+            });
+            statsObserver.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.5 });
+
+      const statsContainer = document.querySelector(".stats-container");
+      if (statsContainer) {
+        statsObserver.observe(statsContainer);
+      }
+
+      /* ---------- Blog card hover effect ---------- */
+      document.querySelectorAll(".blog-card").forEach((card) => {
+        card.addEventListener("mouseenter", function () {
+          this.style.transform = "translateY(-8px) scale(1.02)";
+        });
+
+        card.addEventListener("mouseleave", function () {
+          this.style.transform = "translateY(0) scale(1)";
+        });
+      });
+
+      /* ---------- Ripple effect on buttons ---------- */
+      document.querySelectorAll(".read-more, .learn-more").forEach((button) => {
+        button.addEventListener("click", function (e) {
+          e.preventDefault();
+
+          const ripple = document.createElement("span");
+          ripple.style.position = "absolute";
+          ripple.style.borderRadius = "50%";
+          ripple.style.background = "rgba(249, 115, 22, 0.3)";
+          ripple.style.transform = "scale(0)";
+          ripple.style.animation = "ripple 0.6s linear";
+          ripple.style.left = e.offsetX + "px";
+          ripple.style.top = e.offsetY + "px";
+          ripple.style.width = ripple.style.height = "20px";
+
+          this.style.position = "relative";
+          this.style.overflow = "hidden";
+          this.appendChild(ripple);
+
+          setTimeout(() => {
+            ripple.remove();
+          }, 600);
+        });
+      });
+
+      /* ---------- Inject ripple CSS animation ---------- */
+      const rippleStyle = document.createElement("style");
+      rippleStyle.textContent = `
+    @@keyframes ripple {
+          to {
+            transform: scale(4);
+            opacity: 0;
+          }
+        }
+      `;
+      document.head.appendChild(rippleStyle);
+    });
+</script>
+

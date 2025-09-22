@@ -1,0 +1,273 @@
+﻿<!--@@model Dal.Order
+-->
+<!-- CSS للتصميم -->
+<!--<style>
+    body {
+        background: linear-gradient(45deg, #8e3d3d, #3b003b);
+    }
+
+    /* تنسيق العنوان والجدول */
+    h2, h3 {
+        color: white;
+        font-size: 28px;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    table {
+        background: #272727;
+        color: white;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.5);
+    }
+
+    th, td {
+        padding: 12px 20px;
+        text-align: left;
+        border-bottom: 1px solid #444;
+    }
+
+    th {
+        background: #4c4c4c;
+        font-weight: bold;
+    }
+
+    tr:last-child td {
+        border-bottom: none;
+    }
+
+    .table-hover tr:hover {
+        background-color: #505050;
+        transition: background 0.3s ease;
+    }
+
+    /* زر العودة */
+    .btn-back {
+        background-color: #0b2644;
+        color: white;
+        font-size: 18px;
+        padding: 10px 20px;
+        border-radius: 8px;
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
+
+    .btn-back:hover {
+        background-color: #173a61;
+        transform: translateY(-3px);
+    }
+
+    /* تنسيق السهم للقائمة */
+    .nav-link.dropdown-toggle::after {
+        content: ' ▼';
+        font-size: 12px;
+        margin-left: 5px;
+    }
+
+    /* تنسيق نص السائق */
+    .driver-details {
+        font-size: 18px;
+        color: #f8f9fa;
+        background-color: #333333;
+        padding: 15px;
+        border-radius: 10px;
+        margin: 20px 0;
+        box-shadow: 0px 3px 10px rgba(0, 0, 0, 0.3);
+    }
+</style>-->
+<!-- العنوان -->
+<!--<h2>Order Details</h2>-->
+<!-- زر العودة إلى القائمة -->
+<!--<div class="d-flex justify-content-end mb-4">
+    <a asp-action="Index" class="btn-back">Back to List</a>
+</div>-->
+<!-- تفاصيل الطلب -->
+<!--<table class="table table-hover">
+    <tbody>
+        <tr>
+            <th>Order ID</th>
+            <td>@Model.OrderId</td>
+        </tr>
+        <tr>
+            <th>Order ETA</th>
+            <td>@Model.ETA</td>
+        </tr>
+        <tr>
+            <th>Customer Name</th>
+            <td>@Model.Customer_orders.FirstOrDefault()?.Customers.Name</td>
+        </tr>
+        <tr>
+            <th>Vehicle Type</th>
+            <td>@Model.VehicleType</td>
+        </tr>
+        <tr>
+            <th>Status</th>
+            <td>@Model.Status</td>
+        </tr>
+    </tbody>
+</table>-->
+<!-- تفاصيل السائق المعين -->
+<!--<h3>Assigned Driver</h3>
+<div class="driver-details">
+    @@if (Model.Order_Drivers.Any())
+    {
+        <p><strong>Driver:</strong> @@Model.Order_Drivers.First().Drivers.UserName</p>
+        <p><strong>Status:</strong> @@(Model.Order_Drivers.First().Drivers.IsAvailable ? "Available" : "Not Available")</p>
+        <p><strong>Vehicle Type:</strong> @@Model.Order_Drivers.First().Drivers.VehicleType</p>
+    }
+    else
+    {
+        <p>No driver assigned yet.</p>
+    }
+</div>-->
+@model Dal.Order
+
+
+<style>
+    body {
+        background: #f0f0f0;
+    }
+
+    h2, h3 {
+        color: green;
+        font-size: 40px;
+        text-align: center;
+        margin: 30px;
+    }
+
+    table {
+        background: #272727;
+        color: white;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.5);
+    }
+
+    th, td {
+        padding: 12px 20px;
+        text-align: left;
+        border-bottom: 1px solid #444;
+        font-size: 30px
+    }
+
+    th {
+        background: #4c4c4c;
+        font-weight: bold;
+        font-size:30px
+    }
+
+    tr:last-child td {
+        border-bottom: none;
+    }
+
+    .table-hover tr:hover {
+        background-color: #505050;
+        transition: background 0.3s ease;
+    }
+
+
+
+
+
+    .btn-success {
+        font-size: 1.60rem;
+        background: linear-gradient(145deg, #6eaf4a, #4c9c3e); /* تدرج لوني للزر */
+        color: white; /* النص باللون الأبيض */
+        border: 2px solid #4c9c3e; /* إضافة حد رفيع */
+        padding: 12px 24px; /* المسافات حول النص */
+        border-radius: 30px; /* زوايا مستديرة بشكل أكبر */
+        box-shadow: 3px 3px 6px rgba(0, 0, 0, 0.1), -3px -3px 6px rgba(255, 255, 255, 0.1); /* إضافة ظل ناعم */
+        cursor: pointer; /* تغيير المؤشر عند المرور على الزر */
+        transition: all 0.4s ease-in-out; /* إضافة تأثيرات انسيابية */
+    }
+
+        .btn-success:hover {
+            background: linear-gradient(145deg, #4c9c3e, #6eaf4a); /* عكس التدرج اللوني عند التمرير */
+            box-shadow: 6px 6px 12px rgba(0, 0, 0, 0.15), -6px -6px 12px rgba(255, 255, 255, 0.15); /* زيادة الظلال */
+            transform: translateY(-3px); /* رفع الزر قليلاً عند التمرير */
+        }
+
+        .btn-success:active {
+            background: #4c9c3e; /* لون ثابت عند الضغط */
+            box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.2); /* تغيير الظلال لتأثير الضغط */
+            transform: translateY(0); /* العودة إلى وضع الزر الطبيعي */
+        }
+
+        .btn-success:focus {
+            outline: none; /* إزالة الحدود عند التركيز */
+            box-shadow: 0 0 0 4px rgba(0, 123, 255, 0.5); /* إضافة تأثير ظل عند التركيز */
+        }
+
+    @@media (max-width: 768px) {
+        button {
+            font-size: 0.9rem;
+            padding: 8px 16px;
+            white-space: nowrap;
+        }
+    }
+
+    a:hover {
+        color: white !important
+    }
+
+    .driver-details {
+        font-size: 40px;
+        color: #f8f9fa;
+        background-color: #6eaf4a;
+        padding: 70px;
+        border-radius: 10px;
+        margin: 20px 0;
+        text-align:center;
+        box-shadow: 0px 3px 10px rgba(0, 0, 0, 0.3);
+    }
+</style>
+
+<div class="container">
+
+
+    <h2>Order Details</h2>
+
+    <div class="d-flex justify-content-end mb-4">
+        <a href="/Home/DashboardAdmin?section=order-management" class="btn btn-success"> Back to order</a>
+    </div>
+
+    <table class="table table-hover">
+        <tbody>
+            <tr>
+                <th>Order ID</th>
+                <td>@Model.OrderId</td>
+            </tr>
+            <tr>
+                <th>Order ETA</th>
+                <td>@Model.ETA</td>
+            </tr>
+            <tr>
+                <th>Customer Name</th>
+                <td>@Model.Customer_orders.FirstOrDefault()?.Customers.Name</td>
+            </tr>
+            <tr>
+                <th>Vehicle Type</th>
+                <td>@Model.VehicleType</td>
+            </tr>
+            <tr>
+                <th>Status</th>
+                <td>@Model.Status</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3> Driver Details</h3>
+    <div class="driver-details " >
+        @if (Model.Order_Drivers.Any())
+        {
+            <p><strong>Driver:</strong> @Model.Order_Drivers.First().Drivers.UserName</p>
+            <p><strong>Status:</strong> @(Model.Order_Drivers.First().Drivers.IsAvailable ? "Available" : "Not Available")</p>
+            <p><strong>Vehicle Type:</strong> @Model.Order_Drivers.First().Drivers.VehicleType</p>
+        }
+        else
+        {
+            <p>No driver assigned yet.</p>
+        }
+    </div>
+</div>

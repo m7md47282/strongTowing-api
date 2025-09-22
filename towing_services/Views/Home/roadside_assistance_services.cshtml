@@ -1,0 +1,788 @@
+﻿
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+
+
+
+<style>
+    :root {
+        --primary-blue: #174d65;
+        --dark-blue: #226a9c;
+        --light-blue: #0084b4;
+        --primary-orange: #faa74a;
+        --orange-hover: #ec971f;
+        --light-gray: #f8f9fa;
+        --medium-gray: #e9ecef;
+        --dark-gray: #343a40;
+        --white: #ffffff;
+        --black: #000000;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        line-height: 1.5;
+        font-weight: 400;
+        background-color: var(--white);
+        color: var(--dark-gray);
+        font-synthesis: none;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    html {
+        overflow-x: hidden;
+    }
+
+    body {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        overflow-x: hidden;
+    }
+
+    #app {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+
+    a {
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .container {
+        width: 100%;
+        max-width: 1350px;
+        margin: 0 auto;
+        padding: 0 16px;
+    }
+
+    .title-hero-container {
+        width: 100%;
+        max-width: 1350px;
+    }
+
+    .title-hero {
+        padding: 4.5rem 0;
+        text-align: center;
+        margin: 0px;
+        width: 80%;
+        background-color: var(--primary-blue);
+        position: relative;
+    }
+
+    .start-dots {
+        position: absolute;
+        top: 15px;
+        left: 10px;
+    }
+
+    .end-dots {
+        position: absolute;
+        bottom: 15px;
+        right: 10px;
+    }
+
+    .section-label {
+        color: var(--primary-orange);
+        font-size: 16px;
+        font-weight: 600;
+        display: flex;
+    }
+
+    .center-label {
+        justify-content: center;
+        justify-items: center;
+    }
+
+    .divider-label {
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+        .divider-label::before {
+            content: "";
+            height: 2px;
+            background-color: var(--primary-orange);
+            width: 24px;
+            margin: 0 12px;
+        }
+
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 16px;
+        border-radius: 4px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: none;
+        text-align: center;
+    }
+
+    .btn-primary {
+        background-color: var(--primary-blue);
+        color: var(--white);
+    }
+
+        .btn-primary:hover {
+            background-color: var(--dark-blue);
+        }
+
+    .btn-orange {
+        background-color: var(--primary-orange);
+        color: var(--white);
+    }
+
+        .btn-orange:hover {
+            background-color: var(--orange-hover);
+        }
+
+    .btn-outline {
+        background-color: transparent;
+        border: 1px solid var(--white);
+        color: var(--white);
+    }
+
+        .btn-outline:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+    .social-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 16px;
+        color: inherit;
+        font-size: 18px;
+    }
+
+    .arrow-icon {
+        margin-left: 8px;
+    }
+
+    .fa,
+    .fa-brands,
+    .fa-classic,
+    .fa-regular,
+    .fa-sharp,
+    .fa-solid,
+    .fab,
+    .far,
+    .fas {
+        line-height: normal;
+    }
+
+    /* Floating Actions */
+    .floating-actions {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        z-index: 1000;
+    }
+
+    .floating-btn {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 24px;
+        border-radius: 50px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+        .floating-btn i {
+            transition: transform 0.3s ease;
+        }
+
+        .floating-btn:hover i {
+            transform: translateX(4px);
+        }
+
+    .find-offers {
+        background-color: #1e6888;
+        color: var(--white);
+    }
+
+        .find-offers:hover {
+            background-color: var(--dark-blue);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+        }
+
+    .find-offers-arrow {
+        background-color: white;
+        color: #1e6888;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        margin: auto;
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+    }
+
+    .request-service {
+        background-color: var(--primary-orange);
+        color: var(--white);
+    }
+
+        .request-service:hover {
+            background-color: var(--orange-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+        }
+
+    .request-service-arrow {
+        background-color: white;
+        color: #faa74a;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        margin: auto;
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+    }
+
+    .contact-us-btn,
+    .all-other-services-btn {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 24px;
+        border-radius: 50px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        background-color: var(--primary-orange);
+        color: var(--white);
+        width: fit-content;
+    }
+
+        .contact-us-btn i,
+        .all-other-services-btn i {
+            transition: transform 0.3s ease;
+        }
+
+        .contact-us-btn:hover i,
+        .all-other-services-btn:hover i {
+            transform: translateX(4px);
+        }
+
+        .contact-us-btn:hover,
+        .all-other-services-btn:hover {
+            background-color: var(--orange-hover);
+            transform: translateX(4px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+        }
+
+    .contact-arrow,
+    .all-other-services-arrow {
+        background-color: white;
+        color: #faa74a;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        margin: auto;
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+    }
+
+    .divider {
+        border: 0;
+        border-top: 1px solid #cccccc;
+        margin: 24px 0;
+    }
+
+    .phone-container {
+        display: flex;
+        margin: auto 0;
+    }
+
+    .phone-content {
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 8px 8px 16px;
+        background-color: var(--primary-orange);
+        color: var(--white);
+        border-radius: 50px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        margin-left: auto;
+        gap: 10px;
+    }
+
+        .phone-content i {
+            padding: 6px;
+            background-color: white;
+            border-radius: 50%;
+            color: var(--primary-orange);
+            margin-left: 8px;
+            font-size: 1rem;
+        }
+
+        .phone-content:hover {
+            background-color: var(--orange-hover);
+        }
+
+    @@media (min-width: 1600px) {
+        .title-hero-container
+
+    {
+        margin: 0 auto;
+    }
+
+    }
+    @@media (max-width: 768px) {
+        .container
+
+    {
+        padding: 0 12px;
+    }
+
+    .title-hero {
+        width: 100%;
+    }
+
+    .floating-actions {
+        bottom: 20px;
+        right: 10px;
+    }
+
+    .floating-btn {
+        padding: 10px 20px;
+        font-size: 14px;
+    }
+
+    }
+
+    @@media (max-width: 992px) {
+        .phone-content
+
+    {
+        margin-left: 0;
+        margin-top: 0;
+        align-self: flex-start;
+    }
+
+    }
+
+    @@media (max-width: 576px) {
+        .floating-actions
+
+    {
+        bottom: 16px;
+        right: 5px;
+    }
+
+    .floating-btn {
+        width: fit-content;
+        justify-content: center;
+    }
+
+    }
+
+    .services-hero {
+        background-color: var(--primary-blue);
+        height: 77.5vh;
+        text-align: center;
+        position: relative;
+        display: flex;
+    }
+
+    .other-services {
+        background-image: url("/public/images/other_services.png");
+        background-size: cover;
+        background-position: center;
+    }
+
+    .roadside-assistance-services {
+        background-image: url("/public/images/roadside_assistance_services.png");
+        background-size: cover;
+        background-position: center;
+    }
+
+    .towing-services {
+        background-image: url("/public/images/towing_services.png");
+        background-size: cover;
+        background-position: center;
+    }
+
+    .services-hero::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(41, 128, 185, 0.85);
+    }
+
+    .hero-content {
+        position: relative;
+        z-index: 1;
+        max-width: 900px;
+        margin: auto;
+        padding: 0 16px;
+    }
+
+    .card-header {
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .hero-title {
+        color: var(--white);
+        font-size: clamp(28px, 4vw, 48px);
+        font-weight: 700;
+        margin: 0;
+        line-height: 1.2;
+        overflow: hidden;
+        text-transform: uppercase;
+    }
+
+    .search-box {
+        display: flex;
+        gap: 8px;
+        background: var(--white);
+        padding: 8px;
+        border-radius: 100px;
+        max-width: 500px;
+        margin: 32px auto;
+    }
+
+    .input-wrapper {
+        position: relative;
+        flex: 1;
+    }
+
+    .search-icon {
+        position: absolute;
+        left: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: var(--primary-orange);
+        color: var(--white);
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        pointer-events: none;
+    }
+
+    .search-input {
+        width: 100%;
+        border: none;
+        padding: 12px 20px 12px 56px;
+        font-size: clamp(14px, 1.5vw, 16px);
+        outline: none;
+        border-radius: 100px;
+    }
+
+    .search-btn {
+        background: var(--primary-orange);
+        color: var(--white);
+        border: none;
+        padding: 12px 24px;
+        border-radius: 100px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+        font-size: clamp(14px, 1.5vw, 16px);
+    }
+
+        .search-btn:hover {
+            background: var(--orange-hover);
+        }
+
+    .services-container {
+        max-width: 1350px;
+        margin: 0 auto;
+        padding: 1rem;
+    }
+
+    .service-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 2rem;
+        padding: 2rem 0;
+    }
+
+    .service-card {
+        background: #fafafa;
+        padding: 32px;
+        border-radius: 16px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .service-price {
+        font-size: clamp(16px, 1.5vw, 18px);
+        font-weight: 600;
+        color: var(--dark-gray);
+        margin-bottom: 16px;
+        align-content: center;
+    }
+
+    .service-title {
+        font-size: clamp(20px, 2vw, 24px);
+        font-weight: 700;
+        color: var(--dark-gray);
+        margin-bottom: 12px;
+    }
+
+    .service-description {
+        color: var(--dark-gray);
+        opacity: 0.8;
+        margin-bottom: 24px;
+        line-height: 1.6;
+    }
+
+    .service-icon {
+        width: 80px;
+        height: 80px;
+        margin-bottom: 16px;
+    }
+
+    .request-btn-container {
+        display: flex;
+        justify-content: flex-end;
+        justify-items: center;
+        padding: 0px 0.25rem;
+    }
+
+    .request-btn {
+        display: inline-flex;
+        align-items: center;
+        padding: 12px 24px;
+        background: var(--dark-gray);
+        color: var(--white);
+        border-radius: 100px;
+        font-weight: 500;
+        transition: transform 0.3s ease;
+        font-size: clamp(14px, 1.5vw, 16px);
+    }
+
+        .request-btn:hover {
+            transform: translateX(2px);
+        }
+
+        .request-btn i {
+            margin-left: 8px;
+        }
+
+    @@media (max-width: 992px) {
+        .services-hero
+
+    {
+        height: 60vh;
+    }
+
+    .service-grid {
+        grid-template-columns: 1fr;
+    }
+
+    }
+
+    @@media (max-width: 768px) {
+        .hero-title
+
+    {
+        font-size: clamp(24px, 5vw, 36px);
+    }
+
+    .search-box {
+        flex-direction: column;
+        background: transparent;
+        padding: 0;
+        overflow: unset;
+    }
+
+    .services-container {
+        padding: 2rem 1rem;
+    }
+
+    .service-card {
+        padding: 24px;
+    }
+
+    .search-btn {
+        border-radius: 0px;
+    }
+
+    }
+
+    @@media (max-width: 768px) {
+        .input-wrapper
+
+    {
+        width: 100%;
+    }
+
+    .search-input {
+        padding-left: 56px;
+    }
+
+    .search-btn {
+        width: 100%;
+    }
+
+    }
+</style>
+    <div class="services-hero roadside-assistance-services">
+        <div class="hero-content">
+            <h1 class="hero-title">Roadside Assistance Services</h1>
+            <div class="search-box">
+                <div class="input-wrapper">
+                    <span class="search-icon">
+                        <i class="fas fa-search"></i>
+                    </span>
+                    <input type="text"
+                           class="search-input"
+                           placeholder="SEARCH SERVICE HERE" />
+                </div>
+                <button class="search-btn">SEARCH</button>
+            </div>
+        </div>
+    </div>
+
+    <main class="services-container">
+        <div class="service-grid">
+            <div class="service-card">
+                <div class="card-header">
+                    <div class="service-price">$100/month</div>
+                    <img src="/public/images/analytics_icon.png"
+                         alt=""
+                         class="service-icon" />
+                </div>
+                <h3 class="service-title">Battery Jump Start</h3>
+                <p class="service-description">
+                    Starting a dead battery on the spot.
+                </p>
+                <div class="request-btn-container">
+                <a asp-controller="Home" asp-action="Order_Req" class="request-btn">
+                        Request Service
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+
+            <div class="service-card">
+                <div class="card-header">
+                    <div class="service-price">$100/month</div>
+                    <img src="/public/images/analytics_icon.png"
+                         alt=""
+                         class="service-icon" />
+                </div>
+                <h3 class="service-title">Tire Change</h3>
+                <p class="service-description">
+                    Replacing a flat or damaged tire with your spare.
+                </p>
+                <div class="request-btn-container">
+                <a asp-controller="Home" asp-action="Order_Req" class="request-btn">
+                        Request Service
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+
+            <div class="service-card">
+                <div class="card-header">
+                    <div class="service-price">$100/month</div>
+                    <img src="/public/images/analytics_icon.png"
+                         alt=""
+                         class="service-icon" />
+                </div>
+                <h3 class="service-title">Fuel Delivery</h3>
+                <p class="service-description">
+                    Bringing fuel to your location if you run out
+                </p>
+                <div class="request-btn-container">
+                <a asp-controller="Home" asp-action="Order_Req" class="request-btn">
+                        Request Service
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+
+            <div class="service-card">
+                <div class="card-header">
+                    <div class="service-price">$100/month</div>
+                    <img src="/public/images/analytics_icon.png"
+                         alt=""
+                         class="service-icon" />
+                </div>
+                <h3 class="service-title">Urgent Support</h3>
+                <p class="service-description">
+                    Emergency help for unexpected vehicle issues.
+                </p>
+                <div class="request-btn-container">
+                <a asp-controller="Home" asp-action="Order_Req" class="request-btn">
+                        Request Service
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+
+            <div class="service-card">
+                <div class="card-header">
+                    <div class="service-price">$100/month</div>
+                    <img src="/public/images/analytics_icon.png"
+                         alt=""
+                         class="service-icon" />
+                </div>
+                <h3 class="service-title">Look Out Service</h3>
+                <p class="service-description">
+                    Assistance in locating your vehicle or helping in unusual situations.
+                </p>
+                <div class="request-btn-container">
+                <a asp-controller="Home" asp-action="Order_Req" class="request-btn">
+                        Request Service
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+
+            <div class="service-card">
+                <div class="card-header">
+                    <div class="service-price">$100/month</div>
+                    <img src="/public/images/analytics_icon.png"
+                         alt=""
+                         class="service-icon" />
+                </div>
+                <h3 class="service-title">Membership Roadside Assistance</h3>
+                <p class="service-description">
+                    Subscription-based services that cover common roadside needs.
+                </p>
+                <div class="request-btn-container">
+                <a asp-controller="Home" asp-action="Order_Req" class="request-btn">
+                        Request Service
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </main>
+

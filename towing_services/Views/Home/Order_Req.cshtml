@@ -1,0 +1,1287 @@
+﻿@using Dal
+@model Dal.Customer
+@{ var order = ViewBag.Order as Order; }
+
+<!-- إضافة مكتبة Bootstrap -->
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+<!-- رابط Bootstrap Icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <style>
+  
+    .form-section {
+      background-color: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      margin-top: 50px;
+    }
+    .form-title {
+      font-weight: bold;
+      color: #003366;
+    }
+    .btn-orange {
+      background-color: #ff8c00;
+      color: white;
+      font-weight: bold;
+    }
+    .btn-orange:hover {
+      background-color: #e67700;
+        }
+
+    /* Container */
+    .containerss {
+        width: 100%;
+        padding-right: 15px;
+        padding-left: 15px;
+        margin-right: auto;
+        margin-left: auto;
+        max-width: 1140px; /* حسب بوتستراب */
+    }
+
+    /* Rows */
+    .row {
+        display: flex;
+        flex-wrap: wrap;
+        margin-right: -15px;
+        margin-left: -15px;
+    }
+
+    /* Columns */
+    .col-md-6 {
+        position: relative;
+        width: 100%;
+        padding-right: 15px;
+        padding-left: 15px;
+        flex: 0 0 50%;
+        max-width: 50%;
+    }
+
+    .col-md-4 {
+        position: relative;
+        width: 100%;
+        padding-right: 15px;
+        padding-left: 15px;
+        flex: 0 0 33.333333%;
+        max-width: 33.333333%;
+    }
+
+    /* Form section */
+    .form-section {
+        background-color: #fff;
+        padding: 30px;
+        border-radius: 0.375rem; /* 6px */
+        box-shadow: 0 0.25rem 0.625rem rgba(0,0,0,0.1);
+        margin-top: 50px;
+    }
+
+    /* Form title */
+    .form-title {
+        font-weight: 700;
+        color: #003366;
+        margin-bottom: 1.5rem;
+    }
+
+    /* Labels */
+    label {
+        display: inline-block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: #212529;
+        font-size:23px
+    }
+
+    /* Inputs and selects */
+    .form-control {
+        display: block;
+        width: 100%;
+        padding: 0.375rem 0.75rem; /* 6px 12px */
+        font-size: 20px;
+        font-weight: 400;
+        line-height: 1.5;
+        color: #495057;
+        background-color: #fff;
+        background-clip: padding-box;
+        border: 1px solid #ced4da;
+        border-radius: 0.25rem; /* 4px */
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        box-sizing: border-box;
+    }
+
+        .form-control:focus {
+            border-color: #86b7fe;
+            outline: 0;
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        }
+
+    /* Textarea */
+    textarea.form-control {
+        resize: vertical;
+    }
+
+    /* Input group */
+    .input-group {
+        display: flex;
+        width: 100%;
+    }
+
+        .input-group select.form-control {
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+            max-width: 150px;
+        }
+
+        .input-group input.form-control {
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
+            flex: 1 1 auto;
+            width: 1%;
+            margin-bottom: 0;
+        }
+
+    /* Validation */
+    .text-danger {
+        color: #dc3545;
+        font-size: 0.875em;
+        margin-top: 0.25rem;
+    }
+
+    input[readonly], textarea[readonly], select[readonly] {
+        background-color: #e9ecef; /* خلفية رمادية فاتحة */
+        cursor: not-allowed; /* مؤشر الماوس يظهر مقفل */
+        pointer-events: none; /* تمنع أي تفاعل مثل النقر أو الكتابة */
+        user-select: none; /* تمنع تحديد النص */
+    }
+
+
+    /* Buttons */
+    .btn {
+        display: inline-block;
+        font-weight: 600;
+        color: #212529;
+        text-align: center;
+        vertical-align: middle;
+        user-select: none;
+        background-color: transparent;
+        border: 1px solid transparent;
+        padding: 0.375rem 0.75rem;
+        font-size: 1rem;
+        line-height: 1.5;
+        border-radius: 0.25rem;
+        transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;
+        cursor: pointer;
+    }
+
+    .btn-orange {
+        color: #fff;
+        background-color: #ff8c00;
+        border-color: #ff8c00;
+    }
+
+        .btn-orange:hover {
+            background-color: #e67700;
+            border-color: #e67700;
+        }
+
+    .btn-outline-primary {
+        color: #0d6efd;
+        border-color: #0d6efd;
+        background-color: transparent;
+    }
+
+        .btn-outline-primary:hover {
+            color: #fff;
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+        }
+
+    /* Utility */
+    .mb-3 {
+        margin-bottom: 1rem !important;
+    }
+
+    .mb-4 {
+        margin-bottom: 1.5rem !important;
+    }
+
+    .d-flex {
+        display: flex !important;
+    }
+
+    .justify-content-between {
+        justify-content: space-between !important;
+    }
+
+    .align-items-center {
+        align-items: center !important;
+    }
+
+  
+    /* Alert */
+    .alert {
+        position: relative;
+        padding: 0.75rem 1.25rem;
+        margin-bottom: 1rem;
+        border: 1px solid transparent;
+        border-radius: 0.25rem;
+    }
+
+    .alert-light {
+        color: #636464;
+        background-color: #fefefe;
+        border-color: #fdfdfe;
+    }
+
+    .text-center {
+        text-align: center !important;
+    }
+
+    .pac-container {
+        font-size: 18px !important;
+        background-color: #fff !important;
+        border: 1px solid #ccc !important;
+        z-index: 10000 !important;
+    }
+
+    .pac-item {
+        font-size: 18px !important;
+    }
+
+
+
+    /* شاشات أصغر من 768px */
+    @@media (max-width: 768px) {
+        .col-md-6
+
+    {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+
+    .col-md-4 {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+
+        .input-group select.form-control {
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+            width: auto;
+            max-width: 21px;
+        }
+
+        label {
+       
+            font-size: 18px
+        }
+        /* Inputs and selects */
+        .form-control {
+           
+            font-size: 19px;
+        }
+    }
+
+  
+
+    @@media (max-width: 576px) {
+        .buttons-container
+
+    {
+        flex-direction: column;
+        align-items: stretch; /* تخلي الأزرار تاخد عرض كامل */
+    }
+
+    .buttons-container button,
+    .buttons-container a {
+        width: 100%; /* الأزرار تاخد العرض كامل */
+        margin-bottom: 10px; /* مسافة بين الأزرار عمودياً */
+    }
+
+        .buttons-container button:last-child,
+        .buttons-container a:last-child {
+            margin-bottom: 0; /* إزالة المسافة بعد آخر زر */
+        }
+
+    }
+</style>
+
+
+
+<div class="form-scope">
+
+
+    <div class="containerss">
+  <div class="form-section">
+    <h2 class="form-title mb-4">🚨 Request Towing Service</h2>
+    
+    <div class="">
+                <div class="">
+                    <!-- عرض رسالة النجاح -->
+                    @if (ViewData["SuccessMessage"] != null)
+                    {
+                        <div >
+                            <div class="alert alert-light text-center">
+                                <strong>@ViewData["SuccessMessage"]</strong>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+
+
+                    <form asp-action="Order_Req" method="post" >
+
+                 @Html.ValidationSummary(true)
+
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+             <div class="row mb-3">
+
+                    <div class="col-md-6">
+                        <label asp-for="Name" class="control-label">Name <span>*</span></label>
+                        <input asp-for="Name" class="form-control  " />
+                        <span asp-validation-for="Name" class="text-danger"></span>
+                    </div>
+
+                             <div class="col-12 col-md-6">
+                                <label for="Phone" class="control-label">Phone <span>*</span></label>
+                                <div class="input-group ">
+                                        <select id="areaCode" class="form-control " name="AreaCode" required>
+                                        <option value="+1 (205) ">+1 205 (Alabama)</option>
+                                        <option value="+1 (907) ">+1 907 (Alaska)</option>
+                                        <option value="+1 (480) ">+1 480 (Arizona)</option>
+                                        <option value="+1 (501) ">+1 501 (Arkansas)</option>
+                                        <option value="+1 (310) ">+1 310 (California)</option>
+                                        <option value="+1 (303) ">+1 303 (Colorado)</option>
+                                        <option value="+1 (203) ">+1 203 (Connecticut)</option>
+                                        <option value="+1 (302) ">+1 302 (Delaware)</option>
+                                        <option value="+1 (305) ">+1 305 (Florida)</option>
+                                        <option value="+1 (470) ">+1 470 (Georgia)</option>
+                                        <option value="+1 (808) ">+1 808 (Hawaii)</option>
+                                        <option value="+1 (208) ">+1 208 (Idaho)</option>
+                                        <option value="+1 (312) ">+1 312 (Illinois)</option>
+                                        <option value="+1 (317) ">+1 317 (Indiana)</option>
+                                        <option value="+1 (515) ">+1 515 (Iowa)</option>
+                                        <option value="+1 (913) ">+1 913 (Kansas)</option>
+                                        <option value="+1 (502) ">+1 502 (Kentucky)</option>
+                                        <option value="+1 (225) ">+1 225 (Louisiana)</option>
+                                        <option value="+1 (207) ">+1 207 (Maine)</option>
+                                        <option value="+1 (301) ">+1 301 (Maryland)</option>
+                                        <option value="+1 (617) ">+1 617 (Massachusetts)</option>
+                                        <option value="+1 (231) ">+1 231 (Michigan)</option>
+                                        <option value="+1 (612) ">+1 612 (Minnesota)</option>
+                                        <option value="+1 (662) ">+1 662 (Mississippi)</option>
+                                        <option value="+1 (314) ">+1 314 (Missouri)</option>
+                                        <option value="+1 (406) ">+1 406 (Montana)</option>
+                                        <option value="+1 (231) ">+1 231 (Nebraska)</option>
+                                        <option value="+1 (702) ">+1 702 (Nevada)</option>
+                                        <option value="+1 (603) ">+1 603 (New Hampshire)</option>
+                                        <option value="+1 (973) ">+1 973 (New Jersey)</option>
+                                        <option value="+1 (505) ">+1 505 (New Mexico)</option>
+                                        <option value="+1 (212) ">+1 212 (New York)</option>
+                                        <option value="+1 (252) ">+1 252 (North Carolina)</option>
+                                        <option value="+1 (701) ">+1 701 (North Dakota)</option>
+                                        <option value="+1 (216) ">+1 216 (Ohio)</option>
+                                        <option value="+1 (405) ">+1 405 (Oklahoma)</option>
+                                        <option value="+1 (503) ">+1 503 (Oregon)</option>
+                                        <option value="+1 (215) ">+1 215 (Pennsylvania)</option>
+                                        <option value="+1 (401) ">+1 401 (Rhode Island)</option>
+                                        <option value="+1 (615) ">+1 615 (Tennessee)</option>
+                                        <option value="+1 (512) ">+1 512 (Texas)</option>
+                                        <option value="+1 (801) ">+1 801 (Utah)</option>
+                                        <option value="+1 (802) ">+1 802 (Vermont)</option>
+                                        <option value="+1 (703) " selected>+1 703 (Virginia)</option>
+                                        <option value="+1 (206) ">+1 206 (Washington)</option>
+                                        <option value="+1 (304) ">+1 304 (West Virginia)</option>
+                                        <option value="+1 (414) ">+1 414 (Wisconsin)</option>
+                                        <option value="+1 (307) ">+1 307 (Wyoming)</option>
+
+                                    </select>
+                                    <input type="text" id="phoneNumber" name="Phone" class="form-control" placeholder="Enter your phone number" required />
+                                </div>
+                                <span id="phoneError" asp-validation-for="Phone" class="text-danger"></span>
+                            </div>
+
+	    	</div>
+
+
+
+
+						<div class="mb-3">
+                        <label asp-for="Email" class="control-label">Email <span>*</span></label>
+                        <input asp-for="Email" class="form-control" type="text" />
+                        <span asp-validation-for="Email" class="text-danger"></span>
+                        </div>
+
+
+                        <div class="mb-3">
+
+                        <label asp-for="@order.VehicleType" class="control-label">Vehicle Type</label>
+                        <select asp-for="@order.VehicleType" class="form-control custom-select" id="VehicleType">
+
+
+                            <option value="Heavy Duty">Heavy Duty</option>
+
+                            <option value="Flatbed">
+                                Flatbed
+                            </option>
+
+                            <option value="Wheel Lift">
+                                Wheel Lift
+                            </option>
+
+                        </select>
+                        </div>
+
+
+                        <!-- Addresses -->
+                            <div class=" mb-3">
+                                <label asp-for="VIN" class="control-label">VIN Number</label>
+                                <input asp-for="VIN" class="form-control" id="VIN" />
+                                <span id="error-vin" class="text-danger" style="display: none;">This field is required.</span>
+
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="Color_model_name" class="control-label">Details car</label>
+                                <input asp-for="Color_model_name" class="form-control" placeholder="Color-Model" id="Color_model_name" />
+                                <span id="error-color-model" class="text-danger" style="display: none;">Color Model Name is required.</span>
+                            </div>
+      <div class=" mb-3">
+                        <label asp-for="Address" class="control-label">Address <span>*</span></label>
+                        <input asp-for="Address" class="form-control" />
+                        <span asp-validation-for="Address" class="text-danger"></span>
+              
+      </div>
+
+                            <div class="form-group">
+                                <label asp-for="@order.Status" class="control-label">Order Status</label>
+                                <input asp-for="@order.Status" class="form-control" readonly value="New Request" />
+                            </div>
+      <!-- Vehicle Info -->
+      <div class="row mb-3">
+                    <div class="col-md-6">
+
+                    <label asp-for="@order.PickupLocation" class="control-label">Pickup Location <span>*</span></label>
+                    <textarea asp-for="@order.PickupLocation" id="PickupLocation" class="form-control" placeholder="Enter pickup location" style=" height: 80px;"></textarea>
+                    <span asp-validation-for="@order.DropoffLocation" class="text-danger"></span>
+                </div>
+
+                    <div class="col-md-6">
+                    <label asp-for="@order.DropoffLocation" class="control-label">Dropoff Location <span>*</span></label>
+                    <textarea asp-for="@order.DropoffLocation" id="DropoffLocation" class="form-control" placeholder="Enter dropoff location" style=" height: 80px;"></textarea>
+                    <span asp-validation-for="@order.PickupLocation" class="text-danger"></span>
+                </div>
+
+      </div>
+
+      <!-- Pricing -->
+                  <div class="row mb-3">
+
+
+                    <div class="col-md-4">
+                        <label asp-for="@order.Distance" class="control-label">Distance (miles) </label>
+                        <input asp-for="@order.Distance" id="Distance" class="form-control" readonly  />
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="@order.DID" class="control-label">DeadHead ($) </label>
+                        <input asp-for="@order.DID" id="DID" class="form-control" readonly  />
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="@order.TotalCost" class="control-label">Total Cost ($) </label>
+                        <input asp-for="@order.TotalCost" id="TotalCost" class="form-control" readonly  />
+                    </div>
+
+
+                            
+				</div>      
+                
+                <!-- Notes -->
+
+				<div class="mb-3">
+                            <label asp-for="Message_or_inquiry" class="control-label">Additional Notes <span>*</span></label>
+                            <textarea asp-for="Message_or_inquiry" class="form-control" id="Message_or_inquiry" maxlength="200" placeholder="Anything we should know?"></textarea>
+					<span id="maxlength-message" class="text-danger" style="display: none;">You have reached the maximum 200 character limit.</span>
+				</div>
+             <div class="mb-3">
+                    <div class="form-group ">
+                                <div id="map" style="height: 300px; width: 100%; border-radius: 40px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);margin-top:80px ;z-index: 1;"></div> <!-- هنا جعلنا الخريطة مخفية عند تحميل الصفحة -->
+                    </div>
+                </div>
+
+           
+
+      <!-- Buttons -->
+                            <div class="d-flex justify-content-between align-items-center buttons-container">
+        <button type="submit" class="btn btn-orange px-4">Submit Request</button>
+        <a href="tel:7032008836" class="btn btn-outline-primary">📞 Call Now</a>
+      </div>
+
+                    
+
+    </form>
+    }
+  </div>
+</div>
+        </div>
+    </div>
+
+</div>
+<div style="padding:20px">   </div>
+
+
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jquery-validation@1.19.5/dist/jquery.validate.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jquery-validation-unobtrusive@3.2.12/dist/jquery.validate.unobtrusive.min.js"></script>
+
+<!-- Modal HTML structure -->
+
+@section Scripts {
+
+	<partial name="_ValidationScriptsPartial" />
+	<script>
+
+
+
+        // // //         document.addEventListener("DOMContentLoaded", function () {
+        // // //     const nextBtn = document.getElementById("nextBtn");
+        // // //     const form = document.getElementById("service-request-container-form");
+        // // //     const phoneNumber = document.getElementById("phoneNumber");
+        // // //     const areaCode = document.getElementById("areaCode");
+        // // //     const textarea = document.getElementById('Message_or_inquiry');
+        // // //     const messageWarning = document.getElementById('maxlength-message');
+        // // //     const orderButton = document.getElementById("orderButton"); // زر الإرسال
+        // // //     const clientSubtitle = document.getElementById("clientSubtitle"); // عنوان Clint info
+        // // //     const mapElement = document.getElementById('map');
+
+        // // //     // افتراضياً خفي زر الإرسال
+        // // //     orderButton.style.display = "none";
+
+        // // //     // عرض رسالة الحد الأقصى للطول في حقل الرسالة
+        // // //     textarea.addEventListener('input', function () {
+        // // //         if (textarea.value.length >= textarea.maxLength) {
+        // // //             messageWarning.style.display = 'block';
+        // // //         } else {
+        // // //             messageWarning.style.display = 'none';
+        // // //         }
+        // // //     });
+
+        // // //     nextBtn.addEventListener("click", function () {
+        // // //         const isFormValid = $(form).valid();
+
+        // // //         // تحقق من صحة رقم الهاتف
+        // // //         const fullPhone = phoneNumber.value.trim();
+        // // //         const phoneValid = fullPhone.length > areaCode.value.length;
+
+        // // //         if (!phoneValid) {
+        // // //             const errorMessage = document.getElementById('phoneError');
+        // // //             errorMessage.textContent = 'Phone number is required';
+        // // //             errorMessage.style.display = 'block';
+        // // //             phoneNumber.focus();
+        // // //             return; // توقف إذا الرقم غير صالح
+        // // //         } else {
+        // // //             document.getElementById('phoneError').style.display = 'none';
+        // // //         }
+
+        // // //         // تحقق من طول رسالة الطلب إذا تم إدخالها
+        // // //         const messageText = textarea.value.trim();
+        // // //         const messageValid = messageText.length <= textarea.maxLength;
+
+        // // //         if (!messageValid) {
+        // // //             messageWarning.style.display = 'block';
+        // // //             textarea.focus();
+        // // //             return; // توقف إذا الرسالة طويلة جداً
+        // // //         } else {
+        // // //             messageWarning.style.display = 'none';
+        // // //         }
+
+        // // //         // إذا النموذج صحيح، انتقل للقسم الثاني
+        // // //         if (isFormValid) {
+        // // //             document.getElementById("client-section").style.display = "none";
+        // // //             document.getElementById("order-section").style.display = "block";
+
+        // // //             // إظهار زر الإرسال وإخفاء زر Next
+        // // //             nextBtn.style.display = "none";
+        // // //             orderButton.style.display = "inline-block";
+
+        // // //             // إخفاء عنوان Clint info
+        // // //             if (clientSubtitle) {
+        // // //                 clientSubtitle.style.display = "none";
+        // // //             }
+
+        // // //             // إظهار الخريطة
+        // // //             if (mapElement) {
+        // // //                 mapElement.style.display = 'block';
+
+        // // //                 // تحديث حجم الخريطة إذا تستخدم Leaflet
+        // // //                 if (typeof map !== 'undefined' && map.invalidateSize) {
+        // // //                     setTimeout(() => {
+        // // //                         map.invalidateSize();
+        // // //                     }, 200);
+        // // //                 }
+
+        // // //                 // تحديث Google Maps إذا تستخدمه (تأكد من وجود المتغير map)
+        // // //                 // if (typeof google !== 'undefined' && map) {
+        // // //                 //     google.maps.event.trigger(map, 'resize');
+        // // //                 // }
+        // // //             }
+        // // //         }
+        // // //     });
+        // // // });
+
+
+
+
+// 
+//                     document.addEventListener("DOMContentLoaded", function () {
+//             const nextBtn = document.getElementById("nextBtn");
+//             const form = document.getElementById("service-request-container-form");
+//             const phoneNumber = document.getElementById("phoneNumber");
+//             const areaCode = document.getElementById("areaCode");
+
+//             const textarea = document.getElementById('Message_or_inquiry');
+//             const messageWarning = document.getElementById('maxlength-message');
+//             const orderButton = document.getElementById("orderButton"); // زر الإرسال
+
+//             // افتراضياً خفي زر الإرسال
+//             orderButton.style.display = "none";
+
+//             // عرض الرسالة عند الوصول للحد الأقصى
+//             textarea.addEventListener('input', function () {
+//                 if (textarea.value.length > textarea.maxLength) {
+//                     messageWarning.style.display = 'block';
+//                 } else {
+//                     messageWarning.style.display = 'none';
+//                 }
+//             });
+
+//             nextBtn.addEventListener("click", function () {
+//                 const isFormValid = $(form).valid();
+
+//                 // تحقق من صحة الرقم
+//                 const fullPhone = phoneNumber.value.trim();
+//                 const phoneValid = fullPhone.length > areaCode.value.length;
+
+//                 if (!phoneValid) {
+//                     const errorMessage = document.getElementById('phoneError');
+//                     errorMessage.textContent = 'Phone number is required';
+//                     errorMessage.style.display = 'block';
+//                     phoneNumber.focus();
+//                     return;
+//                 } else {
+//                     document.getElementById('phoneError').style.display = 'none';
+//                 }
+
+//                 // التحقق من حقل الرسالة فقط إذا كتب فيه شيء
+//                 const messageText = textarea.value.trim();
+//                 const messageValid = messageText.length <= textarea.maxLength;
+
+//                 if (!messageValid) {
+//                     messageWarning.style.display = 'block';
+//                     textarea.focus();
+//                     return;
+//                 } else {
+//                     messageWarning.style.display = 'none';
+//                 }
+
+//                 // إذا كل شيء صحيح، انتقل للقسم الثاني وأخفِ زر Next وأظهر زر Order Request
+//                 if (isFormValid) {
+//                     document.getElementById("client-section").style.display = "none";
+//                     document.getElementById("order-section").style.display = "block";
+//                     document.getElementById("calculateButton").style.display = "inline-block";
+
+//                     nextBtn.style.display = "none";     // إخفاء زر Next
+//                     orderButton.style.display = "inline-block"; // إظهار زر الإرسال
+
+//                     // تفعيل عرض الخريطة وتحديثها بعد ظهور القسم الثاني
+//                     const mapElement = document.getElementById('map');
+//                     if (mapElement) {
+//                         mapElement.style.display = 'block'; // إظهار الخريطة
+
+//                         // تحديث حجم الخريطة إذا تستخدم Leaflet
+//                         if (typeof map !== 'undefined' && map.invalidateSize) {
+//                             setTimeout(() => {
+//                                 map.invalidateSize();
+//                             }, 200);
+//                         }
+
+//                         // لو تستخدم Google Maps، يمكنك استخدام:
+//                         // if (typeof google !== 'undefined' && map) {
+//                         //     google.maps.event.trigger(map, 'resize');
+//                         // }
+//                     }
+//                 }
+//             });
+//         });
+
+
+    
+  const textarea = document.getElementById('Message_or_inquiry');
+  const message = document.getElementById('maxlength-message');
+
+  textarea.addEventListener('input', function () {
+      if (textarea.value.length === textarea.maxLength) {
+          message.style.display = 'block'; // Show message when max length is reached
+      } else {
+          message.style.display = 'none'; // Hide message if less than max length
+      }
+  });
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const areaCode = document.getElementById("areaCode");
+            const phoneNumber = document.getElementById("phoneNumber");
+            const form = document.querySelector("form");
+
+            // تعيين مفتاح الدولة الافتراضي عند تحميل الصفحة
+            phoneNumber.value = areaCode.value;
+
+            // عند تغيير مفتاح الدولة، يتم تعيين الحقل إلى مفتاح الدولة فقط
+            areaCode.addEventListener("change", function () {
+                phoneNumber.value = areaCode.value; // تعيين الحقل بمفتاح الدولة الجديد
+            });
+
+            // تحديث الرقم عند الكتابة
+            phoneNumber.addEventListener("input", function () {
+                let currentValue = phoneNumber.value;
+
+                // إذا كانت القيمة فارغة، إعادة مفتاح الدولة فقط
+                if (currentValue.trim() === '') {
+                    phoneNumber.value = areaCode.value;
+                    return;
+                }
+
+                const escapedAreaCode = areaCode.value.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
+
+                // التحقق مما إذا كان رمز الدولة محذوفًا يدويًا
+                if (!currentValue.startsWith(areaCode.value)) {
+                    // عرض رسالة خطأ بجانب الحقل
+                    const errorMessage = document.getElementById('phoneError');
+                    if (errorMessage) {
+                        errorMessage.textContent = 'It should be entered with the country code.';
+                        errorMessage.style.display = 'block';
+                    } else {
+                        const errorElement = document.createElement('div');
+                        errorElement.id = 'phoneError';
+                        errorElement.textContent = 'It should be entered with the country code.';
+                        errorElement.style.color = 'red';
+                        errorElement.style.marginTop = '5px';
+                        errorElement.style.fontSize = '0.9em';
+                        phoneNumber.parentElement.appendChild(errorElement);
+                    }
+
+                    phoneNumber.value = areaCode.value; // إعادة رمز الدولة فقط
+                    return;
+                }
+
+                // إزالة أي تكرارات لمفتاح الدولة في النص الحالي، مع الحفاظ على التنسيق
+                let sanitizedValue = currentValue.replace(new RegExp(`^(\\+?${escapedAreaCode}\\s*)+`), `${escapedAreaCode} `);
+
+                // تنظيف الرقم مع الحفاظ على التنسيق (+، الأقواس، والمسافات)
+                sanitizedValue = sanitizedValue.replace(/[^+\d()\s]/g, '');
+
+                // إخفاء رسالة الخطأ إذا كان الإدخال صحيحًا
+                const errorMessage = document.getElementById('phoneError');
+                if (errorMessage) {
+                    errorMessage.style.display = 'none';
+                }
+
+                // تحديث حقل رقم الهاتف بالقيمة المعالجة
+                phoneNumber.value = sanitizedValue;
+            });
+
+            // التأكد من وجود مفتاح الدولة عند فقدان التركيز
+            phoneNumber.addEventListener("focusout", function () {
+                if (phoneNumber.value.trim() === '' || phoneNumber.value === areaCode.value) {
+                    phoneNumber.value = areaCode.value; // إعادة مفتاح الدولة فقط إذا كان الحقل فارغًا
+                }
+            });
+
+            // التحقق من صحة النموذج قبل الإرسال
+            form.addEventListener("submit", function (event) {
+                const errorMessage = document.getElementById('phoneError');
+                if (phoneNumber.value.trim() === areaCode.value || phoneNumber.value.trim().length <= areaCode.value.length) {
+                    event.preventDefault(); // منع إرسال النموذج
+                    if (errorMessage) {
+                            errorMessage.textContent = 'It should be entered  the Phone number';
+                        errorMessage.style.display = 'block';
+                    }
+                    phoneNumber.focus(); // التركيز على حقل رقم الهاتف
+                } else if (errorMessage) {
+                    errorMessage.style.display = 'none'; // إخفاء رسالة الخطأ إذا كان الإدخال صحيحًا
+                }
+            });
+        });
+
+
+
+
+
+
+
+        function validateForm(event) {
+            // جلب القيم من الحقول
+            const vin = document.getElementById("VIN").value.trim();
+            const colorModelName = document.getElementById("Color_model_name").value.trim();
+
+            // جلب عناصر عرض الأخطاء
+            const errorVin = document.getElementById("error-vin");
+            const errorColorModel = document.getElementById("error-color-model");
+
+            // تتبع وجود الأخطاء
+            let hasError = false;
+
+            // التحقق من الحقول
+            if (!vin) {
+                errorVin.style.display = "block";
+                hasError = true;
+            } else {
+                errorVin.style.display = "none";
+            }
+
+            if (!colorModelName) {
+                errorColorModel.style.display = "block";
+                hasError = true;
+            } else {
+                errorColorModel.style.display = "none";
+            }
+
+            // منع إرسال النموذج إذا كان هناك خطأ
+            if (hasError) {
+                event.preventDefault();
+            }
+        }
+
+
+
+
+
+
+    /******************************* */
+
+
+
+
+
+
+
+
+        let map;
+        let pickupMarker, dropoffMarker;
+        let pickupLatLng, dropoffLatLng;
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: 37.4316, lng: -78.6569 },
+                zoom: 7,
+
+            });
+
+            // إكمال تلقائي لموقع الالتقاط (PickupLocation)
+            const pickupInput = document.getElementById('PickupLocation');
+            const pickupAutocomplete = new google.maps.places.Autocomplete(pickupInput);
+            pickupAutocomplete.bindTo('bounds', map);
+
+            // إكمال تلقائي لموقع التسليم (DropoffLocation)
+            const dropoffInput = document.getElementById('DropoffLocation');
+            const dropoffAutocomplete = new google.maps.places.Autocomplete(dropoffInput);
+            dropoffAutocomplete.bindTo('bounds', map);
+
+            // الاستماع لتغيير المكان
+            pickupAutocomplete.addListener('place_changed', function () {
+                const place = pickupAutocomplete.getPlace();
+                if (!place.geometry) {
+                    console.log("تفاصيل المكان غير متوفرة: '" + place.name + "'");
+                    return;
+                }
+                setPickupLocation(place.geometry.location);
+            });
+
+            dropoffAutocomplete.addListener('place_changed', function () {
+                const place = dropoffAutocomplete.getPlace();
+                if (!place.geometry) {
+                    console.log("تفاصيل المكان غير متوفرة: '" + place.name + "'");
+                    return;
+                }
+                setDropoffLocation(place.geometry.location);
+            });
+
+            map.addListener('click', function(event) {
+                if (!pickupMarker) {
+                    setPickupLocation(event.latLng);
+                } else if (!dropoffMarker) {
+                    setDropoffLocation(event.latLng);
+                }
+            });
+
+            document.getElementById('VehicleType').addEventListener('change', function () {
+                calculateDistanceAndCost();
+            });
+
+            // الاستماع لمسح الحقول
+            pickupInput.addEventListener('input', function () {
+                if (!pickupInput.value.trim()) {
+                    clearValues();
+                    dropoffInput.value = ''; // مسح بيانات DropoffLocation عند مسح PickupLocation
+                }
+            });
+
+            dropoffInput.addEventListener('input', function () {
+                if (!dropoffInput.value.trim()) {
+                    clearValues();
+                    pickupInput.value = ''; // مسح بيانات PickupLocation عند مسح DropoffLocation
+                }
+            });
+        }
+
+        function setPickupLocation(latLng) {
+            if (!pickupMarker) {
+                pickupMarker = new google.maps.Marker({
+                    position: latLng,
+                    map: map,
+                    draggable: true,
+                });
+                enableDragToUpdate(pickupMarker, 'PickupLocation');
+            } else {
+                pickupMarker.setPosition(latLng);
+            }
+            pickupLatLng = latLng;
+            updateLocation(pickupMarker, latLng, 'PickupLocation');
+            calculateDistanceAndCost(); // الحساب تلقائي بعد تعيين الموقع
+        }
+
+        function setDropoffLocation(latLng) {
+            if (!dropoffMarker) {
+                dropoffMarker = new google.maps.Marker({
+                    position: latLng,
+                    map: map,
+                    draggable: true,
+                });
+                enableDragToUpdate(dropoffMarker, 'DropoffLocation');
+            } else {
+                dropoffMarker.setPosition(latLng);
+            }
+            dropoffLatLng = latLng;
+            updateLocation(dropoffMarker, latLng, 'DropoffLocation');
+            calculateDistanceAndCost(); // الحساب تلقائي بعد تعيين الموقع
+        }
+
+        function geocodeAddress(inputId, callback) {
+            const address = document.getElementById(inputId).value;
+            if (!address.trim()) {
+                clearValues();
+                return;
+            }
+            const geocoder = new google.maps.Geocoder();
+            geocoder.geocode({ 'address': address }, function(results, status) {
+                if (status === 'OK') {
+                    const latLng = results[0].geometry.location;
+                    map.setCenter(latLng);
+                    callback(latLng);
+                } else {
+                    clearValues();
+                }
+            });
+        }
+
+        function updateLocation(marker, latLng, inputId) {
+            getAddress(latLng.lat(), latLng.lng(), function (address) {
+                document.getElementById(inputId).value = address;
+                calculateDistanceAndCost(); // الحساب تلقائي بعد تحديث الموقع
+            });
+        }
+
+        function getAddress(lat, lng, callback) {
+            const geocoder = new google.maps.Geocoder();
+            const latLng = new google.maps.LatLng(lat, lng);
+            geocoder.geocode({ 'location': latLng }, function(results, status) {
+                if (status === 'OK' && results[0]) {
+                    callback(results[0].formatted_address);
+                } else {
+                    callback("");
+                }
+            });
+        }
+
+        function calculateDistanceAndCost() {
+            if (!pickupLatLng || !dropoffLatLng) {
+                clearValues();
+                return;
+            }
+
+            const distanceInMeters = google.maps.geometry.spherical.computeDistanceBetween(pickupLatLng, dropoffLatLng);
+            const distanceInMiles = distanceInMeters / 1609.34;
+
+            let vehicleType = document.getElementById('VehicleType').value;
+            let baseCost, initialDistanceCost, extraMileCost, totalCost, DID;
+
+            if (vehicleType === "Heavy Duty") {
+                baseCost = 90;
+                initialDistanceCost = 75;
+                extraMileCost = 3;
+                totalCost= baseCost + (distanceInMiles > 10 ? initialDistanceCost + ((distanceInMiles - 10) * extraMileCost) : initialDistanceCost);
+                DID = distanceInMiles * 6;
+            } else {
+                baseCost = 40;
+                initialDistanceCost = 75;
+                extraMileCost = 3;
+                totalCost = baseCost + (distanceInMiles > 10 ? initialDistanceCost + ((distanceInMiles - 10) * extraMileCost) : initialDistanceCost);
+                DID = distanceInMiles * 1.5;
+            }
+
+
+            document.getElementById('Distance').value = distanceInMiles.toFixed(2);
+            document.getElementById('TotalCost').value = totalCost.toFixed(2);
+            document.getElementById('DID').value = DID.toFixed(2);
+        }
+
+        function enableDragToUpdate(marker, inputId) {
+            marker.addListener('dragend', function () {
+                const newLatLng = marker.getPosition();
+                updateLocation(marker, newLatLng, inputId);
+
+                if (inputId === 'PickupLocation') {
+                    pickupLatLng = newLatLng;
+                } else if (inputId === 'DropoffLocation') {
+                    dropoffLatLng = newLatLng;
+                }
+
+                calculateDistanceAndCost(); // الحساب تلقائي بعد السحب
+            });
+        }
+
+        function clearValues() {
+            document.getElementById('Distance').value = "";
+            document.getElementById('TotalCost').value = "";
+            document.getElementById('DID').value = "";
+        }
+
+</script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCscVR3o1CcE4D5zeAMVRmN3s0dYFZnYo8&libraries=places,geometry&callback=initMap" async defer></script>
+}
+
+
+
+
+
+
+
+
+
+@* 
+
+
+<div class="container ">
+    <div class="row  justify-content-center align-content-center">
+        <div class="col-md-6 card ">
+            <!-- عرض رسالة النجاح -->
+            @if (ViewData["SuccessMessage"] != null)
+            {
+                <div class="col-md-7">
+                    <div class="alert alert-light text-center">
+                        <strong>@ViewData["SuccessMessage"]</strong>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="  ">
+                    <h1 class="h1s">
+                        services request
+
+                    </h1>
+                    <div class="avatar">
+                        <i class="bi bi-briefcase"></i>
+                    </div>
+
+                    <form asp-action="Order_Req" method="post" class="">
+                        @Html.ValidationSummary(true)
+
+                        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+
+                        <div class="section  ">
+                            <div>
+                                <div class="form-group">
+                                    <label asp-for="Name" class="control-label">Name</label>
+                                    <input asp-for="Name" class="form-control" />
+                                    <span asp-validation-for="Name" class="text-danger"></span>
+                                </div>
+                                <div class="form-group">
+                                    <label for="Phone" class="control-label">Phone</label>
+                                    <div class="input-group">
+                                        <!-- اختيار مفتاح الولاية -->
+                                        <select id="areaCode" class="form-control" required>
+                                            <option value="+1 (205) ">+1 205 (Alabama)</option>
+                                            <option value="+1 (907) ">+1 907 (Alaska)</option>
+                                            <option value="+1 (480) ">+1 480 (Arizona)</option>
+                                            <option value="+1 (501) ">+1 501 (Arkansas)</option>
+                                            <option value="+1 (310) ">+1 310 (California)</option>
+                                            <option value="+1 (303) ">+1 303 (Colorado)</option>
+                                            <option value="+1 (203) ">+1 203 (Connecticut)</option>
+                                            <option value="+1 (302) ">+1 302 (Delaware)</option>
+                                            <option value="+1 (305) ">+1 305 (Florida)</option>
+                                            <option value="+1 (470) ">+1 470 (Georgia)</option>
+                                            <option value="+1 (808) ">+1 808 (Hawaii)</option>
+                                            <option value="+1 (208) ">+1 208 (Idaho)</option>
+                                            <option value="+1 (312) ">+1 312 (Illinois)</option>
+                                            <option value="+1 (317) ">+1 317 (Indiana)</option>
+                                            <option value="+1 (515) ">+1 515 (Iowa)</option>
+                                            <option value="+1 (913) ">+1 913 (Kansas)</option>
+                                            <option value="+1 (502) ">+1 502 (Kentucky)</option>
+                                            <option value="+1 (225) ">+1 225 (Louisiana)</option>
+                                            <option value="+1 (207) ">+1 207 (Maine)</option>
+                                            <option value="+1 (301) ">+1 301 (Maryland)</option>
+                                            <option value="+1 (617) ">+1 617 (Massachusetts)</option>
+                                            <option value="+1 (231) ">+1 231 (Michigan)</option>
+                                            <option value="+1 (612) ">+1 612 (Minnesota)</option>
+                                            <option value="+1 (662) ">+1 662 (Mississippi)</option>
+                                            <option value="+1 (314) ">+1 314 (Missouri)</option>
+                                            <option value="+1 (406) ">+1 406 (Montana)</option>
+                                            <option value="+1 (231) ">+1 231 (Nebraska)</option>
+                                            <option value="+1 (702) ">+1 702 (Nevada)</option>
+                                            <option value="+1 (603) ">+1 603 (New Hampshire)</option>
+                                            <option value="+1 (973) ">+1 973 (New Jersey)</option>
+                                            <option value="+1 (505) ">+1 505 (New Mexico)</option>
+                                            <option value="+1 (212) ">+1 212 (New York)</option>
+                                            <option value="+1 (252) ">+1 252 (North Carolina)</option>
+                                            <option value="+1 (701) ">+1 701 (North Dakota)</option>
+                                            <option value="+1 (216) ">+1 216 (Ohio)</option>
+                                            <option value="+1 (405) ">+1 405 (Oklahoma)</option>
+                                            <option value="+1 (503) ">+1 503 (Oregon)</option>
+                                            <option value="+1 (215) ">+1 215 (Pennsylvania)</option>
+                                            <option value="+1 (401) ">+1 401 (Rhode Island)</option>
+                                            <option value="+1 (615) ">+1 615 (Tennessee)</option>
+                                            <option value="+1 (512) ">+1 512 (Texas)</option>
+                                            <option value="+1 (801) ">+1 801 (Utah)</option>
+                                            <option value="+1 (802) ">+1 802 (Vermont)</option>
+                                            <option value="+1 (703) " selected>+1 703 (Virginia)</option>
+                                            <option value="+1 (206) ">+1 206 (Washington)</option>
+                                            <option value="+1 (304) ">+1 304 (West Virginia)</option>
+                                            <option value="+1 (414) ">+1 414 (Wisconsin)</option>
+                                            <option value="+1 (307) ">+1 307 (Wyoming)</option>
+
+                                        </select>
+                                        <input type="text" id="phoneNumber" name="Phone" class="form-control" placeholder="Enter your phone number" required />
+                                    </div>
+                                    <span id="phoneError" asp-validation-for="Phone" class="text-danger"></span>
+                                </div>
+                                <div class="form-group">
+                                    <label asp-for="Email" class="control-label">Email</label>
+                                    <input asp-for="Email" class="form-control" />
+                                    <span asp-validation-for="Email" class="text-danger"></span>
+                                </div>
+                                <div class="form-group">
+                                    <label asp-for="Address" class="control-label">Address</label>
+                                    <input asp-for="Address" class="form-control" />
+                                    <span asp-validation-for="Address" class="text-danger"></span>
+                                </div>
+                                <div class="form-group">
+                                    <label asp-for="Message_or_inquiry" class="control-label">Message</label>
+                                    <textarea asp-for="Message_or_inquiry" class="form-control" id="Message_or_inquiry" maxlength="200"></textarea>
+                                    <span id="maxlength-message" class="text-danger" style="display: none;">You have reached the maximum 200 character limit.</span>
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                        <!-- عمود بيانات الطلب على اليمين -->
+                        <div class="section " >
+                            <div class="form-group">
+                                <label asp-for="@order.Status" class="control-label">Order Status</label>
+                                <input asp-for="@order.Status" class="form-control" readonly value="New Request" />
+                                <span asp-validation-for="@order.Status" class="text-danger"></span>
+                            </div>
+
+                            <div class="form-group">
+                                <label asp-for="VIN" class="control-label">VIN Number</label>
+                                <input asp-for="VIN" class="form-control" id="VIN" />
+                                <span id="error-vin" class="text-danger" style="display: none;">This field is required.</span>
+
+                            </div>
+                            <div class="form-group">
+                                <label asp-for="Color_model_name" class="control-label">Details car</label>
+                                <input asp-for="Color_model_name" class="form-control" placeholder="Color-Model" id="Color_model_name" />
+                                <span id="error-color-model" class="text-danger" style="display: none;">Color Model Name is required.</span>
+                            </div>
+                            <div class="form-group">
+                                <label asp-for="@order.VehicleType" class="control-label">Vehicle Type</label>
+                                <select asp-for="@order.VehicleType" class="form-control custom-select" id="VehicleType">
+
+
+                                    <option value="Heavy Duty">Heavy Duty</option>
+
+                                    <option value="Flatbed">
+                                        Flatbed
+                                    </option>
+
+                                    <option value="Wheel Lift">
+                                        Wheel Lift
+                                    </option>
+
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label asp-for="@order.PickupLocation"  class="control-label">Pickup Location</label>
+                                <textarea asp-for="@order.PickupLocation" id="PickupLocation" class="form-control" placeholder="Enter pickup location" style=" height: 25px;"></textarea>
+                                <span asp-validation-for="@order.DropoffLocation" class="text-danger"></span>
+                            </div>
+
+                            <div class="form-group">
+                                <label asp-for="@order.DropoffLocation" class="control-label">Dropoff Location</label>
+                                <textarea asp-for="@order.DropoffLocation" id="DropoffLocation" class="form-control" placeholder="Enter dropoff location" style=" height: 25px;"></textarea>
+                                <span asp-validation-for="@order.PickupLocation" class="text-danger"></span>
+                            </div>
+                            <button id="calculateButton" class=" btn-primary" style="display: none; font-size:26px" onclick="calculateDistanceAndCost(); return false;">Calculation</button>
+
+                            <div class="form-group">
+                                <label asp-for="@order.Distance" class="control-label">Distance (miles)</label>
+                                <input asp-for="@order.Distance" id="Distance" class="form-control"  readonly style="" />
+                            </div>
+                            <div class="form-group">
+                                <label asp-for="@order.DID" class="control-label">DeadHead ($)</label>
+                                <input asp-for="@order.DID" id="DID" class="form-control"  readonly style="" />
+                            </div>
+                            <div class="form-group">
+                                <label asp-for="@order.TotalCost" class="control-label">Total Cost ($)</label>
+                                <input asp-for="@order.TotalCost" id="TotalCost"  class="form-control"  readonly style="" />
+                            </div>
+
+
+
+                        </div>
+
+                        <div class="form-group text-center ">
+
+                            <button type="submit" class="btn service-request-container-submit" id="orderButton" title="Please fill out both forms before submitting!">Order Request</button>
+
+
+</div>
+
+
+                        <!-- الخريطة في أسفل الصفحة -->
+                        <div class="col-md-12" style=" ">
+                            <div class="form-group">
+                                <div id="map" style="height: 300px; width: 100%; border-radius: 40px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3); "></div> <!-- هنا جعلنا الخريطة مخفية عند تحميل الصفحة -->
+                            </div>
+                        </div>
+
+                    </form>
+                </div>
+            }
+        </div>
+    </div>
+</div> *@
+
+
+
+
+
+
+
+
+
+
+

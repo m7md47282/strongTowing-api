@@ -1,0 +1,992 @@
+﻿<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+
+<style>
+    :root {
+        --primary-blue: #174d65;
+        --dark-blue: #226a9c;
+        --light-blue: #0084b4;
+        --primary-orange: #faa74a;
+        --orange-hover: #ec971f;
+        --light-gray: #f8f9fa;
+        --medium-gray: #e9ecef;
+        --dark-gray: #343a40;
+        --white: #ffffff;
+        --black: #000000;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        line-height: 1.5;
+        font-weight: 400;
+        background-color: var(--white);
+        color: var(--dark-gray);
+        font-synthesis: none;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        overflow-x: hidden;
+    }
+
+    body {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        overflow-x: hidden;
+    }
+
+    #app {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+
+    a {
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .container {
+        width: 100%;
+        max-width: 1350px;
+        margin: 0 auto;
+        padding: 0 16px;
+    }
+
+    .title-hero-container {
+        width: 100%;
+        max-width: 1350px;
+    }
+
+    .title-hero {
+        padding: 4.5rem 0;
+        text-align: center;
+        margin: 0px;
+        width: 80%;
+        background-color: var(--primary-blue);
+        position: relative;
+    }
+
+    .start-dots {
+        position: absolute;
+        top: 15px;
+        left: 10px;
+    }
+
+    .end-dots {
+        position: absolute;
+        bottom: 15px;
+        right: 10px;
+    }
+
+    .section-label {
+        color: var(--primary-orange);
+        font-size: 16px;
+        font-weight: 600;
+        display: flex;
+    }
+
+    .center-label {
+        justify-content: center;
+        justify-items: center;
+    }
+
+    .divider-label {
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+        .divider-label::before {
+            content: "";
+            height: 2px;
+            background-color: var(--primary-orange);
+            width: 24px;
+            margin: 0 12px;
+        }
+
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 16px;
+        border-radius: 4px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: none;
+        text-align: center;
+    }
+
+    .btn-primary {
+        background-color: var(--primary-blue);
+        color: var(--white);
+    }
+
+        .btn-primary:hover {
+            background-color: var(--dark-blue);
+        }
+
+    .btn-orange {
+        background-color: var(--primary-orange);
+        color: var(--white);
+    }
+
+        .btn-orange:hover {
+            background-color: var(--orange-hover);
+        }
+
+    .btn-outline {
+        background-color: transparent;
+        border: 1px solid var(--white);
+        color: var(--white);
+    }
+
+        .btn-outline:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+    .social-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 16px;
+        color: inherit;
+        font-size: 18px;
+    }
+
+    .arrow-icon {
+        margin-left: 8px;
+    }
+
+    .fa,
+    .fa-brands,
+    .fa-classic,
+    .fa-regular,
+    .fa-sharp,
+    .fa-solid,
+    .fab,
+    .far,
+    .fas {
+        line-height: normal;
+    }
+
+    /* Floating Actions */
+    .floating-actions {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        z-index: 1000;
+    }
+
+    .floating-btn {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 24px;
+        border-radius: 50px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+        .floating-btn i {
+            transition: transform 0.3s ease;
+        }
+
+        .floating-btn:hover i {
+            transform: translateX(4px);
+        }
+
+    .find-offers {
+        background-color: #1e6888;
+        color: var(--white);
+    }
+
+        .find-offers:hover {
+            background-color: var(--dark-blue);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+        }
+
+    .find-offers-arrow {
+        background-color: white;
+        color: #1e6888;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        margin: auto;
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+    }
+
+    .request-service {
+        background-color: var(--primary-orange);
+        color: var(--white);
+    }
+
+        .request-service:hover {
+            background-color: var(--orange-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+        }
+
+    .request-service-arrow {
+        background-color: white;
+        color: #faa74a;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        margin: auto;
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+    }
+
+    .contact-us-btn, .all-other-services-btn {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 24px;
+        border-radius: 50px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        background-color: var(--primary-orange);
+        color: var(--white);
+        width: fit-content;
+    }
+
+        .contact-us-btn i, .all-other-services-btn i {
+            transition: transform 0.3s ease;
+        }
+
+        .contact-us-btn:hover i, .all-other-services-btn:hover i {
+            transform: translateX(4px);
+        }
+
+        .contact-us-btn:hover, .all-other-services-btn:hover {
+            background-color: var(--orange-hover);
+            transform: translateX(4px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+        }
+
+    .contact-arrow, .all-other-services-arrow {
+        background-color: white;
+        color: #faa74a;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        margin: auto;
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+    }
+
+    .divider {
+        border: 0;
+        border-top: 1px solid #cccccc;
+        margin: 24px 0;
+    }
+
+    @@media (min-width: 1600px) {
+        .title-hero-container {
+            margin: 0 auto;
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .container {
+            padding: 0 12px;
+        }
+
+        .title-hero {
+            width: 100%;
+        }
+
+        .floating-actions {
+            bottom: 20px;
+            right: 10px;
+        }
+
+        .floating-btn {
+            padding: 10px 20px;
+            font-size: 14px;
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .floating-actions {
+            bottom: 16px;
+            right: 5px;
+        }
+
+        .floating-btn {
+            width: fit-content;
+            justify-content: center;
+        }
+    }
+
+    .offer-container-hero {
+        width: 100%;
+        height: 80vh;
+        position: relative;
+        background-image: url("/public/images/offers_banner.png");
+        background-size: cover;
+        background-position: top center;
+        background-repeat: no-repeat;
+    }
+
+    .offer-container {
+        width: 100%;
+        height: 100%;
+        position: relative;
+    }
+
+    .overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: #002c3ca8;
+    }
+
+    .left-content {
+        position: absolute;
+        top: 50%;
+        left: 5%;
+        transform: translateY(-50%);
+        z-index: 2;
+    }
+
+    .right-content {
+        position: absolute;
+        top: 50%;
+        right: 5%;
+        transform: translateY(-50%);
+        text-align: right;
+        z-index: 2;
+        width: 90%;
+        max-width: 600px;
+    }
+
+        .right-content h2 {
+            color: white;
+            font-size: clamp(24px, 4vw, 48px); /* Responsive font size */
+            font-weight: 900;
+            margin-bottom: 20px;
+            line-height: 1.2;
+            overflow-y:hidden
+        }
+
+    .search-box-container {
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    .search-box {
+        display: flex;
+        gap: 8px;
+        background: var(--white);
+        padding: 8px;
+        border-radius: 100px;
+        width: 100%;
+        max-width: 500px;
+        margin: 32px 0;
+    }
+
+    .input-wrapper {
+        position: relative;
+        flex: 1;
+    }
+
+    .search-icon {
+        position: absolute;
+        left: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: var(--primary-orange);
+        color: var(--white);
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        pointer-events: none;
+    }
+
+    .search-input {
+        width: 100%;
+        border: none;
+        padding: 12px 20px 12px 56px;
+        font-size: 16px;
+        outline: none;
+        border-radius: 100px;
+    }
+
+    .search-btn {
+        background: var(--primary-orange);
+        color: var(--white);
+        border: none;
+        padding: 12px 24px;
+        border-radius: 100px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+
+        .search-btn:hover {
+            background: var(--orange-hover);
+        }
+
+    .promo-text {
+        color: white;
+        font-size: clamp(16px, 2vw, 24px); /* Responsive font size */
+        font-weight: 700;
+        line-height: 1.4;
+        text-align: right;
+    }
+
+    .offers-hero::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(41, 128, 185, 0.85);
+    }
+
+    .hero-content {
+        position: relative;
+        z-index: 1;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 0 16px;
+    }
+
+    .hero-title {
+        color: var(--white);
+        font-size: 64px;
+        font-weight: 700;
+        margin: 0;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .hero-price {
+        color: var(--primary-orange);
+        font-size: 72px;
+        font-weight: 700;
+        margin: 24px 0;
+    }
+
+    .hero-description {
+        color: var(--white);
+        font-size: 18px;
+        margin-top: 24px;
+    }
+
+    .offers-container {
+        max-width: 1350px;
+        margin: 0 auto;
+        padding: 60px 16px;
+    }
+
+    .service-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        column-gap: 150px;
+        row-gap: 60px;
+    }
+
+    .service-card {
+        background: #05749d;
+        color: var(--white);
+        padding: 24px;
+        border-radius: 40px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        box-shadow: 1px 3px 4px #faa94d;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.4s ease-in-out;
+    }
+
+        .service-card::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: url("../public/images/offer_hover.png") no-repeat center center;
+            background-size: cover;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            z-index: 0;
+        }
+
+        .service-card:hover::before {
+            opacity: 1;
+        }
+
+        .service-card * {
+            position: relative;
+            z-index: 1;
+            transition: transform 0.3s ease;
+        }
+
+        .service-card:hover * {
+            transform: translateY(-4px);
+        }
+
+        .service-card:hover .service-header {
+            visibility: hidden;
+        }
+
+        .service-card:hover .service-title {
+            visibility: hidden;
+        }
+
+        .service-card:hover .service-description {
+            visibility: hidden;
+        }
+
+        .service-card:hover .service-btn {
+            visibility: hidden;
+        }
+
+    .service-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .service-price {
+        font-size: 18px;
+        font-weight: 500;
+    }
+
+    .service-icon {
+        font-size: 40px;
+    }
+
+    .service-title {
+        font-size: 20px;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .service-description {
+        font-size: 14px;
+        opacity: 0.9;
+        line-height: 1.6;
+    }
+
+    .service-btn {
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 16px;
+        background: #021a32;
+        color: var(--white);
+        border-radius: 4px;
+        font-size: 14px;
+        font-weight: 500;
+        margin-top: auto;
+        width: fit-content;
+    }
+
+        .service-btn i {
+            margin-left: 8px;
+        }
+    /* Tablet and smaller desktop */
+    @@media (max-width: 1024px) {
+        .service-grid
+
+    {
+        grid-template-columns: 1fr;
+    }
+
+    .offer-container-hero {
+        height: 70vh;
+    }
+
+    .left-content {
+        left: 5%;
+        width: 90%;
+    }
+
+    .right-content {
+        right: 5%;
+        width: 90%;
+    }
+
+    }
+
+    /* Mobile devices */
+    @@media (max-width: 768px) {
+        .hero-title
+
+    {
+        font-size: 48px;
+    }
+
+    .hero-price {
+        font-size: 56px;
+    }
+
+    .offers-container {
+        padding: 40px 16px;
+    }
+
+    .offer-container-hero {
+        height: 60vh;
+        min-height: 400px;
+    }
+
+    .right-content {
+        text-align: center;
+        right: 50%;
+        transform: translate(50%, -50%);
+    }
+
+    .left-content {
+        top: 80%;
+        left: 80%;
+        transform: translateX(-50%);
+        text-align: center;
+    }
+
+    .promo-text {
+        text-align: center;
+    }
+
+    .search-box {
+        flex-direction: column;
+        background: transparent;
+        padding: 0;
+        overflow: unset;
+    }
+
+    .search-btn {
+        border-radius: 0px;
+    }
+
+    .search-btn {
+        width: 100%;
+    }
+
+    }
+
+    /* Small mobile devices */
+    @@media (max-width: 480px) {
+        .offer-container-hero
+
+    {
+        height: 70vh;
+        min-height: 350px;
+    }
+
+    .right-content h2 {
+        margin-bottom: 12px;
+    }
+
+    .search-box {
+        margin: 12px 0;
+    }
+
+    .left-content {
+        top: 80%;
+        left: 70%;
+        transform: translateX(-50%);
+        text-align: center;
+    }
+
+    }
+</style>
+
+
+
+        <div class="offer-container-hero">
+            <div class="offer-container">
+                <div class="overlay"></div>
+                <div class="left-content">
+                    <div class="footer-phone-container">
+                        <a href="tel:7032008836" class="footer-phone">
+                            <span> 7032008836 </span>
+                            <i class="fas fa-phone"></i>
+                        </a>
+                    </div>
+                </div>
+        @Html.AntiForgeryToken()
+        <div class="right-content">
+            <h2>OUR OFFERS🚗💨</h2>
+
+            <div class="search-box-container">
+                <div class="search-box">
+                    <div class="input-wrapper">
+                        <span class="search-icon">
+                            <i class="fas fa-search"></i>
+                        </span>
+                        <input type="text" id="zipCodeInput" class="search-input" placeholder="SEARCH SERVICE HERE" />
+                    </div>
+
+                    <button id="searchBtn" class="search-btn">SEARCH</button>
+                </div>
+
+                <!-- ✅ نتيجة البحث توضع هنا أسفل الزر -->
+            </div>
+
+			<div id="offerResult" style=" font-weight: bold; color: orange;font-size:20px"></div>
+
+
+                    <p class="promo-text">
+                        Just $75 for 10 miles of towing — fast, safe, and budget-friendly.
+                        Don’t miss out on this limited-time offer from Strong Towing!
+                    </p>
+                </div>
+            </div>
+        </div>
+        <main class="offers-container">
+            <div class="service-grid">
+                <div class="service-card">
+                    <div class="service-header">
+                        <span class="service-price">$100/MONTH</span>
+                        <img src="/public/images/analytics_icon.png"
+                             alt=""
+                             class="service-icon" />
+                    </div>
+                    <h3 class="service-title">Medium-Duty Towing</h3>
+                    <p class="service-description">
+                        TOWING MID-SIZE VEHICLES LIKE VANS AND SMALL TRUCKS.
+                    </p>
+                    <a href="#" class="service-btn">
+                        Request Service
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+
+                <div class="service-card">
+                    <div class="service-header">
+                        <span class="service-price">$100/month</span>
+                        <img src="/public/images/analytics_icon.png"
+                             alt=""
+                             class="service-icon" />
+                    </div>
+                    <h3 class="service-title">Long-Distance Towing</h3>
+                    <p class="service-description">
+                        Transporting vehicles over long distances, interstate service
+                        available.
+                    </p>
+                    <a href="#" class="service-btn">
+                        Request Service
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+
+                <div class="service-card">
+                    <div class="service-header">
+                        <span class="service-price">$100/MONTH</span>
+                        <img src="/public/images/analytics_icon.png"
+                             alt=""
+                             class="service-icon" />
+                    </div>
+                    <h3 class="service-title">Winch-Out Service</h3>
+                    <p class="service-description">
+                        Pulling a vehicle out of stuck position like a ditch or snowbank
+                        using winch.
+                    </p>
+                    <a href="#" class="service-btn">
+                        Request Service
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+
+                <div class="service-card">
+                    <div class="service-header">
+                        <span class="service-price">$100/month</span>
+                        <img src="/public/images/analytics_icon.png"
+                             alt=""
+                             class="service-icon" />
+                    </div>
+                    <h3 class="service-title">Towing Service</h3>
+                    <p class="service-description">
+                        General towing for any type of vehicle.
+                    </p>
+                    <a href="#" class="service-btn">
+                        Request Service
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+
+                <div class="service-card">
+                    <div class="service-header">
+                        <span class="service-price">$100/MONTH</span>
+                        <img src="/public/images/analytics_icon.png"
+                             alt=""
+                             class="service-icon" />
+                    </div>
+                    <h3 class="service-title">Off-Road Recovery</h3>
+                    <p class="service-description">
+                        Recovering vehicles stuck in mud, sand, snow or other rough terrain.
+                    </p>
+                    <a href="#" class="service-btn">
+                        Request Service
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+
+                <div class="service-card">
+                    <div class="service-header">
+                        <span class="service-price">$100/month</span>
+                        <img src="/public/images/analytics_icon.png"
+                             alt=""
+                             class="service-icon" />
+                    </div>
+                    <h3 class="service-title">Motorcycle Towing</h3>
+                    <p class="service-description">
+                        Towing services specially for motorcycles.
+                    </p>
+                    <a href="#" class="service-btn">
+                        Request Service
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+
+                <div class="service-card">
+                    <div class="service-header">
+                        <span class="service-price">$100/MONTH</span>
+                        <img src="/public/images/analytics_icon.png"
+                             alt=""
+                             class="service-icon" />
+                    </div>
+                    <h3 class="service-title">Vehicle Transport</h3>
+                    <p class="service-description">
+                        Transport cars from one location to another, not necessarily in
+                        emergency situation.
+                    </p>
+                    <a href="#" class="service-btn">
+                        Request Service
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+
+                <div class="service-card">
+                    <div class="service-header">
+                        <span class="service-price">$100/month</span>
+                        <img src="/public/images/analytics_icon.png"
+                             alt=""
+                             class="service-icon" />
+                    </div>
+                    <h3 class="service-title">RV & Camper Towing</h3>
+                    <p class="service-description">
+                        Towing large recreational vehicles and campers.
+                    </p>
+                    <a href="#" class="service-btn">
+                        Request Service
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+
+                <div class="service-card">
+                    <div class="service-header">
+                        <span class="service-price">$100/MONTH</span>
+                        <img src="/public/images/analytics_icon.png"
+                             alt=""
+                             class="service-icon" />
+                    </div>
+                    <h3 class="service-title">Impound & Storage</h3>
+                    <p class="service-description">
+                        Storing and safely securing impounded or stored vehicles.
+                    </p>
+                    <a href="#" class="service-btn">
+                        Request Service
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+
+                <div class="service-card">
+                    <div class="service-header">
+                        <span class="service-price">$100/month</span>
+                        <img src="/public/images/analytics_icon.png"
+                             alt=""
+                             class="service-icon" />
+                    </div>
+                    <h3 class="service-title">Accident Scene Clearance</h3>
+                    <p class="service-description">
+                        Professional removal of vehicles from accident sites.
+                    </p>
+                    <a href="#" class="service-btn">
+                        Request Service
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </main>
+
+
+     @*    <script>
+                // Handle search functionality
+    document.addEventListener("DOMContentLoaded", () => {
+      const searchInput = document.querySelector(".search-input");
+      const searchBtn = document.querySelector(".search-btn");
+
+      searchBtn?.addEventListener("click", () => {
+        // Add search functionality here
+        console.log("Search:", searchInput?.value);
+      });
+    });
+
+        </script> *@
+
+@section Scripts {
+    <script>
+        document.getElementById('searchBtn').addEventListener('click', function () {
+            var zipCode = document.getElementById('zipCodeInput').value.trim();
+
+            if (zipCode === '') {
+                alert('Please enter a ZIP code');
+                return;
+            }
+
+            // الحصول على قيمة الـ AntiForgeryToken
+            var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+            fetch('@Url.Action("CheckOffer", "Home")', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': token
+                },
+                body: JSON.stringify({ zipCode: zipCode })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.result) {
+                    document.getElementById('offerResult').textContent = data.result;
+                } else if (data.error) {
+                    document.getElementById('offerResult').textContent = 'Error: ' + data.message;
+                }
+            })
+            .catch(error => {
+                document.getElementById('offerResult').textContent = 'Error: ' + error;
+            });
+        });
+    </script>
+}

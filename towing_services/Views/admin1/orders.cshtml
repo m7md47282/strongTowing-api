@@ -1,0 +1,1048 @@
+﻿@* @model IEnumerable<Dal.Order>
+ *@
+
+@model towing_services.Models.OrdersModel
+
+ <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.14.0-beta2/css/bootstrap-select.min.css" defer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.14.0-beta2/js/bootstrap-select.min.js" defer></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" defer rel="stylesheet">
+<link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+
+<style>
+    body {
+        background: #f8f8f8;
+        padding-bottom: 20%; /* إضافة 50px فراغ من أسفل الصفحة */
+    }
+
+  
+    .table-wrapper {
+        overflow-y: auto;
+        max-height: 820px;
+    }
+
+    @@media (max-width: 768px) {
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .table th, .table td {
+            font-size: 16px !important;
+        }
+
+     
+
+        .table-wrapper {
+            overflow: auto;
+            max-height: 500px;
+        }
+    }
+
+    .form-control {
+        font-size: 22px
+    }
+
+    .btn {
+        position: relative;
+        padding: 0.80em 7em;
+        background-color: #38ACEC;
+        border: 4px solid #fff;
+        color: black;
+        font-size: 23px;
+        text-transform: uppercase;
+        font-weight: bold;
+        cursor: pointer;
+        overflow: hidden;
+        transition: color 0.3s, border-color 0.3s;
+        z-index: 1;
+        border: none;
+        border-radius: 30px;
+        cursor: pointer;
+        outline: none;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        box-shadow: 0px 5px 15px rgba(255, 140, 0, 0.3);
+    }
+
+    .form-control {
+        font-size: 28px
+    }
+
+    .btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background-color: #38ACEC;
+        font-family: Roboto;
+        transition: left 0.5s ease;
+        z-index: -1;
+    }
+
+    .btn:hover {
+        color: black;
+        border-color: #3b5bdb;
+    }
+
+        .btn:hover::before {
+            left: 0;
+        }
+
+    .btn:hover {
+        color: black;
+    }
+
+    .alerts {
+        width: 400px;
+        height: 105px;
+        background: #38ACEC;
+        margin: 0px auto;
+        margin-bottom: 10px;
+        text-align: center;
+        padding: 20px;
+        font-size: 26px;
+        color: white;
+    }
+
+
+    @@media (max-width: 768px) {
+
+        .alerts {
+            width: 90%;
+            font-size: 18px;
+            height: auto;
+            padding: 15px;
+        }
+
+        .btn {
+            padding: 0.80em 3em;
+        }
+
+        body {
+            background: #f8f8f8;
+            padding-bottom: 60%; /* إضافة 50px فراغ من أسفل الصفحة */
+        }
+    }
+
+    @@media (max-width: 480px) {
+
+
+        .alerts {
+            width: 95%;
+            font-size: 16px;
+            padding: 12px;
+        }
+
+        .form-control {
+            font-size: 22px
+        }
+
+        .btn {
+            padding: 12px 16px;
+        }
+    }
+
+    .btn-assign {
+        display: inline-block;
+        padding: 10px 20px;
+        background-color: #0089a1;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+        color: black;
+        text-decoration: none;
+        border-radius: 5px;
+        font-weight: bold;
+        text-align: center;
+        white-space: nowrap;
+        transition: all 0.3s ease;
+        margin-left: 13px;
+    }
+
+        .btn-assign:hover {
+            background-color: white;
+            color: dodgerblue !important;
+            border: none;
+            transform: scale(1.1);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+    @@media (max-width: 768px) {
+        .btn-assign {
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .form-control {
+            font-size: 23px
+        }
+    }
+
+
+    .text-muted {
+        font-style: italic;
+        color: #6c757d;
+    }
+
+    button, input[type="submit"], input[type="button"] {
+        all: unset;
+    }
+
+    .large-icon {
+        font-size: 30px; /* يمكنك تغيير الحجم هنا */
+        color: #007bff; /* تغيير اللون إذا أردت */
+    }
+
+
+
+    #noDataMessage {
+        display: none;
+        text-align: center;
+        font-size: 2.5rem;
+        margin: 50px auto;
+        color: #555;
+        font-weight: bold;
+        opacity: 0; /* بداية العنصر بشكل مخفي */
+        transform: translateY(-20px); /* التأثير الأولي للتحريك */
+        animation: fadeInUp 0.5s forwards; /* التأثير عند الظهور */
+    }
+
+
+
+ 
+
+    input[type="text"] {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        font-size: 1.70rem;
+        box-sizing: border-box;
+        margin-bottom: 10px;
+    }
+
+
+    .btns {
+        display: inline-block;
+        padding: 10px 20px;
+        background-color: #0089a1;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+        color: black;
+        text-decoration: none;
+        border-radius: 5px;
+        font-weight: bold;
+        text-align: center;
+        white-space: nowrap;
+        transition: all 0.3s ease;
+    }
+
+
+    /* التنسيق العام */
+    .eta-edit-form {
+        display: flex;
+        flex-direction: column; /* ترتيب العناصر عمودي */
+        gap: 5px; /* مسافة بين الحقل والزر */
+        align-items: flex-start; /* محاذاة العناصر إلى اليسار */
+    }
+
+        .eta-edit-form input[type="text"] {
+            width: 50px; /* عرض الحقل */
+            padding: 5px; /* مساحة داخلية */
+            font-size: 14px; /* حجم النص */
+        }
+
+        .eta-edit-form .btn-save-eta {
+            width: auto; /* عرض الزر تلقائي */
+            padding: 5px 10px;
+            font-size: 14px;
+            background-color: #007bff; /* لون الزر */
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+    .modal-content {
+        border-radius: 10px;
+        max-width: 760px;
+        margin: auto;
+    }
+
+    .modal-header {
+        background-color: #007bff;
+        color: white;
+        font-weight: bold;
+        text-align: center;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+        .modal-header .close span {
+            font-size: 33px;
+            color: white;
+            background: none;
+            border: none;
+        }
+
+    .modal-title {
+        font-size: 28px
+    }
+
+
+    .modal-body label {
+        font-size: 1.8rem;
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
+
+    .modal-body input#modal_eta_input {
+        border-radius: 5px;
+        padding: 15px;
+        width: 100%;
+        font-size: 1.8rem;
+        margin-bottom: 20px;
+    }
+
+    .modal-footer {
+        display: flex;
+        justify-content: center;
+    }
+
+        .modal-footer .btn-primary {
+            width: 250px;
+            padding: 12px;
+            font-size: 1.8rem;
+            font-weight: bold;
+            border-radius: 30px;
+            background-color: #007bff;
+            border: none;
+        }
+
+            .modal-footer .btn-primary:hover {
+                background-color: #0056b3;
+            }
+
+    @@media (max-width: 768px) {
+        .modal-dialog {
+            max-width: 90%;
+        }
+
+        .modal-header .close {
+            font-size: 3.5rem; /* تكبير الأيقونة أكثر على الشاشات الصغيرة */
+        }
+
+        .modal-footer .btn-primary {
+            width: 100%;
+        }
+
+        .modal-body input#modal_eta_input {
+            font-size: 1.5rem;
+        }
+
+        .modal-body label {
+            font-size: 1.5rem;
+        }
+
+        .modal-header {
+            flex-direction: row;
+            align-items: center;
+        }
+    }
+
+    .table-header th {
+        background: #EDEDED !important; /* Whisper */
+        font-size: 21px; /* تكبير الخط */
+        white-space: nowrap
+    }
+
+    .table-header td {
+        font-size: 20px; /* تكبير الخط */
+    }
+    .modal-backdrop {
+    background-color: transparent !important; /* إزالة الخلفية السوداء */
+}
+
+    .customwename {
+        font-size: 23px;
+        color: crimson !important;
+        font-weight: bold;
+        text-decoration: none;
+        display: inline-block;
+        transition: color 0.3s ease-in-out;
+    }
+
+    .customwename:hover {
+            color: #0056b3;
+            text-decoration: underline;
+        }
+
+
+    /* للأجهزة اللوحية */
+    @@media (max-width: 320px) {
+        .moss {
+            max-width: 100% !important; 
+            max-height: 100% !important; 
+        }
+    }
+
+    @@media (max-width: 600px) {
+        .bt {
+            font-size: 10px;
+        }
+
+        .texts {
+            font-size: 19px;
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .d-flex {
+            justify-content: center;
+            text-align: center;
+        }
+
+        .btn-container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            margin-top: 10px; /* مسافة بين العنوان والأزرار */
+        }
+
+        .bt {
+            font-size: 12px;
+        }
+
+        .texts {
+            font-size: 16px;
+            width: 100%;
+        }
+    }
+
+    table td, table th {
+        word-wrap: break-word; /* يكسر الكلمات الطويلة */
+        word-break: break-word; /* يجعل النص يتكسر عند الحاجة */
+        white-space: normal; /* يسمح بتنسيق النص على أسطر متعددة */
+    }
+
+</style>
+
+
+
+<div class="container-fluid">
+
+
+    <div id="tableContainer" class="table-header">
+      
+            <table class="table mt-4 table-responsive " id="ordersTable">
+                <thead>
+                    <tr>
+
+                        <th>Order ID</th>
+                        <th>TrackingNumber</th>
+                        <th>Customer Name</th>
+                        <th>Vehicle Type</th>
+                        <th>Status</th>
+                        <th>Pickup Location</th>
+                        <th>Dropoff Location</th>
+                        <th>DID</th>
+                        <th>Distance</th>
+                        <th>Total Cost</th>
+                        <th>Order Date</th>
+                        <th>Action</th>
+                        <th>Estimated Time of Arrival (ETA) </th>
+
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var order in Model.NewRequests)
+                    {
+                    <tr>
+                        <td>@order.OrderId</td>
+                        <td>@order.TrackingNumber</td>
+                        <td>
+                            <a href="javascript:void(0)" onclick="getCustomerDetails(@order.OrderId)"   class="customwename">
+                                @order.Customer_orders.FirstOrDefault()?.Customers.Name
+                            </a>
+
+                        </td>
+                        @*<td>@order.Customer_orders.FirstOrDefault()?.Customers.Name</td>*@
+
+                        <td>@order.VehicleType</td>
+                        <td>@order.Status</td>
+                        <td>@order.PickupLocation</td>
+                        <td>@order.DropoffLocation</td>
+                        <td> @order.DID</td>
+                        <td>@order.Distance</td>
+                        <td>@order.TotalCost</td>
+                        <td>@order.OrderDate</td>
+                        <td>
+                            @if (order.Status == "New Request")
+                            {
+                                <button type="button" class="btn-assign" data-toggle="modal" data-target="#assignDriverModal"
+                                        onclick="loadDrivers(@order.OrderId)" 
+                                        id="assignDriverButton_@order.OrderId"
+                                        @(string.IsNullOrEmpty(order.ETA) || order.ETA == "Not Set" ? "style='display:none'" : "")
+                                        data-order-id="@order.OrderId">
+                                    Assign Driver
+                                </button>
+                            }
+                            else
+                            {
+                                <span class="text-muted" style="white-space: pre-line; margin-left: 60px">No action available</span>
+                            }
+                        </td>
+
+                        <td>
+                            @if (order.Status == "New Request")
+                            {
+                                if (!string.IsNullOrEmpty(order.ETA))
+                                {
+                                    <span class="eta-display">
+                                        <i class="fas fa-edit large-icon" style="cursor: pointer;"
+                                           onclick="openETAModal('@order.OrderId', '@order.ETA')"></i>
+                                        <span id="eta_display_@order.OrderId">@order.ETA</span>
+                                    </span>
+                                }
+                                else
+                                {
+                                    <i class="fas fa-edit large-icon" style="cursor: pointer;"
+                                       onclick="openETAModal('@order.OrderId', '')"></i>
+                                    <span id="eta_display_@order.OrderId">Not Set</span>
+                                }
+                            }
+                            else
+                            {
+                                <span>@order.ETA</span>
+                            }
+                        </td>
+
+
+
+
+
+
+                    </tr>
+                    }
+                </tbody>
+
+            </table>
+        
+ 
+
+@*             /****
+ *@
+
+
+
+
+ 
+
+
+        <div id="noDataMessage" style="display:none; text-align: center; font-size: 40px; margin-top: 50px; margin-bottom: 50px;">
+            <p>No data available to display.</p>
+        </div>
+
+        <div class="modal fade" id="customerDetailsModal" tabindex="-1" aria-labelledby="customerDetailsLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="customerDetailsLabel">Customer Details</h5>
+                        <!-- زر الإغلاق الجديد -->
+                        <button type="button" class="" id="closeModalButton"style=" font-size:30px">Close</button>
+                    </div>
+                    <div class="modal-body" id="customerDetailsContent">
+                        <!-- محتوى المودال -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+     
+    </div>
+</div>
+
+<div id="etaModal" class="modal fade" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" style="">Edit ETA</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true" style="">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="etaModalForm">
+                    <input type="hidden" id="modal_orderId" name="orderId" />
+                    <label for="modal_eta_input">ETA:</label>
+                    <input type="text" id="modal_eta_input" class="form-control" placeholder="Enter ETA" />
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" id="save_eta_btn">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade modals" id="assignDriverModal" tabindex="-1" aria-labelledby="assignDriverModalLabel" aria-hidden="true" data-backdrop="static">
+    <div class="modal-dialog moss">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="assignDriverModalLabel">Assign Driver</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="driverList">
+                    <!-- سيتم تحميل قائمة السائقين هنا -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div style="padding-top:60px">
+</div>
+<div class="d-flex flex-wrap justify-content-between align-items-center mt-3 text-center text-md-start">
+
+    <h2 class="texts">
+        In Progress <strong>@ViewBag.InProgressCount</strong>
+    </h2>
+    <div class="btn-container">
+        <button id="prevPageInProgressnew" class="bt" disabled>
+            <i class="bi bi-chevron-left"></i>
+        </button>
+        <span id="currentPageInProgressnew" class="mx-3">Page 1</span>
+        <button id="nextPageInProgressnew" class="bt">
+            <i class="bi bi-chevron-right"></i>
+        </button>
+    </div>
+</div>
+
+
+
+<div class="container-fluid">
+
+<div id="tableContainer" class="table-header">
+  
+        <table class="table mt-4 table-responsive " id="ordersTable">
+            <thead>
+                <tr>
+
+                    <th>Order ID</th>
+                    <th>TrackingNumber</th>
+                    <th>Customer Name</th>
+                    <th>Vehicle Type</th>
+                    <th>Status</th>
+                    <th>Pickup Location</th>
+                    <th>Dropoff Location</th>
+                    <th>DID</th>
+                    <th>Distance</th>
+                    <th>Total Cost</th>
+                    <th>Order Date</th>
+                    <th>Action</th>
+                    <th>Estimated Time of Arrival (ETA) </th>
+
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var order in Model.InProgressRequests)
+                {
+                    <tr>
+                        <td>@order.OrderId</td>
+                        <td>@order.TrackingNumber</td>
+                        <td>
+                            <a href="javascript:void(0)" onclick="getCustomerDetails(@order.OrderId)" class="customwename">
+                                @order.Customer_orders.FirstOrDefault()?.Customers.Name
+                            </a>
+
+                        </td>
+                        @*<td>@order.Customer_orders.FirstOrDefault()?.Customers.Name</td>*@
+
+                        <td>@order.VehicleType</td>
+                        <td>@order.Status</td>
+                        <td>@order.PickupLocation</td>
+                        <td>@order.DropoffLocation</td>
+                        <td> @order.DID</td>
+                        <td>@order.Distance</td>
+                        <td>@order.TotalCost</td>
+                        <td>@order.OrderDate</td>
+                        <td>
+                            @if (order.Status == "New Request")
+                            {
+                                <button type="button" class="btn-assign" data-toggle="modal" data-target="#assignDriverModal"
+                                        onclick="loadDrivers(@order.OrderId)" style="margin-left:80px"
+                                        id="assignDriverButton_@order.OrderId"
+                                @(string.IsNullOrEmpty(order.ETA) || order.ETA == "Not Set" ? "style='display:none'" : "")
+                                        data-order-id="@order.OrderId">
+                                    Assign Driver
+                                </button>
+                            }
+                            else
+                            {
+                                <span class="text-muted" style="white-space: pre-line; margin-left: 60px">No action available</span>
+                            }
+                        </td>
+
+                        <td>
+                            @if (order.Status == "New Request")
+                            {
+                                if (!string.IsNullOrEmpty(order.ETA))
+                                {
+                                    <span class="eta-display">
+                                        <i class="fas fa-edit large-icon" style="cursor: pointer;"
+                                           onclick="openETAModal('@order.OrderId', '@order.ETA')"></i>
+                                        <span id="eta_display_@order.OrderId">@order.ETA</span>
+                                    </span>
+                                }
+                                else
+                                {
+                                    <i class="fas fa-edit large-icon" style="cursor: pointer;"
+                                       onclick="openETAModal('@order.OrderId', '')"></i>
+                                    <span id="eta_display_@order.OrderId">Not Set</span>
+                                }
+                            }
+                            else
+                            {
+                                <span>@order.ETA</span>
+                            }
+                        </td>
+
+
+
+
+
+
+                    </tr>
+                }
+            </tbody>
+
+        </table>
+    
+
+
+    </div>
+</div>
+
+<p id="notFoundMessage" style="display: none; text-align: center; padding: 20px; font-size: 28px; color: red;">
+    "No data available at the moment."
+</p>
+
+<div >
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<input type="hidden" id="totalPages" value="@ViewBag.TotalPages" />
+<input type="hidden" id="totalPagesInProgress" value="@ViewBag.TotalPagesInProgress" />
+
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+
+
+      $(document).ready(function() {
+        // إغلاق المودال عند النقر على زر "Close"
+        $('#closeModalButton').click(function() {
+            $('#customerDetailsModal').modal('hide'); // إغلاق المودال
+        });
+    });
+    // function loadDrivers(orderId) {
+    //     $.ajax({
+    //         url: '/admin1/AssignDriver', // استبدلها بمسار الـ API الخاص بك
+    //         type: 'GET',
+    //         data: { orderId: orderId },
+    //         success: function (data) {
+    //             $('#driverList').html(data); // تحميل البيانات داخل المودال
+    //         },
+    //         error: function () {
+    //             $('#driverList').html('<p class="text-danger">Error loading drivers.</p>');
+    //         }
+    //     });
+    // }
+    // $('#assignDriverModal').on('hidden.bs.modal', function () {
+    //     location.reload(); // إعادة تحميل الصفحة بعد إغلاق المودال
+    // });
+
+
+
+
+        function loadDrivers(orderId) {
+        $.ajax({
+            url: '/admin1/AssignDriver', // استبدلها بمسار الـ API الخاص بك
+            type: 'GET',
+            data: { orderId: orderId },
+            success: function (data) {
+                $('#driverList').html(data); // تحميل البيانات داخل المودال
+            },
+            error: function () {
+                $('#driverList').html('<p class="text-danger">Error loading drivers.</p>');
+            }
+        });
+    }
+
+    // عند إغلاق المودال، قم بإعادة تعيين محتواه (اختياري)
+    $('#assignDriverModal').on('hidden.bs.modal', function () {
+        $('#driverList').html(''); // إفراغ محتوى المودال
+    });
+
+    $(document).ready(function () {
+        // فتح المودال لإدخال ETA
+        window.openETAModal = function (orderId, currentETA) {
+            $('#modal_orderId').val(orderId); // تعبئة OrderId
+            $('#modal_eta_input').val(currentETA); // تعبئة ETA الحالية
+            $('#etaModal').modal('show'); // عرض المودل
+        }
+
+        // عند النقر على زر الحفظ
+        $('#save_eta_btn').click(function () {
+            var orderId = $('#modal_orderId').val();
+            var eta = $('#modal_eta_input').val();
+
+            // إرسال البيانات إلى الخادم باستخدام AJAX
+            $.ajax({
+                url: '/admin1/SaveETA', // URL الخاص بعملية الحفظ
+                type: 'POST',
+                data: { orderId: orderId, eta: eta },
+                success: function (response) {
+                    if (response.success) {
+                        // تحديث القيمة في الجدول
+                        $('#eta_display_' + orderId).text(response.eta);
+
+                        // إظهار زر "Assign Driver" بعد إدخال ETA بنجاح
+                        $('#assignDriverButton_' + orderId).show(); // إظهار الزر
+
+                        // إغلاق المودل بعد حفظ البيانات
+                        $('#etaModal').modal('hide');
+                    } else {
+                        alert('Failed to save ETA.');
+                    }
+                },
+                error: function () {
+                    alert('Error occurred while saving ETA.');
+                }
+            });
+        });
+
+        // عند النقر على زر الإغلاق (X) في المودل
+        $('.close').click(function () {
+            $('#etaModal').modal('hide'); // إغلاق المودل
+        });
+
+        // التحقق إذا كان ETA موجودًا قبل فتح مودال اختيار السائق
+        $('button[data-target="#assignDriverModal"]').click(function () {
+            var orderId = $(this).data('order-id');
+            var eta = $('#eta_display_' + orderId).text().trim(); // الحصول على نص ETA من الـ HTML
+
+            // إذا كانت قيمة ETA فارغة أو "Not Set"، إخفاء الزر وطلب إدخال ETA
+            if (!eta || eta === "Not Set") {
+                // إخفاء الزر إذا لم يكن هناك ETA
+                $('#assignDriverButton_' + orderId).hide();
+                alert('Please enter ETA first.');
+                return false; // منع فتح مودال اختيار السائق
+            } else {
+                // إظهار الزر إذا كان هناك ETA
+                $('#assignDriverButton_' + orderId).show();
+            }
+        });
+
+        // عند تحميل الصفحة أو عند تغيير ETA
+        $('button[data-target="#assignDriverModal"]').each(function () {
+            var orderId = $(this).data('order-id');
+            var eta = $('#eta_display_' + orderId).text().trim();
+
+            if (eta && eta !== "Not Set") {
+                // إظهار الزر إذا كانت قيمة ETA موجودة وصحيحة
+                $('#assignDriverButton_' + orderId).show();
+            } else {
+                // إخفاء الزر إذا كانت قيمة ETA فارغة أو "Not Set"
+                $('#assignDriverButton_' + orderId).hide();
+            }
+        });
+    });
+
+
+    //$(document).ready(function () {
+
+    //    // تحقق من وجود بيانات في الجدول عند تحميل الصفحة
+    //    checkDataAvailability();
+
+    //    // ضبط قيمة افتراضية لحقل رقم التتبع
+    //    var trackingField = $('#trackingNumber');
+    //    if (trackingField.val() === "") {
+    //        trackingField.val("TRK-");
+    //    }
+
+    //    // التعامل مع الفلاتر عند إرسال النموذج
+    //    $('#filterForm').submit(function (e) {
+    //        e.preventDefault();
+    //        loadOrders();  // استخدام دالة واحدة لتحميل البيانات
+    //    });
+
+    //    // دالة تحميل البيانات
+    //    function loadOrders() {
+    //        var status = $('#status').val();
+    //        var trackingNumber = trackingField.val().trim();
+
+    //        if (status === "All") {
+    //            status = "";
+    //        }
+
+    //        if (trackingNumber && !trackingNumber.startsWith("TRK-")) {
+    //            trackingNumber = "TRK-" + trackingNumber;
+    //            trackingField.val(trackingNumber);
+    //        }
+
+    //        // إعادة تحميل الصفحة مع الفلاتر
+    //        window.location.href = '/admin1/IIndexPartialView?status=' + status + '&trackingNumber=' + trackingNumber;
+    //    }
+
+    //    // دالة التحقق من وجود بيانات في الجدول
+    //    function checkDataAvailability() {
+    //        if ($('#ordersTable tbody tr').length === 0) {
+    //            $('#ordersTable').hide();  // إخفاء الجدول
+    //            $('#noDataMessage').show(); // عرض رسالة لا توجد بيانات
+    //        } else {
+    //            $('#ordersTable').show();  // إظهار الجدول
+    //            $('#noDataMessage').hide(); // إخفاء رسالة لا توجد بيانات
+    //        }
+    //    }
+
+
+
+
+    //    function openETAModal(orderId, currentETA) {
+    //        $('#modal_orderId').val(orderId); // تعبئة OrderId
+    //        $('#modal_eta_input').val(currentETA); // تعبئة ETA الحالية
+    //        $('#etaModal').modal('show'); // عرض المودل
+    //    }
+
+    //    // عند النقر على زر الحفظ
+    //    $('#save_eta_btn').click(function () {
+    //        var orderId = $('#modal_orderId').val();
+    //        var eta = $('#modal_eta_input').val();
+
+    //        // إرسال البيانات إلى الخادم باستخدام AJAX
+    //        $.ajax({
+    //            url: '/admin1/SaveETA', // URL الخاص بعملية الحفظ
+    //            type: 'POST',
+    //            data: { orderId: orderId, eta: eta },
+    //            success: function (response) {
+    //                if (response.success) {
+    //                    // تحديث القيمة في الجدول
+    //                    $('#eta_display_' + orderId).text(response.eta);
+
+    //                    // إغلاق المودل بعد حفظ البيانات
+    //                    $('#etaModal').modal('hide');
+    //                } else {
+    //                    alert('Failed to save ETA.');
+    //                }
+    //            },
+    //            error: function () {
+    //                alert('Error occurred while saving ETA.');
+    //            }
+    //        });
+    //    });
+
+    //    // عند النقر على زر الإغلاق (X) في المودل
+    //    $('.close').click(function () {
+    //        $('#etaModal').modal('hide'); // إغلاق المودل
+    //    });
+
+
+    //function getCustomerDetails(orderId) {
+    //    $.ajax({
+    //        url: '/admin1/GetCustomerDetails',
+    //        type: 'GET',
+    //        data: { orderId: orderId },
+    //        success: function (data) {
+    //            // إدراج البيانات في محتوى المودال
+    //            $('#customerDetailsContent').html(data);
+    //            // إظهار المودال
+    //            $('#customerDetailsModal').modal('show');
+    //        },
+    //        error: function (xhr, status, error) {
+    //            alert('Error: ' + xhr.responseText + "\n" + status + "\n" + error);
+    //        }
+    //    });
+    //}
+
+
+    ///*****************/
+
+
+    // تعريف الدالة getCustomerDetails خارج $(document).ready() لكي تكون متاحة في جميع أنحاء الصفحة
+    function getCustomerDetails(orderId) {
+        $.ajax({
+            url: '/admin1/GetCustomerDetails',
+            type: 'GET',
+            data: { orderId: orderId },
+            success: function (data) {
+                // إدراج البيانات في محتوى المودال
+                $('#customerDetailsContent').html(data);
+                // إظهار المودال
+                $('#customerDetailsModal').modal('show');
+            },
+            error: function (xhr, status, error) {
+                alert('Error: ' + xhr.responseText + "\n" + status + "\n" + error);
+            }
+        });
+    }
+  
+    //$(document).ready(function () {
+
+
+    //    // تعريف دالة فتح المودال
+    //    window.openETAModal = function (orderId, currentETA) {
+    //        $('#modal_orderId').val(orderId); // تعبئة OrderId
+    //        $('#modal_eta_input').val(currentETA); // تعبئة ETA الحالية
+    //        $('#etaModal').modal('show'); // عرض المودل
+    //    }
+
+    //    // عند النقر على زر الحفظ
+    //    $('#save_eta_btn').click(function () {
+    //        var orderId = $('#modal_orderId').val();
+    //        var eta = $('#modal_eta_input').val();
+
+    //        // إرسال البيانات إلى الخادم باستخدام AJAX
+    //        $.ajax({
+    //            url: '/admin1/SaveETA', // URL الخاص بعملية الحفظ
+    //            type: 'POST',
+    //            data: { orderId: orderId, eta: eta },
+    //            success: function (response) {
+    //                if (response.success) {
+    //                    // تحديث القيمة في الجدول
+    //                    $('#eta_display_' + orderId).text(response.eta);
+
+    //                    // إغلاق المودل بعد حفظ البيانات
+    //                    $('#etaModal').modal('hide');
+    //                } else {
+    //                    alert('Failed to save ETA.');
+    //                }
+    //            },
+    //            error: function () {
+    //                alert('Error occurred while saving ETA.');
+    //            }
+    //        });
+    //    });
+
+    //    // عند النقر على زر الإغلاق (X) في المودل
+    //    $('.close').click(function () {
+    //        $('#etaModal').modal('hide'); // إغلاق المودل
+    //    });
+    //});
+
+</script>

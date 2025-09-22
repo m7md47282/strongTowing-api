@@ -1,0 +1,657 @@
+﻿@model List<towing_services.Models.Info_services>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
+<link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+<link href="https://fonts.googleapis.com/css2?family=Lobster&display=swap" rel="stylesheet">
+<link href="~/css/site.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
+
+
+
+<style>
+    body{
+        background: #f9f9f9
+    }
+    .hero-section {
+        position: relative;
+        width: 100%;
+        height: 490px;
+        overflow: hidden;
+     
+    }
+
+        .hero-section img {
+            width: 100%;
+            height: 100%;
+            object-fit: fill;
+        }
+
+    .hero-title {
+        position: absolute;
+        top: 10%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: darkblue;
+        font-size: 90px;
+        font-weight: bold;
+        text-align: center;
+        white-space: nowrap;
+      
+        z-index: 1;
+    }
+
+    .hero-title-wrapper {
+        position: absolute;
+        top: 10%;
+        left: 50%;
+        transform: translateX(-50%);
+        text-align: center;
+        white-space: nowrap;
+    }
+
+    .hero-shadow {
+        color: rgba(169, 169, 169, 0.5); /* لون رمادي فاتح مع شفافية */
+        font-size: 90px;
+        font-weight: bold;
+        margin-top: -20px; /* يقربه من النص الأصلي */
+    }
+    /*2*/
+   
+
+    /* العنوان الرئيسي */
+    .main-title {
+        font-size: 90px;
+        font-weight:bolder;
+        color: darkblue; /* الأزرق الغامق */
+        margin-left:-210px;
+        margin-bottom: 30px;
+        justify-content: center; /* توسيط العناصر عمودياً */
+        align-items: flex-start; /* محاذاة العناصر لليسار */
+        text-align: left; /* محاذاة النص داخل العناصر لليسار */
+        z-index: 2;
+        position: relative;
+        top: -190px;
+    }
+
+
+    /* تنسيق المربعات */
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr); /* ثلاث أعمدة */
+        gap: 20px; /* المسافة بين المربعات */
+    }
+    
+  
+
+    .box {
+        background: #ced4da;
+        background-size: cover; /* يجعل الصورة تغطي كامل المساحة */
+        background-position: center; /* يضمن أن الصورة تكون في المنتصف */
+        padding: 20px;
+        text-align: center;
+        border-radius: 8px;
+        width:500px;
+        height: 500px; /* ارتفاع المربع */
+        display: flex;
+        flex-direction: column;
+        justify-content: center; /* محاذاة العناصر داخل المربع */
+        align-items: center;
+        color: white; /* جعل النص باللون الأبيض ليتناسب مع الخلفية */
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* ظل خفيف */
+    }
+
+
+    /* عنوان المربع */
+    .box-title {
+        color: orange; /* اللون البرتقالي */
+        font-size: 65px;
+        font-weight:bolder;
+        margin-bottom: 20px;
+        white-space:nowrap;
+    }
+
+    .box-titles{
+        font-size:140px;
+        color: orange;
+        font-weight: bolder;
+    }
+
+    .box-titleo{
+        font-size: 70px;
+        color: white;
+        font-weight: bolder;
+    }
+    .containera {
+        display: flex;
+        flex-direction: column;
+        justify-content: center; /* توسيط العناصر عمودياً */
+        align-items: center; /* توسيط العناصر أفقياً */
+        z-index: 2;
+        position: relative;
+        top: -190px;
+    }
+
+
+    /* الزر الأزرق الفاتح */
+    .btn {
+        background: #4b93ec; /* الأزرق الفاتح */
+        color: white;
+        font-size: 30px;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 20px;
+        cursor: pointer;
+         position:relative;
+          bottom:-107px;
+    }
+    .btn:hover{
+            background: #4b93ec; /* الأزرق الفاتح */
+        }
+ 
+
+    .containeras {
+        display: flex;
+        flex-direction: column;
+        justify-content: center; /* توسيط العناصر عمودياً */
+        align-items: center; /* توسيط العناصر أفقياً */
+        z-index: 2;
+        position: relative;
+        top: -90px;
+    }
+
+    #offerResult {
+        margin-top: 20px;
+        font-size: 25px;
+        font-weight: bold;
+        color: #007bff;
+        white-space: pre-line
+    }
+
+    .zip-input {
+        padding: 12px 16px;
+        font-size: 18px;
+        width: 600px;
+        border: 2px solid #ccc;
+        border-radius: 8px;
+    }
+
+    .zip-button {
+        padding: 12px 20px;
+        font-size: 18px;
+        background-color: #007BFF;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+
+        .zip-button:hover {
+            background-color: #0056b3;
+        }
+
+    .zip-title {
+        color: #003366; /* اللون الأزرق الغامق */
+        font-size: 60px; /* حجم الخط */
+        margin-bottom: 20px; /* المسافة أسفل العنوان */
+        font-weight: bold; /* جعل العنوان ثقيل */
+        text-align: center; /* محاذاة النص في الوسط */
+    }
+
+    @@media (max-width: 2000px) {
+
+        .grid
+
+    {
+        grid-template-columns: repeat(2, 1fr); /* عمودين في الشاشات المتوسطة */
+    }
+
+        .box {
+            width: 100%; /* اجعل المربع كامل العرض */
+            height: 400px;
+            padding: 10px; /* تقليل المسافات داخل المربع */
+        }
+
+    .main-title {
+            top: -230px; /* تعديل الوضعية */
+            margin-left:-3px;
+        font-size: 60px; /* تقليل حجم العنوان */
+    }
+
+        .hero-title {
+            font-size: 60px; /* تقليل حجم العنوان */
+        }
+
+        .hero-shadow {
+            font-size: 60px; /* تقليل حجم العنوان */
+            margin-top: 1px; /* يقربه من النص الأصلي */
+        }
+
+    .containera {
+        top: -230px; /* تعديل الوضعية */
+    }
+
+        .box-titleo {
+            font-size: 39px; /* تقليل الحجم داخل المربع */
+        }
+
+        .box-title {
+            font-size: 45px; /* تقليل حجم العنوان داخل المربع */
+        }
+    }
+    @@media (min-width: 1025px) {
+        .grid
+
+    {
+        grid-template-columns: repeat(3, 1fr); /* 3 أعمدة */
+    }
+
+    }
+    @@media (max-width: 1024px) {
+ 
+        .box {
+            width: 100%; /* اجعل المربع كامل العرض */
+            height: 400px;
+            padding: 10px; /* تقليل المسافات داخل المربع */
+        }
+
+        .main-title {
+            top: -212px; /* تعديل الوضعية */
+            margin-left: -3px;
+            font-size: 60px; /* تقليل حجم العنوان */
+        }
+
+        .hero-title {
+            font-size: 26px; /* تقليل حجم العنوان */
+        }
+
+        .hero-shadow {
+            font-size: 26px; /* تقليل حجم العنوان */
+            margin-top: 1px; /* يقربه من النص الأصلي */
+        }
+
+        .containera {
+            top: -230px; /* تعديل الوضعية */
+        }
+
+        .box-titleo {
+            font-size: 39px; /* تقليل الحجم داخل المربع */
+        }
+
+        .box-title {
+            font-size: 45px; /* تقليل حجم العنوان داخل المربع */
+        }
+
+        #offerResult {
+            font-size: 20px;
+            text-align: center
+        }
+
+        .zip-input {
+            font-size: 18px;
+            width: 400px;
+        }
+
+        .zip-button {
+            font-size: 18px;
+            padding: 14px 11px;
+            white-space: nowrap;
+        }
+
+        .zip-title {
+            font-size: 45px;
+        }
+
+        .containeras {
+            top: -61px; /* تعديل الوضعية */
+        }
+    }
+
+
+
+    @@media (max-width: 768px) {
+        .grid
+
+    {
+        grid-template-columns: repeat(1, 1fr); /* عمود واحد في الشاشات الصغيرة */
+    }
+
+    .box {
+        width: 100%; /* اجعل المربع كامل العرض */
+        height: 350px;
+        padding: 10px; /* تقليل المسافات داخل المربع */
+    }
+
+    .main-title {
+        font-size: 50px; /* تقليل حجم العنوان */
+        margin-left: 0;
+    }
+
+    .hero-title {
+        font-size: 26px; /* تقليل حجم العنوان */
+    }
+
+    .hero-shadow{
+            font-size: 26px; /* تقليل حجم العنوان */
+            margin-top: 1px; /* يقربه من النص الأصلي */
+        }
+    .hero-section {
+        height: 300px; /* تقليل ارتفاع القسم */
+    }
+
+    .btn {
+        font-size: 20px; /* تقليل حجم الزر */
+        padding: 8px 16px; /* تقليل المسافات */
+        bottom: -80px;
+    }
+
+        .box-titleo {
+            font-size: 39px; /* تقليل الحجم داخل المربع */
+        }
+
+
+
+
+
+
+        #offerResult {
+            font-size: 20px;
+            text-align: center
+        }
+
+        .zip-input {
+            font-size: 18px;
+            width: 267px;
+        }
+
+        .zip-button {
+            font-size: 18px;
+            padding: 14px 11px;
+            white-space: nowrap;
+        }
+
+        .zip-title {
+            font-size: 26px;
+        }
+
+        .containeras {
+            top: -61px; /* تعديل الوضعية */
+        }
+    }
+
+    @@media (max-width: 480px) {
+      
+    .main-title
+    {
+        font-size: 30px; 
+    }
+
+        .main-title {
+            top: -150px; /* تعديل الوضعية */
+        }
+    .hero-shadow{
+        font-size: 20px;
+            margin-top: 1px; /* يقربه من النص الأصلي */
+        }
+
+
+    .hero-title {
+        font-size: 22px; /* تقليل حجم العنوان */
+    }
+
+    .box-title {
+        font-size: 35px; /* تقليل حجم العنوان داخل المربع */
+    }
+
+    .box-titles {
+        font-size: 93px; /* تقليل الحجم داخل المربع */
+    }
+
+    .box-titleo {
+        font-size: 39px; /* تقليل الحجم داخل المربع */
+    }
+
+    .btn {
+        font-size: 18px; /* تقليل حجم الزر */
+        padding: 6px 12px; /* تقليل المسافات */
+        bottom: -70px;
+    }
+
+    .containera {
+        top: -150px; /* تعديل الوضعية */
+        }
+
+        .hero-section img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #offerResult {
+            font-size: 20px;
+            text-align:center
+        }
+
+        .zip-input {
+            font-size: 18px;
+            width: 252px;
+        }
+
+        .zip-button {
+            font-size: 18px;
+            padding: 11px 11px;
+            white-space:nowrap;
+        }
+
+        .zip-title {
+            font-size: 26px;
+        }
+
+        .containeras {
+            top: -61px; /* تعديل الوضعية */
+        }
+    }
+
+
+
+  
+
+</style>
+
+
+
+
+
+
+<div class="hero-section">
+    <img src="~/show/show1 (3).jpeg" alt="img">
+    <div class="hero-title-wrapper">
+        <div class="hero-title">Exclusive Offers in various regions</div>
+        <div class="hero-shadow">Exclusive Offers in various regions</div>
+    </div>
+</div>
+<div class="container">
+<h1 class="main-title"> Virginia</h1>
+    </div>
+
+<div class="container containera">
+    <!-- العنوان الرئيسي -->
+
+    <!-- المربعات -->
+    <div class="grid">
+        <div class="box" style="background-image: url('/show/show1 (4).jpeg');">
+            <h2 class="box-titles"style="">10%</h2>
+            <h2 class="box-titleo"> OFF Roadside Assistance!</h2>
+
+        </div>
+        <div class="box">
+            <h2 class="box-title"> Alexandria</h2>
+            <button class="btn" onclick="redirectToOrderReq()">Request</button>
+        </div>
+        <div class="box">
+            <h2 class="box-title">Annandale</h2>
+            <button class="btn" onclick="redirectToOrderReq()">Request</button>
+        </div>
+        <div class="box">
+            <h2 class="box-title"> Mclean</h2>
+            <button class="btn" onclick="redirectToOrderReq()">Request</button>
+        </div>
+        <div class="box">
+            <h2 class="box-title"> Springfield</h2>
+            <button class="btn" onclick="redirectToOrderReq()">Request</button>
+        </div>
+      
+        <div class="box">
+            <h2 class="box-title">Falls Church</h2>
+            <button class="btn" onclick="redirectToOrderReq()">Request</button>
+        </div>
+    </div>
+</div>
+
+
+<div style="padding-top:60px">
+</div>
+<div class="container">
+    <h1 class="main-title"> Washington</h1>
+</div>
+
+<div class="container containera">
+    <!-- العنوان الرئيسي -->
+    <!-- المربعات -->
+    <div class="grid">
+    
+        <div class="box">
+            <h2 class="box-title"> Adams morgan</h2>
+            <button class="btn" onclick="redirectToOrderReq()">Request</button>
+        </div>
+        <div class="box">
+            <h2 class="box-title">Anacostia</h2>
+            <button class="btn" onclick="redirectToOrderReq()">Request</button>
+        </div>
+        <div class="box">
+            <h2 class="box-title"> Chevy Chase</h2>
+            <button class="btn" onclick="redirectToOrderReq()">Request</button>
+        </div>
+        
+        <div class="box">
+            <h2 class="box-title"> Dupont Circle</h2>
+            <button class="btn" onclick="redirectToOrderReq()">Request</button>
+        </div>    <div class="box" style="background-image: url('/show/show1 (1).jpeg');">
+            <h2 class="box-titles" style="">10%</h2>
+            <h2 class="box-titleo"> OFF Roadside Assistance!</h2>
+
+        </div>
+
+        <div class="box">
+            <h2 class="box-title">Capitol Hill</h2>
+            <button class="btn" onclick="redirectToOrderReq()">Request</button>
+        </div>
+    </div>
+</div>
+
+<div style="padding-top:60px">
+</div>
+<div class="container">
+    <h1 class="main-title"> Maryland</h1>
+</div>
+
+<div class="container containera">
+    <!-- العنوان الرئيسي -->
+    <!-- المربعات -->
+    <div class="grid">
+       
+        <div class="box">
+            <h2 class="box-title"> Akoma Park</h2>
+            <button class="btn" onclick="redirectToOrderReq()">Request</button>
+        </div>
+        <div class="box">
+            <h2 class="box-title">Bethesda</h2>
+            <button class="btn" onclick="redirectToOrderReq()">Request</button>
+        </div>
+        <div class="box" style="background-image: url('/show/show1 (2).jpeg');">
+            <h2 class="box-titles" style="">10%</h2>
+            <h2 class="box-titleo"> OFF Roadside Assistance!</h2>
+
+        </div>
+    </div>
+</div>
+
+
+
+<div class="container containeras">
+
+    <h2 class="zip-title">
+        Enter ZIP Code to Check Offers
+    </h2>
+
+    <form id="zipForm" asp-action="CheckOffer"   method="post" style="display: flex; gap: 10px; align-items: center; margin-bottom: 20px;">
+        <input type="text" name="zipCode" placeholder="Enter ZIP Code" required class="zip-input" />
+        <button type="submit" class="zip-button">Check Offers</button>
+    </form>
+
+@*     <div id="offerResult">@ViewBag.OfferResult</div>
+ *@   <div id="offerResult"></div> 
+
+</div>
+
+
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+
+
+
+
+<script>
+    function redirectToOrderReq() {
+        // يمكن استبدال هذا بعنوان URL المناسب
+        window.location.href = '@Url.Action("Order_Req", "Home")';
+    }
+
+
+
+   $(document).ready(function () {
+    $("#zipForm").submit(function (event) {
+        event.preventDefault();  // منع تقديم النموذج
+
+        var zipCode = $("input[name='zipCode']").val();  // الحصول على ZIP Code
+
+        $.ajax({
+            url: '@Url.Action("CheckOffer", "Home")',  // تحديد المسار الصحيح
+            type: 'POST',
+            data: { zipCode: zipCode },
+            dataType: 'json',  // تحديد نوع البيانات المعادة (JSON)
+            success: function (data) {
+                // عرض النتيجة في العنصر المحدد
+                if (data.result) {
+                    $('#offerResult').html(data.result);  // تحديث محتوى العنصر
+                }
+            },
+error: function (xhr, status, error) {
+    let errorMessage;
+
+    try {
+        // حاول تقرأ رسالة الخطأ من السيرفر إن كانت JSON
+        const response = JSON.parse(xhr.responseText);
+        errorMessage = response.message ? "😔 Server error: " + response.message : "😔 Unknown server error!";
+    } catch (e) {
+        // إذا الرد مش بصيغة JSON
+        errorMessage = "😔 Unexpected server error: " + error;
+    }
+
+    console.error("Full Server Response:", xhr.responseText);
+    $('#offerResult').html(errorMessage);
+}
+
+
+        });
+    });
+});
+
+
+
+</script>
+
+
