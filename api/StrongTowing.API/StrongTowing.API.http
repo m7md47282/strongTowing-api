@@ -1,0 +1,6 @@
+@StrongTowing.API_HostAddress = http://localhost:5155
+
+GET {{StrongTowing.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
