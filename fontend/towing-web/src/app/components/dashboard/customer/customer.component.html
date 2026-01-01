@@ -1,0 +1,168 @@
+<!-- Dashboard Header -->
+<section class="dashboard-header">
+  <div class="container">
+    <div class="dashboard-title">
+      <h1>Customer Dashboard</h1>
+      <p>Manage your towing services and track your requests</p>
+    </div>
+  </div>
+</section>
+
+<!-- Dashboard Stats -->
+<section class="dashboard-stats">
+  <div class="container">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon">
+          <i class="fas fa-list"></i>
+        </div>
+        <div class="stat-content">
+          <h3>{{ totalOrders }}</h3>
+          <p>Total Orders</p>
+        </div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-icon">
+          <i class="fas fa-clock"></i>
+        </div>
+        <div class="stat-content">
+          <h3>{{ pendingOrders }}</h3>
+          <p>Pending Orders</p>
+        </div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-icon">
+          <i class="fas fa-check-circle"></i>
+        </div>
+        <div class="stat-content">
+          <h3>{{ completedOrders }}</h3>
+          <p>Completed Orders</p>
+        </div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-icon">
+          <i class="fas fa-dollar-sign"></i>
+        </div>
+        <div class="stat-content">
+          <h3>${{ totalSpent }}</h3>
+          <p>Total Spent</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Quick Actions -->
+<section class="quick-actions">
+  <div class="container">
+    <h2>Quick Actions</h2>
+    <div class="actions-grid">
+      <button class="action-card" (click)="requestNewService()">
+        <i class="fas fa-plus"></i>
+        <h3>Request New Service</h3>
+        <p>Get towing or roadside assistance</p>
+      </button>
+      
+      <button class="action-card" (click)="trackOrder()">
+        <i class="fas fa-map-marker-alt"></i>
+        <h3>Track Order</h3>
+        <p>Track your active orders</p>
+      </button>
+      
+      <button class="action-card" (click)="viewHistory()">
+        <i class="fas fa-history"></i>
+        <h3>Order History</h3>
+        <p>View past orders and receipts</p>
+      </button>
+      
+      <button class="action-card" (click)="updateProfile()">
+        <i class="fas fa-user-edit"></i>
+        <h3>Update Profile</h3>
+        <p>Manage your account information</p>
+      </button>
+    </div>
+  </div>
+</section>
+
+<!-- Recent Orders -->
+<section class="recent-orders">
+  <div class="container">
+    <div class="section-header">
+      <h2>Recent Orders</h2>
+      <a routerLink="/orders" class="view-all-link">View All</a>
+    </div>
+    
+    <div class="orders-list" *ngIf="recentOrders.length > 0; else noOrders">
+      <div class="order-card" *ngFor="let order of recentOrders">
+        <div class="order-header">
+          <div class="order-info">
+            <h3>{{ order.serviceType }}</h3>
+            <p class="order-date">{{ order.createdAt | date:'medium' }}</p>
+          </div>
+          <div class="order-status">
+            <span class="status-badge" [class]="getStatusClass(order.status)">
+              {{ order.status }}
+            </span>
+          </div>
+        </div>
+        
+        <div class="order-details">
+          <div class="detail-item">
+            <i class="fas fa-map-marker-alt"></i>
+            <span>{{ order.pickupAddress }}</span>
+          </div>
+          <div class="detail-item" *ngIf="order.destinationAddress">
+            <i class="fas fa-flag-checkered"></i>
+            <span>{{ order.destinationAddress }}</span>
+          </div>
+          <div class="detail-item">
+            <i class="fas fa-car"></i>
+            <span>{{ order.vehicleMake }} {{ order.vehicleModel }}</span>
+          </div>
+        </div>
+        
+        <div class="order-actions">
+          <button class="btn btn-outline" (click)="viewOrderDetails(order.id)">
+            View Details
+          </button>
+          <button class="btn btn-primary" *ngIf="order.status === 'Pending'" (click)="cancelOrder(order.id)">
+            Cancel Order
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <ng-template #noOrders>
+      <div class="no-orders">
+        <i class="fas fa-inbox"></i>
+        <h3>No Orders Yet</h3>
+        <p>You haven't placed any orders yet. Click "Request New Service" to get started.</p>
+        <button class="btn btn-primary" (click)="requestNewService()">
+          Request Service
+        </button>
+      </div>
+    </ng-template>
+  </div>
+</section>
+
+<!-- Emergency Contact -->
+<section class="emergency-contact">
+  <div class="container">
+    <div class="emergency-card">
+      <div class="emergency-content">
+        <h2>Need Emergency Service?</h2>
+        <p>We're available 24/7 for emergency towing and roadside assistance</p>
+        <a href="tel:+17032008836" class="emergency-phone">
+          <i class="fas fa-phone"></i>
+          Call Now: +1 (703) 200-8836
+        </a>
+      </div>
+      <div class="emergency-icon">
+        <i class="fas fa-exclamation-triangle"></i>
+      </div>
+    </div>
+  </div>
+</section>

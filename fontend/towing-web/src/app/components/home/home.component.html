@@ -1,0 +1,187 @@
+<!-- Hero Section -->
+<app-hero></app-hero>
+
+<!-- What We Do Section -->
+<section class="what-we-do-section">
+  <div class="what-we-do-container">
+    <div class="what-we-do-content">
+      <div class="section-label">
+        <span class="divider-label">Services</span>
+      </div>
+      <h2 class="what-we-do-heading">What we do?</h2>
+      <p class="what-we-do-text">
+        At Strong Towing, we provide fast and reliable towing and roadside assistance services, 24/7. Our team is ready to meet all your needs, from rescue to mobile maintenance.
+      </p>
+      <p class="what-we-do-text">
+        With years of experience in the DMV area, we specialize in professional towing services for all vehicle types. Whether you're dealing with a breakdown on the highway, need emergency roadside assistance, or require specialized towing from tight spaces like garages or parking structures, our expert team is equipped to handle it all.
+      </p>
+      <p class="what-we-do-text">
+        We understand that vehicle emergencies can happen at any time. That's why Strong Towing offers round-the-clock service with rapid response times. Our highly trained technicians and state-of-the-art equipment ensure your vehicle receives the best care, with guaranteed no-scratch service and complete peace of mind.
+      </p>
+      <div class="what-we-do-features">
+        <div class="feature-point">
+          <i class="fas fa-clock"></i>
+          <span>24/7 Emergency Service</span>
+        </div>
+        <div class="feature-point">
+          <i class="fas fa-truck"></i>
+          <span>Full Fleet of Towing Vehicles</span>
+        </div>
+        <div class="feature-point">
+          <i class="fas fa-map-marked-alt"></i>
+          <span>DMV Area Coverage</span>
+        </div>
+        <div class="feature-point">
+          <i class="fas fa-certificate"></i>
+          <span>Licensed & Insured</span>
+        </div>
+        <div class="feature-point">
+          <i class="fas fa-shield-alt"></i>
+          <span>No Damage Guarantee</span>
+        </div>
+        <div class="feature-point">
+          <i class="fas fa-dollar-sign"></i>
+          <span>Fair & Transparent Pricing</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Our Services Section -->
+<section class="our-services-section">
+  <div class="our-services-container">
+    <div class="section-label">
+      <span class="divider-label">our Services</span>
+    </div>
+    <div class="grid-services">
+      <div *ngFor="let service of services" class="service-card transition duration-300 ease-in-out hover:shadow-lg" [ngClass]="service.cssClass">
+        <div class="flex flex-col items-center justify-center">
+            <div>
+                <h3 class="service-title">{{ service.title }}</h3>
+            </div>
+            <div>
+                <a routerLink="/services" class="all-other-services-btn " [ngClass]="service.additionalClasses">
+                  {{ service.linkText }}
+                  <span class="all-other-services-arrow">
+                    <i class="fas fa-arrow-right"></i>
+                  </span>
+                </a>
+            </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Garage Towing Specialists Section -->
+<section class="garage-towing-section">
+  <div class="garage-towing-container">
+    <div class="garage-towing-content">
+      <div class="section-label center-label">
+        <span class="divider-label">Specialized Service</span>
+      </div>
+      <h2 class="garage-towing-heading">Strong Towing</h2>
+      <p class="garage-towing-tagline">Specialized in towing from extremely tight garages!</p>
+      <div class="garage-towing-grid">
+        <div class="garage-feature">
+          <div class="feature-icon-wrapper">
+            <i class="fas fa-warehouse"></i>
+          </div>
+          <h3>Best Garage Fleet</h3>
+          <p>We have the best garage fleet in the DMV area.</p>
+        </div>
+        <div class="garage-feature">
+          <div class="feature-icon-wrapper">
+            <i class="fas fa-bolt"></i>
+          </div>
+          <h3>Fast & Precise</h3>
+          <p>Fast – Precise – Safe – No scratches, guaranteed!</p>
+        </div>
+        <div class="garage-feature">
+          <div class="feature-icon-wrapper">
+            <i class="fas fa-award"></i>
+          </div>
+          <h3>Quality Guarantee</h3>
+          <p>Professional service with no damage guarantee on every tow.</p>
+        </div>
+      </div>
+      <div class="garage-cta-wrapper">
+        <a href="tel:+17032008836" class="garage-cta-button cursor-pointer">
+          <i class="fas fa-phone-alt"></i>
+          <span>Call us now and let Strong Towing handle it for you!</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Partners Section -->
+<section class="partners-section">
+  <div class="partners-container">
+    <div class="section-label center-label">
+      <span class="divider-label">Trusted Partners</span>
+    </div>
+    <div class="partners-content">
+      <h2 class="partners-title">Our Trusted Partners</h2>
+      <div class="splide" id="partneres">
+        <div class="splide__track">
+          <ul class="splide__list">
+            <li class="splide__slide" *ngFor="let partner of partners">
+              <div class="image-continer">
+                <img [src]="partner.image" [alt]="partner.name" />
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Photo Gallery Section -->
+<section class="photo-gallery-section">
+  <div class="gallery-container">
+    <div class="section-label center-label">
+      <span class="divider-label">Gallery</span>
+    </div>
+    <div class="gallery-content">
+      <h2 class="gallery-title">Our Work in Action</h2>
+      <p class="gallery-description">See our professional team and fleet in action providing exceptional service</p>
+      <div class="gallery-grid">
+        <div class="gallery-item" *ngFor="let photo of photoGallery">
+          <div class="gallery-image-wrapper">
+            <img [src]="photo.image" [alt]="photo.alt" />
+            <div class="gallery-overlay">
+              <i class="fas fa-eye"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Service Gallery Section -->
+<section class="service-gallery-section">
+  <div class="gallery-container">
+    <div class="section-label center-label">
+      <span class="divider-label">Service Excellence</span>
+    </div>
+    <div class="gallery-content">
+      <h2 class="gallery-title">Trusted Service Provider</h2>
+      <p class="gallery-description">Professional towing and roadside assistance services you can count on</p>
+      <div class="service-gallery-grid">
+        <div class="service-gallery-item" *ngFor="let photo of additionalGallery">
+          <div class="service-gallery-image-wrapper">
+            <img [src]="photo.image" [alt]="photo.alt" />
+            <div class="service-gallery-overlay">
+              <i class="fas fa-truck"></i>
+              <p>Professional Service</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

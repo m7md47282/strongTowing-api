@@ -1,0 +1,77 @@
+<header class="header">
+  <!-- Top Bar -->
+  <div class="top-bar">
+    <div class="container">
+      <div class="top-bar-left">
+        <div class="social-icons">
+          <a href="#" class="social-icon instagram">
+            <i class="fab fa-instagram"></i>
+          </a>
+          <a href="#" class="social-icon youtube">
+            <i class="fab fa-youtube"></i>
+          </a>
+          <a href="#" class="social-icon tiktok">
+            <i class="fab fa-tiktok"></i>
+          </a>
+        </div>
+      </div>
+      <div class="top-bar-right">
+        <a href="tel:+17032008836" class="top-bar-item">
+          <i class="fas fa-phone"></i>
+          <span>+1 (703) 200-8836</span>
+        </a>
+        <a routerLink="/login" class="top-bar-item">
+          <i class="fas fa-user"></i>
+          <span>Swift login</span>
+        </a>
+        <div class="top-bar-item">
+          <i class="fas fa-clock"></i>
+          <span>Available 24/7</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Navigation Bar -->
+  <nav class="navbar">
+    <div class="container">
+      <div class="navbar-brand">
+        <a routerLink="/" class="logo">
+          <img src="images/logo.svg" alt="Strong Towing Logo" class="logo-image">
+        </a>
+        <div class="logo-divider"></div>
+      </div>
+      
+      <div class="navbar-menu" [class.active]="isMenuOpen">
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <a routerLink="/" class="nav-link" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">Home</a>
+          </li>
+          <li class="nav-item">
+            <a routerLink="/about" class="nav-link" routerLinkActive="active">About</a>
+          </li>
+          <li class="nav-item">
+            <a routerLink="/services" class="nav-link" routerLinkActive="active">Services</a>
+          </li>
+          <li class="nav-item">
+            <a routerLink="/request-service" class="nav-link" routerLinkActive="active">Request Service</a>
+          </li>
+          <li class="nav-item">
+            <a routerLink="/blog" class="nav-link" routerLinkActive="active">Blog</a>
+          </li>
+        </ul>
+        
+        <div class="navbar-actions">
+          <a routerLink="/request-service" class="btn btn-contact">Contact Us</a>
+          <a routerLink="/join-provider" class="btn btn-provider">Join Our Provider Network</a>
+        </div>
+      </div>
+      
+      <button class="navbar-toggler" (click)="toggleMenu()" [class.active]="isMenuOpen">
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+      </button>
+    </div>
+  </nav>
+</header>

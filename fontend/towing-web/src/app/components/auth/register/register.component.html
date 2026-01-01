@@ -1,0 +1,189 @@
+<div class="auth-container">
+  <div class="auth-card">
+    <div class="auth-header">
+      <img src="/logo.svg" alt="Strong Towing Services" class="auth-logo" />
+      <h2>Join Our Team</h2>
+      <p>Create your driver account to start working with us</p>
+    </div>
+
+    <form class="auth-form" [formGroup]="registerForm" (ngSubmit)="onSubmit()">
+      <div class="form-group">
+        <label for="fullName" class="form-label">Full Name</label>
+        <input
+          type="text"
+          id="fullName"
+          class="form-control"
+          formControlName="fullName"
+          placeholder="Enter your full name"
+          [class.is-invalid]="isFieldInvalid('fullName')"
+        />
+        @if (isFieldInvalid('fullName')) {
+          <div class="invalid-feedback">
+            @if (registerForm.get('fullName')?.errors?.['required']) {
+              <span>Full name is required</span>
+            }
+          </div>
+        }
+      </div>
+
+      <div class="form-group">
+        <label for="email" class="form-label">Email Address</label>
+        <input
+          type="email"
+          id="email"
+          class="form-control"
+          formControlName="email"
+          placeholder="Enter your email"
+          [class.is-invalid]="isFieldInvalid('email')"
+        />
+        @if (isFieldInvalid('email')) {
+          <div class="invalid-feedback">
+            @if (registerForm.get('email')?.errors?.['required']) {
+              <span>Email is required</span>
+            }
+            @if (registerForm.get('email')?.errors?.['email']) {
+              <span>Please enter a valid email</span>
+            }
+          </div>
+        }
+      </div>
+
+      <div class="form-group">
+        <label for="phoneNumber" class="form-label">Phone Number (Optional)</label>
+        <input
+          type="tel"
+          id="phoneNumber"
+          class="form-control"
+          formControlName="phoneNumber"
+          placeholder="Enter your phone number"
+          [class.is-invalid]="isFieldInvalid('phoneNumber')"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="roleId" class="form-label">Role</label>
+        <select
+          id="roleId"
+          class="form-control"
+          formControlName="roleId"
+          [class.is-invalid]="isFieldInvalid('roleId')"
+        >
+          @for (role of roles; track role.id) {
+            <option [value]="role.id">{{ role.label }}</option>
+          }
+        </select>
+        @if (isFieldInvalid('roleId')) {
+          <div class="invalid-feedback">
+            @if (registerForm.get('roleId')?.errors?.['required']) {
+              <span>Role is required</span>
+            }
+          </div>
+        }
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="password" class="form-label">Password</label>
+          <div class="password-input">
+            <input
+              [type]="showPassword ? 'text' : 'password'"
+              id="password"
+              class="form-control"
+              formControlName="password"
+              placeholder="Create a password"
+              [class.is-invalid]="isFieldInvalid('password')"
+            />
+            <button
+              type="button"
+              class="password-toggle"
+              (click)="togglePasswordVisibility()"
+            >
+              <i class="fas" [class.fa-eye]="!showPassword" [class.fa-eye-slash]="showPassword"></i>
+            </button>
+          </div>
+          @if (isFieldInvalid('password')) {
+            <div class="invalid-feedback">
+              @if (registerForm.get('password')?.errors?.['required']) {
+                <span>Password is required</span>
+              }
+              @if (registerForm.get('password')?.errors?.['minlength']) {
+                <span>Password must be at least 6 characters</span>
+              }
+            </div>
+          }
+        </div>
+
+        <div class="form-group">
+          <label for="confirmPassword" class="form-label">Confirm Password</label>
+          <input
+            type="password"
+            id="confirmPassword"
+            class="form-control"
+            formControlName="confirmPassword"
+            placeholder="Confirm your password"
+            [class.is-invalid]="isFieldInvalid('confirmPassword')"
+          />
+          @if (isFieldInvalid('confirmPassword')) {
+            <div class="invalid-feedback">
+              @if (registerForm.get('confirmPassword')?.errors?.['required']) {
+                <span>Please confirm your password</span>
+              }
+              @if (registerForm.get('confirmPassword')?.errors?.['mismatch']) {
+                <span>Passwords do not match</span>
+              }
+            </div>
+          }
+        </div>
+      </div>
+
+
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input
+            type="checkbox"
+            formControlName="agreeToTerms"
+            class="checkbox-input"
+            [class.is-invalid]="isFieldInvalid('agreeToTerms')"
+          />
+          <span class="checkbox-text">I agree to the <a href="#terms" target="_blank">Terms of Service</a> and <a href="#privacy" target="_blank">Privacy Policy</a></span>
+        </label>
+        @if (isFieldInvalid('agreeToTerms')) {
+          <div class="invalid-feedback">
+            @if (registerForm.get('agreeToTerms')?.errors?.['required']) {
+              <span>You must agree to the terms and conditions</span>
+            }
+          </div>
+        }
+      </div>
+
+      <button
+        type="submit"
+        class="btn btn-primary btn-block"
+        [disabled]="registerForm.invalid || isLoading"
+      >
+        @if (!isLoading) {
+          <span>Create Account</span>
+        }
+        @if (isLoading) {
+          <span class="spinner"></span>
+        }
+      </button>
+
+      @if (errorMessage) {
+        <div class="alert alert-danger">
+          {{ errorMessage }}
+        </div>
+      }
+
+      @if (successMessage) {
+        <div class="alert alert-success">
+          {{ successMessage }}
+        </div>
+      }
+    </form>
+
+    <div class="auth-footer">
+      <p>Already have an account? <a routerLink="/login">Sign in here</a></p>
+    </div>
+  </div>
+</div>

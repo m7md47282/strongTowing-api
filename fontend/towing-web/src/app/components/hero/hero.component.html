@@ -1,0 +1,58 @@
+<section class="hero-section">
+  <div id="hero-slider" class="splide">
+    <div class="splide__track">
+      <div class="splide__arrows">
+        <button class="splide__arrow splide__arrow--prev">
+          <i class="fa-solid fa-chevron-left"></i>
+        </button>
+        <button class="splide__arrow splide__arrow--next">
+          <i class="fa-solid fa-chevron-right"></i>
+        </button>
+      </div>
+      <ul class="splide__list">
+        <li class="splide__slide" *ngFor="let slide of heroSlides; let i = index" [style.background-image]="slide.backgroundImage">
+          <div class="hero-content">
+            <div class="hero-text">
+                <div class="hero-badge yellow-shadow">
+                  <span>24/7 Emergency Service</span>
+                </div>
+              <h1 [innerHTML]="slide.title"></h1>
+              <div class="hero-subtitles">
+                <h3 *ngFor="let subtitle of slide.subtitles">{{ subtitle }}</h3>
+              </div>
+              <div class="hero-features">
+                <div class="feature-item">
+                  <i class="fas fa-clock"></i>
+                  <span>Fast Response</span>
+                </div>
+                <div class="feature-item">
+                  <i class="fas fa-shield-alt"></i>
+                  <span>Fully Insured</span>
+                </div>
+                <div class="feature-item">
+                  <i class="fas fa-tools"></i>
+                  <span>Professional Service</span>
+                </div>
+              </div>
+
+            </div>
+            <div class="right-content">
+              <div class="price-tag">
+                <h2>{{ slide.price }}</h2>
+                <p class="font-bold text-lg hero-price-description">{{ slide.priceDescription }}</p>
+              </div>
+              <div class="hero-buttons">
+                  <a href="tel:+17032008836" class="phone-content explore-btn yellow-text-shadow yellow-shadow">
+                    <span>+1 (703) 200-8836</span>
+                    <i class="fa-solid fa-phone"></i>
+                  </a>
+    
+                <a routerLink="/services" class="explore-btn">Explore Our Services</a>
+              </div>
+            </div>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </div>
+</section>

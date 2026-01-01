@@ -1,0 +1,9 @@
+@if (showHeaderFooter) {
+  <app-header></app-header>
+}
+<main class="main-content bg-gray-50" [class.with-header]="showHeaderFooter">
+  <router-outlet></router-outlet>
+</main>
+@if (showHeaderFooter) {
+  <app-footer></app-footer>
+}

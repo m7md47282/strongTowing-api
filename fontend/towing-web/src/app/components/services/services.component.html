@@ -1,0 +1,230 @@
+<!-- Services Hero Section -->
+<section class="services-hero">
+  <div class="container">
+    <div class="services-hero-content">
+      <h1>Our Services</h1>
+      <p>Professional towing and roadside assistance services you can trust</p>
+    </div>
+  </div>
+</section>
+
+<!-- Services Grid -->
+<section class="services-grid-section">
+  <div class="container">
+    <div class="services-grid">
+      <div class="service-card" *ngFor="let service of services">
+        <div class="service-icon">
+          <i [class]="service.icon"></i>
+        </div>
+        <h3>{{ service.name }}</h3>
+        <p>{{ service.description }}</p>
+        <div class="service-features">
+          <ul>
+            <li *ngFor="let feature of service.features">{{ feature }}</li>
+          </ul>
+        </div>
+        <div class="service-pricing">
+          <span class="price">Starting at ${{ service.startingPrice }}</span>
+          <span class="price-note">{{ service.priceNote }}</span>
+        </div>
+        <button class="btn btn-primary" (click)="requestService(service)">
+          Request Service
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Service Categories -->
+<section class="service-categories">
+  <div class="container">
+    <h2>Service Categories</h2>
+    <div class="categories-grid">
+      <div class="category-card" *ngFor="let category of serviceCategories">
+        <div class="category-image">
+          <img [src]="category.image" [alt]="category.name" />
+        </div>
+        <div class="category-content">
+          <h3>{{ category.name }}</h3>
+          <p>{{ category.description }}</p>
+          <a routerLink="/services" class="category-link">Learn More</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Emergency Services -->
+<section class="emergency-services">
+  <div class="container">
+    <div class="emergency-content">
+      <div class="emergency-text">
+        <h2>24/7 Emergency Services</h2>
+        <p>We're always here when you need us most. Our emergency response team is ready to help you 24 hours a day, 7 days a week.</p>
+        <div class="emergency-features">
+          <div class="feature-item">
+            <i class="fas fa-clock"></i>
+            <span>24/7 Availability</span>
+          </div>
+          <div class="feature-item">
+            <i class="fas fa-tachometer-alt"></i>
+            <span>Fast Response</span>
+          </div>
+          <div class="feature-item">
+            <i class="fas fa-shield-alt"></i>
+            <span>Fully Insured</span>
+          </div>
+        </div>
+        <div class="emergency-contact">
+          <a href="tel:+17032008836" class="emergency-phone">
+            <i class="fas fa-phone"></i>
+            Call Now: +1 (703) 200-8836
+          </a>
+        </div>
+      </div>
+      <div class="emergency-image">
+        <img src="/images/photage/photage-5.jpeg" alt="Emergency Towing" />
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Photo Gallery Section -->
+<section class="photo-gallery-section">
+  <div class="container">
+    <h2>Service in Action</h2>
+    <p>See our professional team providing exceptional towing and roadside assistance services</p>
+    
+    <div class="gallery-grid">
+      <div class="gallery-item" *ngFor="let photo of photoGallery">
+        <div class="gallery-image-wrapper">
+          <img [src]="photo.image" [alt]="photo.alt" />
+          <div class="gallery-overlay">
+            <i class="fas fa-eye"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Service Areas -->
+<section class="service-areas">
+  <div class="container">
+    <h2>Service Areas</h2>
+    <p>We proudly serve customers across multiple states and cities</p>
+    <div class="areas-grid">
+      <div class="area-card" *ngFor="let area of serviceAreas">
+        <h3>{{ area.state }}</h3>
+        <ul class="cities-list">
+          <li *ngFor="let city of area.cities">{{ city }}</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Why Choose Us -->
+<section class="why-choose-us">
+  <div class="container">
+    <h2>Why Choose Strong Towing Services?</h2>
+    <div class="features-grid">
+      <div class="feature-card" *ngFor="let feature of whyChooseUs">
+        <div class="feature-icon">
+          <i [class]="feature.icon"></i>
+        </div>
+        <h3>{{ feature.title }}</h3>
+        <p>{{ feature.description }}</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Floating Request Service Button -->
+<div class="floating-request-btn">
+  <button class="btn  btn-floating" (click)="scrollToForm()">
+    <i class="fas fa-plus"></i>
+    <span>Request Service</span>
+  </button>
+</div>
+
+<!-- Request Service Form -->
+<section class="request-service-form">
+  <div class="container">
+    <div class="form-container">
+      <h2>Request a Service</h2>
+      <p>Fill out the form below and we'll get back to you within minutes</p>
+      
+      <form [formGroup]="serviceRequestForm" (ngSubmit)="onSubmitServiceRequest()">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="serviceType" class="form-label">Service Type</label>
+            <select id="serviceType" class="form-control" formControlName="serviceType">
+              <option value="">Select a service</option>
+              <option *ngFor="let service of services" [value]="service.id">
+                {{ service.name }}
+              </option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label for="priority" class="form-label">Priority</label>
+            <select id="priority" class="form-control" formControlName="priority">
+              <option value="Low">Low</option>
+              <option value="Medium">Medium</option>
+              <option value="High">High</option>
+              <option value="Emergency">Emergency</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="vehicleType" class="form-label">Vehicle Type</label>
+            <input type="text" id="vehicleType" class="form-control" formControlName="vehicleType" placeholder="e.g., Sedan, SUV, Truck" />
+          </div>
+          
+          <div class="form-group">
+            <label for="vehicleMake" class="form-label">Vehicle Make</label>
+            <input type="text" id="vehicleMake" class="form-control" formControlName="vehicleMake" placeholder="e.g., Toyota, Ford, Honda" />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="pickupAddress" class="form-label">Pickup Address</label>
+            <input type="text" id="pickupAddress" class="form-control" formControlName="pickupAddress" placeholder="Enter pickup location" />
+          </div>
+          
+          <div class="form-group">
+            <label for="destinationAddress" class="form-label">Destination Address</label>
+            <input type="text" id="destinationAddress" class="form-control" formControlName="destinationAddress" placeholder="Enter destination (optional)" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="description" class="form-label">Description</label>
+          <textarea id="description" class="form-control" formControlName="description" rows="4" placeholder="Describe the issue or service needed"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="contactPhone" class="form-label">Contact Phone</label>
+          <input type="tel" id="contactPhone" class="form-control" formControlName="contactPhone" placeholder="Your phone number" />
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block" [disabled]="serviceRequestForm.invalid || isSubmitting">
+          <span *ngIf="!isSubmitting">Submit Request</span>
+          <span *ngIf="isSubmitting" class="spinner"></span>
+        </button>
+
+        <div class="alert alert-success" *ngIf="successMessage">
+          {{ successMessage }}
+        </div>
+
+        <div class="alert alert-danger" *ngIf="errorMessage">
+          {{ errorMessage }}
+        </div>
+      </form>
+    </div>
+  </div>
+</section>

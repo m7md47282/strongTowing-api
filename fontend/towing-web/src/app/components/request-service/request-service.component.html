@@ -1,0 +1,514 @@
+<!-- Request Service Hero Section -->
+<section class="request-hero">
+  <div class="hero-background">
+    <div class="hero-overlay"></div>
+  </div>
+  <div class="container">
+    <div class="request-hero-content">
+      <div class="section-label">
+        <span class="divider-label">Emergency Service</span>
+      </div>
+      <h1>Need Towing Service?</h1>
+      <p class="hero-subtitle">Get fast, reliable towing and roadside assistance when you need it most</p>
+      
+      <!-- Quick Contact Options -->
+      <div class="quick-contact-section">
+        <div class="contact-options">
+          <a href="tel:+17032008836" class="contact-option primary">
+            <div class="contact-icon">
+              <i class="fas fa-phone"></i>
+            </div>
+            <div class="contact-info">
+              <h3>Call Now for Immediate Help</h3>
+              <span class="phone-number">+1 (703) 200-8836</span>
+              <p>Available 24/7 for emergency towing</p>
+            </div>
+          </a>
+          
+          <a href="mailto:dispatch@strongtowing.services?subject=Towing Service Request&body=Hello, I need towing services. Please contact me at your earliest convenience." class="contact-option secondary">
+            <div class="contact-icon">
+              <i class="fas fa-envelope"></i>
+            </div>
+            <div class="contact-info">
+              <h3>Email Us</h3>
+              <span class="email-address">dispatch&#64;strongtowing.services</span>
+              <p>For non-urgent service requests</p>
+            </div>
+          </a>
+        </div>
+        
+        <div class="or-divider">
+          <span>OR</span>
+        </div>
+        
+        <div class="form-option">
+          <h3>Fill out the form below</h3>
+          <p>Complete our service request form for detailed assistance</p>
+          <button class="scroll-to-form-btn" (click)="scrollToForm()">
+            <i class="fas fa-arrow-down"></i>
+            Go to Form
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Service Selection -->
+<section class="service-selection" id="service-selection">
+  <div class="container">
+    <div class="section-label">
+      <span class="divider-label">Service Types</span>
+    </div>
+    <h2>What type of service do you need?</h2>
+    <p class="section-description">Select the service that best matches your situation. Don't worry if you're unsure - our team will help you choose the right option.</p>
+    
+    <div class="service-grid">
+      <div 
+        class="service-card" 
+        *ngFor="let service of serviceTypes"
+        [class.selected]="selectedService?.id === service.id"
+        (click)="selectService(service)">
+        <div class="service-icon">
+          <i [class]="service.icon"></i>
+        </div>
+        <h3>{{ service.name }}</h3>
+        <p>{{ service.description }}</p>
+        <div class="service-price">
+          <span class="price">Starting at ${{ service.startingPrice }}</span>
+          <span class="price-note">{{ service.priceNote }}</span>
+        </div>
+        <div class="service-arrow" *ngIf="selectedService?.id === service.id">
+          <i class="fas fa-check"></i>
+        </div>
+      </div>
+    </div>
+    
+    <div class="service-guidance" *ngIf="selectedService">
+      <div class="guidance-card">
+        <i class="fas fa-lightbulb"></i>
+        <div class="guidance-content">
+          <h4>Great choice!</h4>
+          <p>You've selected <strong>{{ selectedService.name }}</strong>. Now let's get some details about your vehicle and location to provide you with the best service.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Service Request Form -->
+<section class="request-form-section" id="request-form">
+  <div class="container">
+    <div class="form-container">
+      <div class="form-header">
+        <div class="section-label">
+          <span class="divider-label">Service Request</span>
+        </div>
+        <h2>Tell us about your situation</h2>
+        <p class="form-description">Please provide the following information so we can assist you quickly and efficiently. All fields marked with * are required.</p>
+        
+        <div class="form-progress">
+          <div class="progress-step" [class.active]="true">
+            <div class="step-number">1</div>
+            <span>Service</span>
+          </div>
+          <div class="progress-step" [class.active]="selectedService">
+            <div class="step-number">2</div>
+            <span>Details</span>
+          </div>
+          <div class="progress-step" [class.active]="false">
+            <div class="step-number">3</div>
+            <span>Submit</span>
+          </div>
+        </div>
+      </div>
+
+      <form [formGroup]="serviceRequestForm" (ngSubmit)="onSubmitServiceRequest()" class="request-form">
+        <!-- Required Information -->
+        <div class="form-section required-section">
+          <h3>Required Information</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="serviceType">Service Type *</label>
+              <select id="serviceType" formControlName="serviceType" class="form-control">
+                <option value="">Select a service type</option>
+                <option *ngFor="let service of serviceTypes" [value]="service.name">
+                  {{ service.name }}
+                </option>
+              </select>
+              <div class="error-message" *ngIf="getFieldError('serviceType')">
+                {{ getFieldError('serviceType') }}
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label for="vehicleType">Vehicle Type *</label>
+              <select id="vehicleType" formControlName="vehicleType" class="form-control">
+                <option value="">Select vehicle type</option>
+                <option *ngFor="let type of vehicleTypes" [value]="type.value">
+                  {{ type.label }}
+                </option>
+              </select>
+              <div class="error-message" *ngIf="getFieldError('vehicleType')">
+                {{ getFieldError('vehicleType') }}
+              </div>
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="vehicleMake">Vehicle Make *</label>
+              <input 
+                type="text" 
+                id="vehicleMake" 
+                formControlName="vehicleMake" 
+                class="form-control"
+                placeholder="e.g., Toyota, Ford, Honda">
+              <div class="error-message" *ngIf="getFieldError('vehicleMake')">
+                {{ getFieldError('vehicleMake') }}
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label for="pickupAddress">Pickup Address *</label>
+              <input 
+                type="text" 
+                id="pickupAddress" 
+                formControlName="pickupAddress" 
+                class="form-control"
+                placeholder="Street address where vehicle is located">
+              <div class="error-message" *ngIf="getFieldError('pickupAddress')">
+                {{ getFieldError('pickupAddress') }}
+              </div>
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="pickupCity">City *</label>
+              <input 
+                type="text" 
+                id="pickupCity" 
+                formControlName="pickupCity" 
+                class="form-control"
+                placeholder="City">
+              <div class="error-message" *ngIf="getFieldError('pickupCity')">
+                {{ getFieldError('pickupCity') }}
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label for="pickupState">State *</label>
+              <select id="pickupState" formControlName="pickupState" class="form-control">
+                <option value="">Select state</option>
+                <option value="VA">Virginia</option>
+                <option value="MD">Maryland</option>
+                <option value="DC">Washington DC</option>
+                <option value="WV">West Virginia</option>
+                <option value="PA">Pennsylvania</option>
+                <option value="DE">Delaware</option>
+              </select>
+              <div class="error-message" *ngIf="getFieldError('pickupState')">
+                {{ getFieldError('pickupState') }}
+              </div>
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="pickupZipCode">ZIP Code *</label>
+              <input 
+                type="text" 
+                id="pickupZipCode" 
+                formControlName="pickupZipCode" 
+                class="form-control"
+                placeholder="12345">
+              <div class="error-message" *ngIf="getFieldError('pickupZipCode')">
+                {{ getFieldError('pickupZipCode') }}
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label for="contactPhone">Phone Number *</label>
+              <input 
+                type="tel" 
+                id="contactPhone" 
+                formControlName="contactPhone" 
+                class="form-control"
+                placeholder="(703) 123-4567">
+              <div class="error-message" *ngIf="getFieldError('contactPhone')">
+                {{ getFieldError('contactPhone') }}
+              </div>
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="description">Service Description *</label>
+              <textarea 
+                id="description" 
+                formControlName="description" 
+                class="form-control"
+                rows="3"
+                placeholder="Please describe the issue or service needed..."></textarea>
+              <div class="error-message" *ngIf="getFieldError('description')">
+                {{ getFieldError('description') }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Additional Details (Optional) -->
+        <div class="form-section optional-section">
+          <h3>Additional Details (Optional)</h3>
+          <p class="section-note">Provide additional information to help us serve you better</p>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="vehicleModel">Vehicle Model</label>
+              <input 
+                type="text" 
+                id="vehicleModel" 
+                formControlName="vehicleModel" 
+                class="form-control"
+                placeholder="e.g., Camry, F-150, Civic">
+            </div>
+            
+            <div class="form-group">
+              <label for="vehicleYear">Year</label>
+              <input 
+                type="number" 
+                id="vehicleYear" 
+                formControlName="vehicleYear" 
+                class="form-control"
+                placeholder="e.g., 2020"
+                min="1900" 
+                [max]="maxYear">
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="vehicleColor">Color</label>
+              <input 
+                type="text" 
+                id="vehicleColor" 
+                formControlName="vehicleColor" 
+                class="form-control"
+                placeholder="e.g., Red, Blue, Silver">
+            </div>
+            
+            <div class="form-group">
+              <label for="licensePlate">License Plate</label>
+              <input 
+                type="text" 
+                id="licensePlate" 
+                formControlName="licensePlate" 
+                class="form-control"
+                placeholder="e.g., ABC-1234">
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="contactEmail">Email Address</label>
+              <input 
+                type="email" 
+                id="contactEmail" 
+                formControlName="contactEmail" 
+                class="form-control"
+                placeholder="your.email@example.com">
+              <div class="error-message" *ngIf="getFieldError('contactEmail')">
+                {{ getFieldError('contactEmail') }}
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label for="priority">Priority Level</label>
+              <select id="priority" formControlName="priority" class="form-control">
+                <option *ngFor="let priority of priorities" [value]="priority.value">
+                  {{ priority.label }}
+                </option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="destinationAddress">Destination Address (if different from pickup)</label>
+              <input 
+                type="text" 
+                id="destinationAddress" 
+                formControlName="destinationAddress" 
+                class="form-control"
+                placeholder="Destination street address">
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="additionalNotes">Additional Notes</label>
+            <textarea 
+              id="additionalNotes" 
+              formControlName="additionalNotes" 
+              class="form-control"
+              rows="2"
+              placeholder="Any additional information that might be helpful..."></textarea>
+          </div>
+        </div>
+
+        <!-- Success/Error Messages -->
+        <div class="form-messages" *ngIf="successMessage || errorMessage">
+          <div class="success-message" *ngIf="successMessage">
+            <i class="fas fa-check-circle"></i>
+            {{ successMessage }}
+          </div>
+          <div class="error-message" *ngIf="errorMessage">
+            <i class="fas fa-exclamation-circle"></i>
+            {{ errorMessage }}
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="form-actions">
+          <button 
+            type="submit" 
+            class="btn btn-primary"
+            [disabled]="isSubmitting">
+            <i class="fas fa-paper-plane" *ngIf="!isSubmitting"></i>
+            <i class="fas fa-spinner fa-spin" *ngIf="isSubmitting"></i>
+            {{ isSubmitting ? 'Submitting Request...' : 'Submit Service Request' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- What Happens Next Section -->
+<section class="what-happens-next">
+  <div class="container">
+    <div class="section-label">
+      <span class="divider-label">Next Steps</span>
+    </div>
+    <h2>What happens after you submit your request?</h2>
+    <p class="section-description">Here's what you can expect when you request our towing services</p>
+    
+    <div class="process-steps">
+      <div class="process-step">
+        <div class="step-icon">
+          <i class="fas fa-paper-plane"></i>
+        </div>
+        <div class="step-content">
+          <h3>1. Request Submitted</h3>
+          <p>We receive your service request and begin processing it immediately.</p>
+        </div>
+      </div>
+      
+      <div class="process-step">
+        <div class="step-icon">
+          <i class="fas fa-phone"></i>
+        </div>
+        <div class="step-content">
+          <h3>2. We Contact You</h3>
+          <p>Our team will call you within 5-10 minutes to confirm details and provide an estimated arrival time.</p>
+        </div>
+      </div>
+      
+      <div class="process-step">
+        <div class="step-icon">
+          <i class="fas fa-truck"></i>
+        </div>
+        <div class="step-content">
+          <h3>3. Driver Dispatched</h3>
+          <p>We assign the nearest available driver and send them to your location.</p>
+        </div>
+      </div>
+      
+      <div class="process-step">
+        <div class="step-icon">
+          <i class="fas fa-map-marker-alt"></i>
+        </div>
+        <div class="step-content">
+          <h3>4. Real-time Updates</h3>
+          <p>You'll receive updates on driver location and estimated arrival time.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Why Choose Us Section -->
+<section class="why-choose-us">
+  <div class="container">
+    <div class="section-label">
+      <span class="divider-label">Why Choose Us</span>
+    </div>
+    <h2>Why choose Strong Towing Services?</h2>
+    <p class="section-description">We're committed to providing the best towing experience possible</p>
+    
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">
+          <i class="fas fa-clock"></i>
+        </div>
+        <h3>24/7 Availability</h3>
+        <p>We're always here when you need us, day or night, weekends and holidays.</p>
+      </div>
+      
+      <div class="feature-card">
+        <div class="feature-icon">
+          <i class="fas fa-tachometer-alt"></i>
+        </div>
+        <h3>Fast Response</h3>
+        <p>Our average response time is under 30 minutes in most areas.</p>
+      </div>
+      
+      <div class="feature-card">
+        <div class="feature-icon">
+          <i class="fas fa-shield-alt"></i>
+        </div>
+        <h3>Fully Insured</h3>
+        <p>Comprehensive insurance coverage for your complete peace of mind.</p>
+      </div>
+      
+      <div class="feature-card">
+        <div class="feature-icon">
+          <i class="fas fa-dollar-sign"></i>
+        </div>
+        <h3>Fair Pricing</h3>
+        <p>Transparent, competitive pricing with no hidden fees or surprise charges.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Emergency Contact Section -->
+<section class="emergency-contact">
+  <div class="container">
+    <div class="emergency-content">
+      <div class="emergency-info">
+        <h2>Still need immediate help?</h2>
+        <p>For emergency towing services, call us directly for the fastest response time.</p>
+        <div class="contact-methods">
+          <a href="tel:+17032008836" class="contact-method primary">
+            <i class="fas fa-phone"></i>
+            <div>
+              <span class="method-label">Emergency Hotline</span>
+              <span class="method-value">+1 (703) 200-8836</span>
+            </div>
+          </a>
+          <a href="mailto:dispatch@strongtowing.services?subject=Emergency Towing Service&body=URGENT: I need emergency towing services. Please call me immediately." class="contact-method secondary">
+            <i class="fas fa-envelope"></i>
+            <div>
+              <span class="method-label">Emergency Email</span>
+              <span class="method-value">dispatch&#64;strongtowing.services</span>
+            </div>
+          </a>
+        </div>
+      </div>
+      <div class="emergency-image">
+        <img src="/images/truck.png" alt="Emergency Towing Service" />
+      </div>
+    </div>
+  </div>
+</section>

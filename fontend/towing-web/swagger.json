@@ -1,0 +1,1808 @@
+{
+    "openapi": "3.0.1",
+    "info": {
+      "title": "StrongTowing API",
+      "version": "1.0.0",
+      "description": "API documentation for StrongTowing Towing Service Management System",
+      "contact": {
+        "name": "StrongTowing API Support"
+      }
+    },
+    "servers": [
+      {
+        "url": "http://localhost:5155/api",
+        "description": "Development Server"
+      },
+      {
+        "url": "http://66.179.188.32:8080/api",
+        "description": "Production Server"
+      }
+    ],
+    "components": {
+      "securitySchemes": {
+        "Bearer": {
+          "type": "http",
+          "scheme": "bearer",
+          "bearerFormat": "JWT",
+          "description": "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\""
+        }
+      },
+      "schemas": {
+        "HealthResponse": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "example": "Live"
+            },
+            "serverTime": {
+              "type": "string",
+              "format": "date-time",
+              "example": "2024-01-15T10:30:00Z"
+            }
+          }
+        },
+        "VINInquiryRequest": {
+          "type": "object",
+          "required": ["vin"],
+          "properties": {
+            "vin": {
+              "type": "string",
+              "example": "1HGBH41JXMN109186",
+              "description": "Vehicle Identification Number"
+            }
+          }
+        },
+        "VehicleDto": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer",
+              "example": 1
+            },
+            "vin": {
+              "type": "string",
+              "example": "1HGBH41JXMN109186"
+            },
+            "make": {
+              "type": "string",
+              "example": "Honda"
+            },
+            "model": {
+              "type": "string",
+              "example": "Civic"
+            },
+            "year": {
+              "type": "integer",
+              "example": 2021
+            },
+            "color": {
+              "type": "string",
+              "example": "Blue"
+            }
+          }
+        },
+        "CreateJobRequest": {
+          "type": "object",
+          "required": ["vehicleId", "cost"],
+          "properties": {
+            "vehicleId": {
+              "type": "integer",
+              "example": 1
+            },
+            "cost": {
+              "type": "number",
+              "format": "decimal",
+              "example": 150.00
+            },
+            "notes": {
+              "type": "string",
+              "example": "Vehicle won't start"
+            },
+            "pickupLocation": {
+              "type": "string",
+              "example": "123 Main St, City, State"
+            },
+            "dropoffLocation": {
+              "type": "string",
+              "example": "456 Oak Ave, City, State"
+            },
+            "serviceType": {
+              "type": "string",
+              "example": "Towing"
+            }
+          }
+        },
+        "JobDto": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer",
+              "example": 1
+            },
+            "status": {
+              "type": "string",
+              "enum": ["Pending", "Assigned", "OnRoute", "InProgress", "ReadyToRelease", "Completed"],
+              "example": "Pending"
+            },
+            "vehicleId": {
+              "type": "integer",
+              "example": 1
+            },
+            "vehicle": {
+              "$ref": "#/components/schemas/VehicleDto"
+            },
+            "driverId": {
+              "type": "string",
+              "nullable": true,
+              "example": "driver-user-id"
+            },
+            "driverName": {
+              "type": "string",
+              "nullable": true,
+              "example": "John Driver"
+            },
+            "cost": {
+              "type": "number",
+              "format": "decimal",
+              "example": 150.00
+            },
+            "notes": {
+              "type": "string",
+              "nullable": true,
+              "example": "Vehicle won't start"
+            },
+            "photoCount": {
+              "type": "integer",
+              "example": 0
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time",
+              "example": "2024-01-15T10:00:00Z"
+            },
+            "completedAt": {
+              "type": "string",
+              "format": "date-time",
+              "nullable": true,
+              "example": "2024-01-15T11:00:00Z"
+            }
+          }
+        },
+        "AssignDriverRequest": {
+          "type": "object",
+          "required": ["driverId"],
+          "properties": {
+            "driverId": {
+              "type": "string",
+              "example": "driver-user-id"
+            }
+          }
+        },
+        "UpdateJobStatusRequest": {
+          "type": "object",
+          "required": ["status"],
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": ["Assigned", "OnRoute", "InProgress", "ReadyToRelease", "Completed"],
+              "example": "OnRoute"
+            }
+          }
+        },
+        "JobPhotoDto": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer",
+              "example": 1
+            },
+            "photoUrl": {
+              "type": "string",
+              "example": "/uploads/jobs/1/photo1.jpg"
+            },
+            "uploadedAt": {
+              "type": "string",
+              "format": "date-time",
+              "example": "2024-01-15T10:30:00Z"
+            }
+          }
+        },
+        "LoginRequest": {
+          "type": "object",
+          "required": ["email", "password"],
+          "properties": {
+            "email": {
+              "type": "string",
+              "format": "email",
+              "example": "driver@example.com"
+            },
+            "password": {
+              "type": "string",
+              "format": "password",
+              "example": "Password123!"
+            }
+          }
+        },
+        "UserDto": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "example": "user-id"
+            },
+            "email": {
+              "type": "string",
+              "format": "email",
+              "example": "driver@example.com"
+            },
+            "fullName": {
+              "type": "string",
+              "example": "John Driver"
+            },
+            "phoneNumber": {
+              "type": "string",
+              "nullable": true,
+              "example": "+1234567890"
+            },
+            "role": {
+              "type": "string",
+              "enum": ["SuperAdmin", "Administrator", "Dispatcher", "Driver"],
+              "example": "Driver"
+            },
+            "isActive": {
+              "type": "boolean",
+              "example": true
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time",
+              "example": "2024-01-15T10:00:00Z"
+            },
+            "updatedAt": {
+              "type": "string",
+              "format": "date-time",
+              "nullable": true,
+              "example": "2024-01-15T10:00:00Z"
+            }
+          }
+        },
+        "LoginResponse": {
+          "type": "object",
+          "properties": {
+            "token": {
+              "type": "string",
+              "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+            },
+            "user": {
+              "$ref": "#/components/schemas/UserDto"
+            },
+            "expiresAt": {
+              "type": "string",
+              "format": "date-time",
+              "example": "2024-01-15T11:30:00Z"
+            }
+          }
+        },
+        "RegisterRequest": {
+          "type": "object",
+          "required": ["email", "password", "fullName", "role"],
+          "properties": {
+            "email": {
+              "type": "string",
+              "format": "email",
+              "example": "newuser@example.com"
+            },
+            "password": {
+              "type": "string",
+              "format": "password",
+              "example": "Password123!"
+            },
+            "fullName": {
+              "type": "string",
+              "example": "Jane Dispatcher"
+            },
+            "phoneNumber": {
+              "type": "string",
+              "nullable": true,
+              "example": "+1234567890"
+            },
+            "role": {
+              "type": "string",
+              "enum": ["SuperAdmin", "Administrator", "Dispatcher", "Driver"],
+              "example": "Dispatcher",
+              "description": "SuperAdmin can create Admins. SuperAdmin and Admin can create Dispatcher and Driver."
+            }
+          }
+        },
+        "CreateVehicleRequest": {
+          "type": "object",
+          "required": ["vin", "make", "model", "year"],
+          "properties": {
+            "vin": {
+              "type": "string",
+              "example": "1HGBH41JXMN109186"
+            },
+            "make": {
+              "type": "string",
+              "example": "Honda"
+            },
+            "model": {
+              "type": "string",
+              "example": "Civic"
+            },
+            "year": {
+              "type": "integer",
+              "example": 2021
+            },
+            "color": {
+              "type": "string",
+              "example": "Blue"
+            }
+          }
+        },
+        "PaymentRequest": {
+          "type": "object",
+          "required": ["jobId", "amount", "paymentMethod"],
+          "properties": {
+            "jobId": {
+              "type": "integer",
+              "example": 1
+            },
+            "amount": {
+              "type": "number",
+              "format": "decimal",
+              "example": 150.00
+            },
+            "paymentMethod": {
+              "type": "string",
+              "enum": ["Stripe", "Square", "PayLater"],
+              "example": "Stripe"
+            },
+            "paymentIntentId": {
+              "type": "string",
+              "example": "pi_1234567890"
+            }
+          }
+        },
+        "PaymentDto": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer",
+              "example": 1
+            },
+            "jobId": {
+              "type": "integer",
+              "example": 1
+            },
+            "status": {
+              "type": "string",
+              "enum": ["Unpaid", "Paid", "Failed"],
+              "example": "Paid"
+            },
+            "amount": {
+              "type": "number",
+              "format": "decimal",
+              "example": 150.00
+            },
+            "transactionId": {
+              "type": "string",
+              "example": "txn_1234567890"
+            },
+            "processedAt": {
+              "type": "string",
+              "format": "date-time",
+              "example": "2024-01-15T10:30:00Z"
+            }
+          }
+        },
+        "FinancialSummaryResponse": {
+          "type": "object",
+          "properties": {
+            "totalRevenue": {
+              "type": "number",
+              "format": "decimal",
+              "example": 15000.00
+            },
+            "totalJobs": {
+              "type": "integer",
+              "example": 100
+            },
+            "averageJobCost": {
+              "type": "number",
+              "format": "decimal",
+              "example": 150.00
+            },
+            "period": {
+              "type": "object",
+              "properties": {
+                "startDate": {
+                  "type": "string",
+                  "format": "date",
+                  "example": "2024-01-01"
+                },
+                "endDate": {
+                  "type": "string",
+                  "format": "date",
+                  "example": "2024-01-31"
+                }
+              }
+            }
+          }
+        },
+        "ErrorResponse": {
+          "type": "object",
+          "properties": {
+            "error": {
+              "type": "string",
+              "example": "Bad Request"
+            },
+            "message": {
+              "type": "string",
+              "example": "Job must have exactly 5 photos before marking as Ready to Release"
+            }
+          }
+        },
+        "SuccessResponse": {
+          "type": "object",
+          "properties": {
+            "message": {
+              "type": "string",
+              "example": "Operation completed successfully"
+            }
+          }
+        },
+        "PaymentLinkDto": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer",
+              "example": 1
+            },
+            "jobId": {
+              "type": "integer",
+              "example": 1
+            },
+            "linkToken": {
+              "type": "string",
+              "example": "abc123xyz789",
+              "description": "Unique token for the payment link"
+            },
+            "paymentLink": {
+              "type": "string",
+              "example": "https://yourdomain.com/pay/abc123xyz789",
+              "description": "Full URL to share with client"
+            },
+            "amount": {
+              "type": "number",
+              "format": "decimal",
+              "example": 150.00
+            },
+            "isActive": {
+              "type": "boolean",
+              "example": true,
+              "description": "Link is active and can be used for payment"
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time",
+              "example": "2024-01-15T10:00:00Z"
+            },
+            "expiresAt": {
+              "type": "string",
+              "format": "date-time",
+              "nullable": true,
+              "example": "2024-01-22T10:00:00Z"
+            }
+          }
+        },
+        "CreatePaymentLinkRequest": {
+          "type": "object",
+          "required": ["jobId"],
+          "properties": {
+            "jobId": {
+              "type": "integer",
+              "example": 1
+            },
+            "expiresInDays": {
+              "type": "integer",
+              "example": 7,
+              "description": "Number of days until link expires (optional)"
+            }
+          }
+        }
+      }
+    },
+    "paths": {
+      "/health": {
+        "get": {
+          "tags": ["Public"],
+          "summary": "Health Check",
+          "description": "Check if the API is running",
+          "operationId": "healthCheck",
+          "responses": {
+            "200": {
+              "description": "API is healthy",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HealthResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/public/vin-inquiry": {
+        "post": {
+          "tags": ["Public"],
+          "summary": "VIN Inquiry",
+          "description": "Public endpoint to check vehicle status by VIN (No authentication required)",
+          "operationId": "vinInquiry",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VINInquiryRequest"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Vehicle found",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/VehicleDto"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Vehicle not found",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ErrorResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/public/service-request": {
+        "post": {
+          "tags": ["Public"],
+          "summary": "Create Service Request",
+          "description": "Public endpoint to create a towing service request (No authentication required)",
+          "operationId": "createServiceRequest",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateJobRequest"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Service request received",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "message": {
+                        "type": "string",
+                        "example": "Service request received. We will contact you shortly."
+                      },
+                      "requestId": {
+                        "type": "integer",
+                        "example": 123
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/auth/login": {
+        "post": {
+          "tags": ["Authentication"],
+          "summary": "User Login",
+          "description": "Authenticate user and receive JWT token",
+          "operationId": "login",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginRequest"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Login successful",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/LoginResponse"
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Invalid credentials",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ErrorResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/auth/register": {
+        "post": {
+          "tags": ["Authentication"],
+          "summary": "Register New User",
+          "description": "Create a new user account. SuperAdmin can create Admins. SuperAdmin and Admin can create Dispatcher and Driver.",
+          "operationId": "register",
+          "security": [
+            {
+              "Bearer": []
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterRequest"
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "User created successfully",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/UserDto"
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Bad request",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ErrorResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/auth/logout": {
+        "post": {
+          "tags": ["Authentication"],
+          "summary": "User Logout",
+          "description": "Logout the current user. Client should discard the JWT token after calling this endpoint.",
+          "operationId": "logout",
+          "security": [
+            {
+              "Bearer": []
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Logout successful",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/SuccessResponse"
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Unauthorized",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ErrorResponse"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Internal server error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ErrorResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/jobs": {
+        "get": {
+          "tags": ["Jobs"],
+          "summary": "Get All Jobs",
+          "description": "Retrieve all jobs with optional status filter (Admin/Dispatcher only)",
+          "operationId": "getAllJobs",
+          "security": [
+            {
+              "Bearer": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "status",
+              "in": "query",
+              "description": "Filter by job status",
+              "required": false,
+              "schema": {
+                "type": "string",
+                "enum": ["Pending", "Assigned", "OnRoute", "InProgress", "ReadyToRelease", "Completed"]
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "List of jobs",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/JobDto"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "post": {
+          "tags": ["Jobs"],
+          "summary": "Create Job",
+          "description": "Create a new job (Internal Intake - Admin/Dispatcher only)",
+          "operationId": "createJob",
+          "security": [
+            {
+              "Bearer": []
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateJobRequest"
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "Job created successfully",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/JobDto"
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Bad request",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ErrorResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/jobs/{id}": {
+        "get": {
+          "tags": ["Jobs"],
+          "summary": "Get Job by ID",
+          "description": "Retrieve a specific job by its ID",
+          "operationId": "getJobById",
+          "security": [
+            {
+              "Bearer": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "description": "Job ID",
+              "schema": {
+                "type": "integer"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Job details",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/JobDto"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Job not found",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ErrorResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/jobs/{id}/assign": {
+        "post": {
+          "tags": ["Jobs"],
+          "summary": "Assign Driver to Job",
+          "description": "Assign a driver to a pending job (Admin/Dispatcher only)",
+          "operationId": "assignDriver",
+          "security": [
+            {
+              "Bearer": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "description": "Job ID",
+              "schema": {
+                "type": "integer"
+              }
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssignDriverRequest"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Driver assigned successfully",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/SuccessResponse"
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Bad request",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ErrorResponse"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Job not found",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ErrorResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/jobs/{id}/status": {
+        "put": {
+          "tags": ["Jobs"],
+          "summary": "Update Job Status",
+          "description": "Update the status of a job. ReadyToRelease requires exactly 5 photos.",
+          "operationId": "updateJobStatus",
+          "security": [
+            {
+              "Bearer": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "description": "Job ID",
+              "schema": {
+                "type": "integer"
+              }
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateJobStatusRequest"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Status updated successfully",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/SuccessResponse"
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Bad request - Job must have exactly 5 photos before ReadyToRelease",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ErrorResponse"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Job not found",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ErrorResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/vehicles": {
+        "get": {
+          "tags": ["Vehicles"],
+          "summary": "Get All Vehicles",
+          "description": "Retrieve all vehicles in the system",
+          "operationId": "getAllVehicles",
+          "security": [
+            {
+              "Bearer": []
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "List of vehicles",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/VehicleDto"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "post": {
+          "tags": ["Vehicles"],
+          "summary": "Create Vehicle",
+          "description": "Create a new vehicle record (Admin/Dispatcher only)",
+          "operationId": "createVehicle",
+          "security": [
+            {
+              "Bearer": []
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateVehicleRequest"
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "Vehicle created successfully",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/VehicleDto"
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Bad request - VIN already exists",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ErrorResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/vehicles/{id}": {
+        "get": {
+          "tags": ["Vehicles"],
+          "summary": "Get Vehicle by ID",
+          "description": "Retrieve a specific vehicle by its ID",
+          "operationId": "getVehicleById",
+          "security": [
+            {
+              "Bearer": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "description": "Vehicle ID",
+              "schema": {
+                "type": "integer"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Vehicle details",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/VehicleDto"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Vehicle not found",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ErrorResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/vehicles/vin/{vin}": {
+        "get": {
+          "tags": ["Vehicles"],
+          "summary": "Get Vehicle by VIN",
+          "description": "Retrieve a vehicle by its VIN number",
+          "operationId": "getVehicleByVIN",
+          "security": [
+            {
+              "Bearer": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "vin",
+              "in": "path",
+              "required": true,
+              "description": "Vehicle Identification Number",
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Vehicle details",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/VehicleDto"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Vehicle not found",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ErrorResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/users": {
+        "get": {
+          "tags": ["Users"],
+          "summary": "Get All Users",
+          "description": "Retrieve all users in the system (Admin only)",
+          "operationId": "getAllUsers",
+          "security": [
+            {
+              "Bearer": []
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "List of users",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/UserDto"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "post": {
+          "tags": ["Users"],
+          "summary": "Create User",
+          "description": "Create a new user account (Admin only)",
+          "operationId": "createUser",
+          "security": [
+            {
+              "Bearer": []
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterRequest"
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "User created successfully",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/UserDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/users/{id}": {
+        "get": {
+          "tags": ["Users"],
+          "summary": "Get User by ID",
+          "description": "Retrieve a specific user by ID (Admin only)",
+          "operationId": "getUserById",
+          "security": [
+            {
+              "Bearer": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "description": "User ID",
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "User details",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/UserDto"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "User not found",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ErrorResponse"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "put": {
+          "tags": ["Users"],
+          "summary": "Update User",
+          "description": "Update user information (Admin only)",
+          "operationId": "updateUser",
+          "security": [
+            {
+              "Bearer": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "description": "User ID",
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "fullName": {
+                      "type": "string",
+                      "example": "Updated Name"
+                    },
+                    "isActive": {
+                      "type": "boolean",
+                      "example": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "User updated successfully",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/UserDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "delete": {
+          "tags": ["Users"],
+          "summary": "Deactivate User",
+          "description": "Deactivate a user account (Admin only)",
+          "operationId": "deactivateUser",
+          "security": [
+            {
+              "Bearer": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "description": "User ID",
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "User deactivated successfully",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/SuccessResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/payments": {
+        "post": {
+          "tags": ["Payments"],
+          "summary": "Process Payment",
+          "description": "Process a payment for a job",
+          "operationId": "processPayment",
+          "security": [
+            {
+              "Bearer": []
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentRequest"
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "Payment processed successfully",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/PaymentDto"
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Bad request",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ErrorResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/payments/links": {
+        "post": {
+          "tags": ["Payments"],
+          "summary": "Create Payment Link",
+          "description": "Create a shareable payment link for a job (Dispatcher/Admin only)",
+          "operationId": "createPaymentLink",
+          "security": [
+            {
+              "Bearer": []
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatePaymentLinkRequest"
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "Payment link created successfully",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/PaymentLinkDto"
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Bad request",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ErrorResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/payments/links/{linkToken}": {
+        "get": {
+          "tags": ["Payments"],
+          "summary": "Get Payment Link Details",
+          "description": "Get payment link details by token (Public endpoint for payment page)",
+          "operationId": "getPaymentLink",
+          "parameters": [
+            {
+              "name": "linkToken",
+              "in": "path",
+              "required": true,
+              "description": "Payment link token",
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Payment link details",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/PaymentLinkDto"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Payment link not found or expired",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ErrorResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/payments/links/{linkToken}/process": {
+        "post": {
+          "tags": ["Payments"],
+          "summary": "Process Payment via Link",
+          "description": "Process payment using payment link token (Public endpoint - no auth required)",
+          "operationId": "processPaymentViaLink",
+          "parameters": [
+            {
+              "name": "linkToken",
+              "in": "path",
+              "required": true,
+              "description": "Payment link token",
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["paymentMethod", "paymentIntentId"],
+                  "properties": {
+                    "paymentMethod": {
+                      "type": "string",
+                      "enum": ["Stripe", "Square"],
+                      "example": "Stripe"
+                    },
+                    "paymentIntentId": {
+                      "type": "string",
+                      "example": "pi_1234567890"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Payment processed successfully",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/PaymentDto"
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Bad request - Link expired or already used",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ErrorResponse"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Payment link not found",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ErrorResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/payments/links/{linkToken}/clear": {
+        "post": {
+          "tags": ["Payments"],
+          "summary": "Clear Payment Link",
+          "description": "Deactivate/clear a payment link (Dispatcher/Admin only)",
+          "operationId": "clearPaymentLink",
+          "security": [
+            {
+              "Bearer": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "linkToken",
+              "in": "path",
+              "required": true,
+              "description": "Payment link token",
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Payment link cleared successfully",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/SuccessResponse"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Payment link not found",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ErrorResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/payments/links/job/{jobId}": {
+        "get": {
+          "tags": ["Payments"],
+          "summary": "Get Payment Links for Job",
+          "description": "Get all payment links for a specific job (Dispatcher/Admin only)",
+          "operationId": "getPaymentLinksByJob",
+          "security": [
+            {
+              "Bearer": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "jobId",
+              "in": "path",
+              "required": true,
+              "description": "Job ID",
+              "schema": {
+                "type": "integer"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "List of payment links",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/PaymentLinkDto"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/reports/financial": {
+        "get": {
+          "tags": ["Reports"],
+          "summary": "Get Financial Summary",
+          "description": "Get financial summary report (Admin only)",
+          "operationId": "getFinancialSummary",
+          "security": [
+            {
+              "Bearer": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "startDate",
+              "in": "query",
+              "description": "Start date (YYYY-MM-DD)",
+              "required": false,
+              "schema": {
+                "type": "string",
+                "format": "date",
+                "example": "2024-01-01"
+              }
+            },
+            {
+              "name": "endDate",
+              "in": "query",
+              "description": "End date (YYYY-MM-DD)",
+              "required": false,
+              "schema": {
+                "type": "string",
+                "format": "date",
+                "example": "2024-01-31"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Financial summary",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/FinancialSummaryResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/reports/export": {
+        "get": {
+          "tags": ["Reports"],
+          "summary": "Export Report",
+          "description": "Export report in CSV, Excel, or PDF format (Admin only)",
+          "operationId": "exportReport",
+          "security": [
+            {
+              "Bearer": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "type",
+              "in": "query",
+              "required": true,
+              "description": "Export format",
+              "schema": {
+                "type": "string",
+                "enum": ["csv", "excel", "pdf"]
+              }
+            },
+            {
+              "name": "startDate",
+              "in": "query",
+              "description": "Start date (YYYY-MM-DD)",
+              "required": false,
+              "schema": {
+                "type": "string",
+                "format": "date"
+              }
+            },
+            {
+              "name": "endDate",
+              "in": "query",
+              "description": "End date (YYYY-MM-DD)",
+              "required": false,
+              "schema": {
+                "type": "string",
+                "format": "date"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Report file",
+              "content": {
+                "application/pdf": {
+                  "schema": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                },
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                  "schema": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                },
+                "text/csv": {
+                  "schema": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "tags": [
+      {
+        "name": "Public",
+        "description": "Public endpoints that don't require authentication"
+      },
+      {
+        "name": "Authentication",
+        "description": "User authentication endpoints"
+      },
+      {
+        "name": "Jobs",
+        "description": "Job management endpoints"
+      },
+      {
+        "name": "Vehicles",
+        "description": "Vehicle management endpoints"
+      },
+      {
+        "name": "Users",
+        "description": "User management endpoints. SuperAdmin can create Admins. SuperAdmin and Admin can create Dispatcher and Driver."
+      },
+      {
+        "name": "Payments",
+        "description": "Payment processing endpoints"
+      },
+      {
+        "name": "Reports",
+        "description": "Reporting and analytics endpoints (Admin only)"
+      }
+    ]
+  }
+  
+  

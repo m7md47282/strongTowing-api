@@ -1,0 +1,15 @@
+.main-content {
+  min-height: 100vh;
+  padding: 0;
+  
+  // Add padding-top when header is visible (fixed header)
+  &.with-header {
+    min-height: calc(100vh - 200px);
+    padding-top: 80px; // Account for fixed header height
+  }
+}
+
+// Ensure proper spacing for different pages
+.router-outlet {
+  min-height: 100%;
+}
