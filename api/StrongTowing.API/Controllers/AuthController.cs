@@ -39,6 +39,20 @@ public class AuthController : ControllerBase
     }
     
     /// <summary>
+    /// Gets the role name from RoleId - always use RoleId as source of truth
+    /// </summary>
+    private async Task<string> GetRoleNameFromRoleIdAsync(string roleId)
+    {
+        if (string.IsNullOrEmpty(roleId))
+        {
+            return string.Empty;
+        }
+
+        var role = await _roleManager.FindByIdAsync(roleId);
+        return role?.Name ?? string.Empty;
+    }
+
+    /// <summary>
     /// Ensures a role exists with the specific ID from UserRoles constants
     /// </summary>
     private async Task<IdentityRole?> EnsureRoleExistsAsync(string roleName)
@@ -127,8 +141,30 @@ public class AuthController : ControllerBase
                 return Unauthorized(new { error = "Unauthorized", message = "Invalid credentials" });
             }
 
-            // Get user roles
-            var roles = await _userManager.GetRolesAsync(user);
+            // Always use RoleId as source of truth - get role name from RoleId
+            var roleName = await GetRoleNameFromRoleIdAsync(user.RoleId);
+            
+            if (string.IsNullOrEmpty(roleName))
+            {
+                _logger.LogWarning("User {UserId} has RoleId {RoleId} but role not found", user.Id, user.RoleId);
+                return StatusCode(500, new { error = "Internal Server Error", message = "User role not found" });
+            }
+
+            // Sync Identity roles with RoleId to keep them in sync
+            var identityRoles = await _userManager.GetRolesAsync(user);
+            if (!identityRoles.Contains(roleName))
+            {
+                // Remove all existing Identity roles
+                if (identityRoles.Any())
+                {
+                    await _userManager.RemoveFromRolesAsync(user, identityRoles);
+                }
+                // Add the correct role based on RoleId
+                await _userManager.AddToRoleAsync(user, roleName);
+            }
+
+            // Use role from RoleId for token generation
+            var roles = new List<string> { roleName };
             
             // Generate JWT token
             var token = _jwtService.GenerateToken(user, roles);
@@ -141,9 +177,11 @@ public class AuthController : ControllerBase
                 Email = user.Email ?? string.Empty,
                 FullName = user.FullName,
                 PhoneNumber = user.PhoneNumber,
-                Role = roles.FirstOrDefault() ?? string.Empty,
+                Role = roleName,
                 RoleId = user.RoleId,
                 IsActive = user.IsActive,
+                HasChangedPassword = user.HasChangedPassword,
+                PasswordChangedAt = user.PasswordChangedAt,
                 CreatedAt = user.CreatedAt,
                 UpdatedAt = user.UpdatedAt
             };
@@ -275,11 +313,18 @@ public class AuthController : ControllerBase
                 });
             }
 
-            // Get the assigned role
-            var userRoles = await _userManager.GetRolesAsync(newUser);
+            // Always use RoleId as source of truth - get role name from RoleId
+            var roleName = await GetRoleNameFromRoleIdAsync(newUser.RoleId);
+            if (string.IsNullOrEmpty(roleName))
+            {
+                roleName = defaultRole; // Fallback to default role
+            }
+
+            // Use role from RoleId for token generation
+            var roles = new List<string> { roleName };
 
             // Generate JWT token for immediate login
-            var token = _jwtService.GenerateToken(newUser, userRoles);
+            var token = _jwtService.GenerateToken(newUser, roles);
             var expiresAt = _jwtService.GetExpirationTime();
 
             // Map to DTO
@@ -289,9 +334,11 @@ public class AuthController : ControllerBase
                 Email = newUser.Email ?? string.Empty,
                 FullName = newUser.FullName,
                 PhoneNumber = newUser.PhoneNumber,
-                Role = userRoles.FirstOrDefault() ?? defaultRole,
+                Role = roleName,
                 RoleId = newUser.RoleId,
                 IsActive = newUser.IsActive,
+                HasChangedPassword = newUser.HasChangedPassword,
+                PasswordChangedAt = newUser.PasswordChangedAt,
                 CreatedAt = newUser.CreatedAt,
                 UpdatedAt = null
             };
@@ -344,9 +391,12 @@ public class AuthController : ControllerBase
                 return Unauthorized(new { error = "Unauthorized", message = "User not found or inactive" });
             }
 
-            // Get current user's roles
-            var currentUserRoles = await _userManager.GetRolesAsync(currentUser);
-            var currentUserRole = currentUserRoles.FirstOrDefault() ?? string.Empty;
+            // Always use RoleId as source of truth - get role name from RoleId
+            var currentUserRole = await GetRoleNameFromRoleIdAsync(currentUser.RoleId);
+            if (string.IsNullOrEmpty(currentUserRole))
+            {
+                return Unauthorized(new { error = "Unauthorized", message = "User role not found" });
+            }
 
             // Validate requested role
             var requestedRole = request.Role.Trim();
@@ -421,8 +471,12 @@ public class AuthController : ControllerBase
                 return BadRequest(new { error = "Bad Request", message = $"Failed to assign role: {errors}" });
             }
 
-            // Get the assigned role
-            var userRoles = await _userManager.GetRolesAsync(newUser);
+            // Always use RoleId as source of truth - get role name from RoleId
+            var finalRoleName = await GetRoleNameFromRoleIdAsync(newUser.RoleId);
+            if (string.IsNullOrEmpty(finalRoleName))
+            {
+                finalRoleName = roleName; // Fallback to requested role
+            }
 
             // Map to DTO
             var userDto = new UserDto
@@ -431,9 +485,11 @@ public class AuthController : ControllerBase
                 Email = newUser.Email ?? string.Empty,
                 FullName = newUser.FullName,
                 PhoneNumber = newUser.PhoneNumber,
-                Role = userRoles.FirstOrDefault() ?? roleName,
+                Role = finalRoleName,
                 RoleId = newUser.RoleId,
                 IsActive = newUser.IsActive,
+                HasChangedPassword = newUser.HasChangedPassword,
+                PasswordChangedAt = newUser.PasswordChangedAt,
                 CreatedAt = newUser.CreatedAt,
                 UpdatedAt = null
             };
@@ -444,6 +500,82 @@ public class AuthController : ControllerBase
         {
             _logger.LogError(ex, "Error during registration for email: {Email}", request.Email);
             return StatusCode(500, new { error = "Internal Server Error", message = "An error occurred during registration" });
+        }
+    }
+
+    /// <summary>
+    /// Change Password
+    /// </summary>
+    [HttpPost("change-password")]
+    [Authorize]
+    public async Task<ActionResult<UserDto>> ChangePassword([FromBody] ChangePasswordRequest request)
+    {
+        try
+        {
+            // Get current user
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new { error = "Unauthorized", message = "User not authenticated" });
+            }
+
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null || !user.IsActive)
+            {
+                return Unauthorized(new { error = "Unauthorized", message = "User not found or inactive" });
+            }
+
+            // Verify current password
+            var isPasswordValid = await _userManager.CheckPasswordAsync(user, request.CurrentPassword);
+            if (!isPasswordValid)
+            {
+                return BadRequest(new { error = "Bad Request", message = "Current password is incorrect" });
+            }
+
+            // Change password
+            var changePasswordResult = await _userManager.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword);
+            if (!changePasswordResult.Succeeded)
+            {
+                var errors = string.Join(", ", changePasswordResult.Errors.Select(e => e.Description));
+                return BadRequest(new { error = "Bad Request", message = $"Failed to change password: {errors}" });
+            }
+
+            // Update password change tracking
+            user.HasChangedPassword = true;
+            user.PasswordChangedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.UtcNow;
+
+            var updateResult = await _userManager.UpdateAsync(user);
+            if (!updateResult.Succeeded)
+            {
+                _logger.LogWarning("Password changed but failed to update tracking fields for user: {UserId}", user.Id);
+            }
+
+            // Get role name
+            var roleName = await GetRoleNameFromRoleIdAsync(user.RoleId);
+
+            // Return updated user DTO
+            var userDto = new UserDto
+            {
+                Id = user.Id,
+                Email = user.Email ?? string.Empty,
+                FullName = user.FullName,
+                PhoneNumber = user.PhoneNumber,
+                Role = roleName,
+                RoleId = user.RoleId,
+                IsActive = user.IsActive,
+                HasChangedPassword = user.HasChangedPassword,
+                PasswordChangedAt = user.PasswordChangedAt,
+                CreatedAt = user.CreatedAt,
+                UpdatedAt = user.UpdatedAt
+            };
+
+            return Ok(userDto);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error changing password");
+            return StatusCode(500, new { error = "Internal Server Error", message = "An error occurred while changing password" });
         }
     }
 }

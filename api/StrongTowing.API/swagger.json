@@ -84,32 +84,103 @@
       },
       "CreateJobRequest": {
         "type": "object",
-        "required": ["vehicleId", "cost"],
+        "required": ["cost"],
+        "description": "Create a job with new or existing vehicle and client. Provide either VehicleId OR Vehicle data. Provide either ClientId OR Client data.",
         "properties": {
           "vehicleId": {
             "type": "integer",
-            "example": 1
+            "nullable": true,
+            "example": 1,
+            "description": "Existing vehicle ID (use this OR provide Vehicle data)"
+          },
+          "vehicle": {
+            "$ref": "#/components/schemas/VehicleData",
+            "description": "Vehicle data for new vehicle (use this OR provide vehicleId)"
+          },
+          "clientId": {
+            "type": "string",
+            "nullable": true,
+            "example": "client-user-id",
+            "description": "Existing client ID (use this OR provide Client data)"
+          },
+          "client": {
+            "$ref": "#/components/schemas/ClientData",
+            "description": "Client data for new client (use this OR provide clientId)"
           },
           "cost": {
             "type": "number",
             "format": "decimal",
-            "example": 150.00
+            "example": 150.00,
+            "description": "Job cost (required)"
           },
           "notes": {
             "type": "string",
+            "nullable": true,
             "example": "Vehicle won't start"
           },
           "pickupLocation": {
             "type": "string",
+            "nullable": true,
             "example": "123 Main St, City, State"
           },
           "dropoffLocation": {
             "type": "string",
+            "nullable": true,
             "example": "456 Oak Ave, City, State"
           },
           "serviceType": {
             "type": "string",
+            "nullable": true,
             "example": "Towing"
+          }
+        }
+      },
+      "VehicleData": {
+        "type": "object",
+        "required": ["vin", "make", "model", "year"],
+        "description": "Vehicle data for creating a new vehicle",
+        "properties": {
+          "vin": {
+            "type": "string",
+            "example": "1HGBH41JXMN109186"
+          },
+          "make": {
+            "type": "string",
+            "example": "Honda"
+          },
+          "model": {
+            "type": "string",
+            "example": "Civic"
+          },
+          "year": {
+            "type": "integer",
+            "example": 2021
+          },
+          "color": {
+            "type": "string",
+            "nullable": true,
+            "example": "Blue"
+          }
+        }
+      },
+      "ClientData": {
+        "type": "object",
+        "required": ["email", "fullName"],
+        "description": "Client data for creating a new client",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "client@example.com"
+          },
+          "fullName": {
+            "type": "string",
+            "example": "John Client"
+          },
+          "phoneNumber": {
+            "type": "string",
+            "nullable": true,
+            "example": "+1234567890"
           }
         }
       },
@@ -130,7 +201,29 @@
             "example": 1
           },
           "vehicle": {
-            "$ref": "#/components/schemas/VehicleDto"
+            "$ref": "#/components/schemas/VehicleDto",
+            "nullable": true
+          },
+          "clientId": {
+            "type": "string",
+            "example": "client-user-id",
+            "description": "Client (vehicle owner) ID"
+          },
+          "clientName": {
+            "type": "string",
+            "example": "John Client",
+            "description": "Client (vehicle owner) full name"
+          },
+          "clientEmail": {
+            "type": "string",
+            "example": "client@example.com",
+            "description": "Client (vehicle owner) email"
+          },
+          "clientPhoneNumber": {
+            "type": "string",
+            "nullable": true,
+            "example": "+1234567890",
+            "description": "Client (vehicle owner) phone number"
           },
           "driverId": {
             "type": "string",
@@ -166,6 +259,22 @@
             "format": "date-time",
             "nullable": true,
             "example": "2024-01-15T11:00:00Z"
+          },
+          "statusUpdatedById": {
+            "type": "string",
+            "nullable": true,
+            "example": "dispatcher-user-id"
+          },
+          "statusUpdatedByName": {
+            "type": "string",
+            "nullable": true,
+            "example": "Dispatcher Name"
+          },
+          "statusUpdatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "example": "2024-01-15T10:30:00Z"
           }
         }
       },
@@ -185,7 +294,7 @@
         "properties": {
           "status": {
             "type": "string",
-            "enum": ["Assigned", "OnRoute", "InProgress", "ReadyToRelease", "Completed"],
+            "enum": ["Pending", "Assigned", "OnRoute", "InProgress", "ReadyToRelease", "Completed"],
             "example": "OnRoute"
           }
         }
@@ -247,12 +356,29 @@
           },
           "role": {
             "type": "string",
-            "enum": ["SuperAdmin", "Administrator", "Dispatcher", "Driver"],
-            "example": "Driver"
+            "enum": ["SuperAdmin", "Administrator", "Dispatcher", "Driver", "User"],
+            "example": "Driver",
+            "description": "User role: SuperAdmin, Administrator, Dispatcher, Driver, or User (client)"
+          },
+          "roleId": {
+            "type": "string",
+            "example": "3"
           },
           "isActive": {
             "type": "boolean",
             "example": true
+          },
+          "hasChangedPassword": {
+            "type": "boolean",
+            "example": false,
+            "description": "Indicates if the user has changed their password from the temporary password"
+          },
+          "passwordChangedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "example": "2024-01-15T10:00:00Z",
+            "description": "Timestamp when the user changed their password"
           },
           "createdAt": {
             "type": "string",
@@ -264,6 +390,95 @@
             "format": "date-time",
             "nullable": true,
             "example": "2024-01-15T10:00:00Z"
+          }
+        }
+      },
+      "CreateUserResponse": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/UserDto"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "temporaryPassword": {
+                "type": "string",
+                "example": "TempPassword123!",
+                "description": "The temporary password for the newly created user. Only returned once during user creation."
+              }
+            }
+          }
+        ]
+      },
+      "ChangePasswordRequest": {
+        "type": "object",
+        "required": ["currentPassword", "newPassword"],
+        "properties": {
+          "currentPassword": {
+            "type": "string",
+            "format": "password",
+            "example": "CurrentPassword123!",
+            "description": "User's current password"
+          },
+          "newPassword": {
+            "type": "string",
+            "format": "password",
+            "example": "NewPassword123!",
+            "description": "User's new password"
+          }
+        }
+      },
+      "PagedResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserDto"
+            }
+          },
+          "pageNumber": {
+            "type": "integer",
+            "example": 1
+          },
+          "pageSize": {
+            "type": "integer",
+            "example": 10
+          },
+          "totalCount": {
+            "type": "integer",
+            "example": 100
+          },
+          "totalPages": {
+            "type": "integer",
+            "example": 10
+          },
+          "hasPreviousPage": {
+            "type": "boolean",
+            "example": false
+          },
+          "hasNextPage": {
+            "type": "boolean",
+            "example": true
+          }
+        }
+      },
+      "UpdateUserRequest": {
+        "type": "object",
+        "properties": {
+          "fullName": {
+            "type": "string",
+            "example": "Updated Name"
+          },
+          "phoneNumber": {
+            "type": "string",
+            "nullable": true,
+            "example": "+1234567890"
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true
           }
         }
       },
@@ -309,19 +524,21 @@
           },
           "role": {
             "type": "string",
-            "enum": ["SuperAdmin", "Administrator", "Dispatcher", "Driver"],
+            "enum": ["SuperAdmin", "Administrator", "Dispatcher", "Driver", "User"],
             "example": "Dispatcher",
-            "description": "SuperAdmin can create Admins. SuperAdmin and Admin can create Dispatcher and Driver."
+            "description": "SuperAdmin can create Admins. SuperAdmin and Admin can create Dispatcher and Driver. User role clients are typically created automatically when creating jobs."
           }
         }
       },
       "CreateVehicleRequest": {
         "type": "object",
-        "required": ["vin", "make", "model", "year"],
+        "required": ["vin", "make", "model", "year", "ownerId"],
+        "description": "Create a vehicle. Every vehicle must have an owner (client).",
         "properties": {
           "vin": {
             "type": "string",
-            "example": "1HGBH41JXMN109186"
+            "example": "1HGBH41JXMN109186",
+            "description": "Vehicle Identification Number (must be unique)"
           },
           "make": {
             "type": "string",
@@ -337,7 +554,13 @@
           },
           "color": {
             "type": "string",
+            "nullable": true,
             "example": "Blue"
+          },
+          "ownerId": {
+            "type": "string",
+            "example": "client-user-id",
+            "description": "Client (User role) ID who owns this vehicle (required)"
           }
         }
       },
@@ -700,6 +923,61 @@
         }
       }
     },
+    "/auth/change-password": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Change Password",
+        "description": "Change the current user's password. Updates HasChangedPassword flag to true.",
+        "operationId": "changePassword",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password changed successfully. Returns updated user with HasChangedPassword = true.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - Current password incorrect or new password validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/jobs": {
       "get": {
         "tags": ["Jobs"],
@@ -742,7 +1020,7 @@
       "post": {
         "tags": ["Jobs"],
         "summary": "Create Job",
-        "description": "Create a new job (Internal Intake - Admin/Dispatcher only)",
+        "description": "Create a new job with vehicle and client data. Supports creating new or using existing vehicle/client. Provide either VehicleId OR Vehicle data. Provide either ClientId OR Client data. (Admin/Dispatcher only)",
         "operationId": "createJob",
         "security": [
           {
@@ -867,7 +1145,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "$ref": "#/components/schemas/JobDto"
                 }
               }
             }
@@ -899,7 +1177,7 @@
       "put": {
         "tags": ["Jobs"],
         "summary": "Update Job Status",
-        "description": "Update the status of a job. ReadyToRelease requires exactly 5 photos.",
+        "description": "Update the status of a job (Admin/Dispatcher/Driver). ReadyToRelease requires exactly 5 photos. Drivers can only update their assigned jobs.",
         "operationId": "updateJobStatus",
         "security": [
           {
@@ -933,7 +1211,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "$ref": "#/components/schemas/JobDto"
                 }
               }
             }
@@ -991,7 +1269,7 @@
       "post": {
         "tags": ["Vehicles"],
         "summary": "Create Vehicle",
-        "description": "Create a new vehicle record (Admin/Dispatcher only)",
+        "description": "Create a new vehicle record. Every vehicle must have an owner (client with User role). (Admin/Dispatcher only)",
         "operationId": "createVehicle",
         "security": [
           {
@@ -1128,23 +1406,88 @@
       "get": {
         "tags": ["Users"],
         "summary": "Get All Users",
-        "description": "Retrieve all users in the system (Admin only)",
+        "description": "Retrieve all users in the system with pagination and filters (Admin only)",
         "operationId": "getAllUsers",
         "security": [
           {
             "Bearer": []
           }
         ],
+        "parameters": [
+          {
+            "name": "pageNumber",
+            "in": "query",
+            "description": "Page number (default: 1)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "example": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Number of items per page (default: 10, max: 100)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10,
+              "example": 10
+            }
+          },
+          {
+            "name": "role",
+            "in": "query",
+            "description": "Filter by role (SuperAdmin, Administrator, Dispatcher, Driver, User)",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["SuperAdmin", "Administrator", "Dispatcher", "Driver", "User"],
+              "example": "Driver"
+            }
+          },
+          {
+            "name": "isActive",
+            "in": "query",
+            "description": "Filter by active status",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "example": true
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Search by email, full name, or phone number",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "john"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "List of users",
+            "description": "Paginated list of users",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/UserDto"
-                  }
+                  "$ref": "#/components/schemas/PagedResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - Only Administrators can access this endpoint",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -1173,11 +1516,31 @@
         },
         "responses": {
           "201": {
-            "description": "User created successfully",
+            "description": "User created successfully. Returns user details with temporary password.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserDto"
+                  "$ref": "#/components/schemas/CreateUserResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - Only Administrators can create users",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -1256,17 +1619,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "fullName": {
-                    "type": "string",
-                    "example": "Updated Name"
-                  },
-                  "isActive": {
-                    "type": "boolean",
-                    "example": true
-                  }
-                }
+                "$ref": "#/components/schemas/UpdateUserRequest"
               }
             }
           }
@@ -1312,6 +1665,170 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/clients": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Get Clients",
+        "description": "Retrieve all clients (Users with role=User) with pagination and filters. For Dispatchers to select clients when creating jobs. (Admin/Dispatcher only)",
+        "operationId": "getClients",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "pageNumber",
+            "in": "query",
+            "description": "Page number (default: 1)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "example": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Number of items per page (default: 10, max: 100)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10,
+              "example": 10
+            }
+          },
+          {
+            "name": "isActive",
+            "in": "query",
+            "description": "Filter by active status",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "example": true
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Search by email, full name, or phone number",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "john"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of clients",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/drivers": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Get Drivers",
+        "description": "Retrieve all drivers (Users with role=Driver) with pagination and filters. For Dispatchers to assign drivers to jobs. (Admin/Dispatcher only)",
+        "operationId": "getDrivers",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "pageNumber",
+            "in": "query",
+            "description": "Page number (default: 1)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "example": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Number of items per page (default: 10, max: 100)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10,
+              "example": 10
+            }
+          },
+          {
+            "name": "isActive",
+            "in": "query",
+            "description": "Filter by active status",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "example": true
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Search by email, full name, or phone number",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "mike"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of drivers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }

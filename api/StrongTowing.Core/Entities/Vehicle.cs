@@ -14,9 +14,10 @@ namespace StrongTowing.Core.Entities
         public int Year { get; set; }
         public string Color { get; set; } = string.Empty;
 
-        // Optional owner link
-        public string? OwnerId { get; set; }
-        public ApplicationUser? Owner { get; set; }
+        // Required owner link - every vehicle must have an owner
+        [Required]
+        public string OwnerId { get; set; } = string.Empty;
+        public ApplicationUser Owner { get; set; } = null!;
     }
 }
 

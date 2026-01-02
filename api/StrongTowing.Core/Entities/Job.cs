@@ -28,6 +28,11 @@ namespace StrongTowing.Core.Entities
         // Let's create a separate JobPhoto entity to be clean.
         public ICollection<JobPhoto> Photos { get; set; } = new List<JobPhoto>();
 
+        // Status auditing
+        public string? StatusUpdatedById { get; set; }
+        public ApplicationUser? StatusUpdatedBy { get; set; }
+        public DateTime? StatusUpdatedAt { get; set; }
+
         // Timestamps
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? CompletedAt { get; set; }

@@ -9,7 +9,14 @@ public class UserDto
     public string Role { get; set; } = string.Empty;
     public string RoleId { get; set; } = string.Empty;
     public bool IsActive { get; set; }
+    public bool HasChangedPassword { get; set; }
+    public DateTime? PasswordChangedAt { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
+}
+
+public class CreateUserResponse : UserDto
+{
+    public string TemporaryPassword { get; set; } = string.Empty;
 }
 

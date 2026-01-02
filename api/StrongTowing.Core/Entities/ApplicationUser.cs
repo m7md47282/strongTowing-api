@@ -10,6 +10,10 @@ namespace StrongTowing.Core.Entities
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }
         
+        // Password change tracking
+        public bool HasChangedPassword { get; set; } = false;
+        public DateTime? PasswordChangedAt { get; set; }
+        
         // Role Foreign Key - Each user has exactly one role
         public string RoleId { get; set; } = string.Empty;
         public IdentityRole? Role { get; set; }
