@@ -33,6 +33,29 @@ namespace StrongTowing.Infrastructure.Data
             builder.Entity<ApplicationUser>()
                 .Property(u => u.RoleId)
                 .IsRequired();
+
+            // Vehicle -> Owner (client) FK - no cascade to avoid multiple cascade paths
+            builder.Entity<Vehicle>()
+                .HasOne(v => v.Owner)
+                .WithMany()
+                .HasForeignKey(v => v.OwnerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Job <-> ApplicationUser relationships
+            // NOTE: Job has TWO navigations to ApplicationUser (Driver + StatusUpdatedBy),
+            // so we must explicitly map them to avoid EF ambiguity at design time.
+            builder.Entity<Job>()
+                .HasOne(j => j.Driver)
+                .WithMany(u => u.AssignedJobs)
+                .HasForeignKey(j => j.DriverId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<Job>()
+                .HasOne(j => j.StatusUpdatedBy)
+                .WithMany()
+                .HasForeignKey(j => j.StatusUpdatedById)
+                .OnDelete(DeleteBehavior.Restrict);
         }
+        
     }
 }
