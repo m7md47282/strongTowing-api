@@ -150,3 +150,4 @@ For photo uploads (`POST /api/jobs/{id}/photos`):
 
 For questions or issues, contact the backend development team.
 
+

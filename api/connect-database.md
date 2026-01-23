@@ -116,3 +116,4 @@ Get-Service | Where-Object {$_.Name -like "*SQL*"}
 
 Or check SQL Server Configuration Manager for instance names.
 
+

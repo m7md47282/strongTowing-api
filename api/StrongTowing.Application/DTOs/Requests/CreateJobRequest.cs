@@ -16,14 +16,48 @@ public class CreateJobRequest
     // Or use existing client ID
     public string? ClientId { get; set; }
     
-    // Job data
+    // Call/Job Type
+    public string? CallType { get; set; } // "New Call" | "Completed Call" | "Schedule a call" | "Quote"
+    public DateTime? ScheduledDate { get; set; }
+    public TimeSpan? ScheduledTime { get; set; }
+    
+    // Company & Account
+    public string? CompanyName { get; set; }
+    public string? Account { get; set; } // Account ID or name
+    public string? CompanyOverride { get; set; } // Company name to show on invoice
+    
+    // Contact Information
+    public string? ContactName { get; set; }
+    public string? ContactPhoneNumber { get; set; }
+    
+    // Location
+    public string? PickupLocation { get; set; }
+    public string? DestinationAddress { get; set; }
+    
+    // Job Details
+    public string? Reason { get; set; }
+    public string? Priority { get; set; } // "Normal" | "Emergency" | "Low"
+    public string? InvoiceNumber { get; set; }
+    public DateTime? ETA { get; set; }
+    
+    // Assignment
+    public string? DriverId { get; set; }
+    public string? TruckId { get; set; }
+    
+    // Notes
+    public string? Notes { get; set; }
+    public string? BillingNotes { get; set; }
+    public bool IncludeBillingNotesOnReceipt { get; set; }
+    
+    // Invoice Charges
+    public InvoiceChargesData? InvoiceCharges { get; set; }
+    
+    // Job data (required)
     [Required(ErrorMessage = "Cost is required")]
     [Range(0.01, 999999.99, ErrorMessage = "Cost must be between 0.01 and 999999.99")]
     public decimal Cost { get; set; }
     
-    public string? Notes { get; set; }
-    public string? PickupLocation { get; set; }
-    public string? DropoffLocation { get; set; }
+    public string? DropoffLocation { get; set; } // Alias for DestinationAddress
     public string? ServiceType { get; set; }
 }
 
@@ -43,6 +77,16 @@ public class VehicleData
     public int Year { get; set; }
 
     public string? Color { get; set; }
+    
+    // Additional vehicle fields
+    public string? LicensePlate { get; set; }
+    public string? LicenseState { get; set; }
+    public string? DriveType { get; set; }
+    public string? VehicleType { get; set; }
+    public int? Odometer { get; set; }
+    public string? Drivable { get; set; } // "Yes" | "No"
+    public bool HaveKeys { get; set; }
+    public string? KeyLocation { get; set; }
 }
 
 public class ClientData
@@ -57,5 +101,35 @@ public class ClientData
 
     [Phone(ErrorMessage = "Invalid phone number format")]
     public string? PhoneNumber { get; set; }
+    
+    public string? ContactName { get; set; }
 }
+
+public class InvoiceChargesData
+{
+    public MileageChargeData? UnloadedEnrouteMileage { get; set; }
+    public MileageChargeData? LoadedHookedMileage { get; set; }
+    public List<ServiceItemData>? ServiceItems { get; set; }
+    public decimal? Discount { get; set; }
+    public bool TaxExempt { get; set; }
+    public decimal? Subtotal { get; set; }
+    public decimal? Taxes { get; set; }
+    public decimal? GrandTotal { get; set; }
+}
+
+public class MileageChargeData
+{
+    public decimal Quantity { get; set; }
+    public decimal Price { get; set; }
+    public decimal Total { get; set; }
+}
+
+public class ServiceItemData
+{
+    public string? ServiceName { get; set; }
+    public decimal Quantity { get; set; }
+    public decimal Price { get; set; }
+    public decimal Total { get; set; }
+}
+
 

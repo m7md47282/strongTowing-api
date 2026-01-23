@@ -13,6 +13,12 @@ namespace StrongTowing.Core.Entities
         public string Model { get; set; } = string.Empty;
         public int Year { get; set; }
         public string Color { get; set; } = string.Empty;
+        
+        // Optional vehicle details (can be overridden per job)
+        public string? LicensePlate { get; set; }
+        public string? LicenseState { get; set; }
+        public string? DriveType { get; set; }
+        public string? VehicleType { get; set; }
 
         // Required owner link - every vehicle must have an owner
         [Required]

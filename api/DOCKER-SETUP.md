@@ -102,3 +102,4 @@ docker ps | grep strongtowing-sqlserver
 - **Production**: This is only for local development. Production uses the actual SQL Server on your IIS server
 - **Password**: The password is set in `docker-compose.yml`. Change it if needed, but update `appsettings.Development.json` too
 
+

@@ -13,3 +13,4 @@ echo ""
 echo "To start it again, run: ./setup-docker-sql.sh"
 echo "To remove it completely, run: docker-compose down -v"
 
+

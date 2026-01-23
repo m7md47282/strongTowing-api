@@ -8,6 +8,7 @@ using StrongTowing.Core.Entities;
 using StrongTowing.Core.Constants;
 using StrongTowing.Core.Enums;
 using StrongTowing.Infrastructure.Data;
+using System.Text.Json;
 
 namespace StrongTowing.API.Controllers;
 
@@ -60,35 +61,7 @@ public class JobsController : ControllerBase
                 .OrderByDescending(j => j.CreatedAt)
                 .ToListAsync();
 
-            var jobDtos = jobs.Select(j => new JobDto
-            {
-                Id = j.Id,
-                Status = j.Status.ToString(),
-                VehicleId = j.VehicleId,
-                Vehicle = new VehicleDto
-                {
-                    Id = j.Vehicle.Id,
-                    VIN = j.Vehicle.VIN,
-                    Make = j.Vehicle.Make,
-                    Model = j.Vehicle.Model,
-                    Year = j.Vehicle.Year,
-                    Color = j.Vehicle.Color
-                },
-                ClientId = j.Vehicle.OwnerId,
-                ClientName = j.Vehicle.Owner?.FullName ?? string.Empty,
-                ClientEmail = j.Vehicle.Owner?.Email ?? string.Empty,
-                ClientPhoneNumber = j.Vehicle.Owner?.PhoneNumber,
-                Cost = j.Cost,
-                Notes = j.Notes,
-                DriverId = j.DriverId,
-                DriverName = j.Driver?.FullName,
-                PhotoCount = j.Photos.Count,
-                CreatedAt = j.CreatedAt,
-                CompletedAt = j.CompletedAt,
-                StatusUpdatedById = j.StatusUpdatedById,
-                StatusUpdatedByName = j.StatusUpdatedBy?.FullName,
-                StatusUpdatedAt = j.StatusUpdatedAt
-            }).ToList();
+            var jobDtos = jobs.Select(j => MapToJobDto(j)).ToList();
 
             return Ok(jobDtos);
         }
@@ -245,6 +218,10 @@ public class JobsController : ControllerBase
                         Model = request.Vehicle.Model,
                         Year = request.Vehicle.Year,
                         Color = request.Vehicle.Color ?? string.Empty,
+                        LicensePlate = request.Vehicle.LicensePlate,
+                        LicenseState = request.Vehicle.LicenseState,
+                        DriveType = request.Vehicle.DriveType,
+                        VehicleType = request.Vehicle.VehicleType,
                         OwnerId = client.Id
                     };
 
@@ -253,15 +230,94 @@ public class JobsController : ControllerBase
                 }
             }
 
-            // Step 3: Create Job
+            // Step 3: Handle Driver Assignment (if provided)
+            ApplicationUser? driver = null;
+            if (!string.IsNullOrEmpty(request.DriverId))
+            {
+                driver = await _userManager.FindByIdAsync(request.DriverId);
+                if (driver != null)
+                {
+                    var driverRoleId = UserRoles.GetRoleId(UserRoles.Driver);
+                    if (driver.RoleId == driverRoleId && driver.IsActive)
+                    {
+                        // Driver will be assigned below
+                    }
+                    else
+                    {
+                        driver = null; // Invalid driver, ignore
+                    }
+                }
+            }
+
+            // Step 4: Serialize Invoice Charges to JSON
+            string? invoiceChargesJson = null;
+            if (request.InvoiceCharges != null)
+            {
+                invoiceChargesJson = JsonSerializer.Serialize(request.InvoiceCharges);
+            }
+
+            // Step 5: Create Job
             var job = new Job
             {
                 VehicleId = vehicle.Id,
                 Cost = request.Cost,
                 Notes = request.Notes,
                 Status = JobStatus.Pending,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                
+                // Call/Job Type
+                CallType = request.CallType,
+                ScheduledDate = request.ScheduledDate,
+                ScheduledTime = request.ScheduledTime,
+                
+                // Company & Account
+                CompanyName = request.CompanyName,
+                Account = request.Account,
+                CompanyOverride = request.CompanyOverride,
+                
+                // Contact Information
+                ContactName = request.ContactName ?? request.Client?.ContactName,
+                ContactPhoneNumber = request.ContactPhoneNumber ?? request.Client?.PhoneNumber,
+                
+                // Location
+                PickupLocation = request.PickupLocation ?? request.PickupLocation,
+                DestinationAddress = request.DestinationAddress ?? request.DropoffLocation,
+                
+                // Job Details
+                Reason = request.Reason,
+                Priority = request.Priority,
+                InvoiceNumber = request.InvoiceNumber,
+                ETA = request.ETA,
+                ServiceType = request.ServiceType,
+                
+                // Vehicle Details (job-specific)
+                LicensePlate = request.Vehicle?.LicensePlate,
+                LicenseState = request.Vehicle?.LicenseState,
+                DriveType = request.Vehicle?.DriveType,
+                VehicleType = request.Vehicle?.VehicleType,
+                Odometer = request.Vehicle?.Odometer,
+                Drivable = request.Vehicle?.Drivable,
+                HaveKeys = request.Vehicle?.HaveKeys ?? false,
+                KeyLocation = request.Vehicle?.KeyLocation,
+                
+                // Assignment
+                DriverId = driver?.Id,
+                Driver = driver,
+                TruckId = request.TruckId,
+                
+                // Notes
+                BillingNotes = request.BillingNotes,
+                IncludeBillingNotesOnReceipt = request.IncludeBillingNotesOnReceipt,
+                
+                // Invoice Charges
+                InvoiceChargesJson = invoiceChargesJson
             };
+
+            // Set status to Assigned if driver is provided
+            if (driver != null)
+            {
+                job.Status = JobStatus.Assigned;
+            }
 
             _context.Jobs.Add(job);
             await _context.SaveChangesAsync();
@@ -275,29 +331,7 @@ public class JobsController : ControllerBase
                 .Reference(v => v.Owner)
                 .LoadAsync();
 
-            var jobDto = new JobDto
-            {
-                Id = job.Id,
-                Status = job.Status.ToString(),
-                VehicleId = job.VehicleId,
-                Vehicle = new VehicleDto
-                {
-                    Id = vehicle.Id,
-                    VIN = vehicle.VIN,
-                    Make = vehicle.Make,
-                    Model = vehicle.Model,
-                    Year = vehicle.Year,
-                    Color = vehicle.Color
-                },
-                ClientId = client.Id,
-                ClientName = client.FullName,
-                ClientEmail = client.Email ?? string.Empty,
-                ClientPhoneNumber = client.PhoneNumber,
-                Cost = job.Cost,
-                Notes = job.Notes,
-                PhotoCount = 0,
-                CreatedAt = job.CreatedAt
-            };
+            var jobDto = MapToJobDto(job);
 
             return CreatedAtAction(nameof(GetJobById), new { id = job.Id }, jobDto);
         }
@@ -328,36 +362,7 @@ public class JobsController : ControllerBase
                 return NotFound(new { error = "Not Found", message = $"Job with ID {id} was not found." });
             }
 
-            var jobDto = new JobDto
-            {
-                Id = job.Id,
-                Status = job.Status.ToString(),
-                VehicleId = job.VehicleId,
-                Vehicle = new VehicleDto
-                {
-                    Id = job.Vehicle.Id,
-                    VIN = job.Vehicle.VIN,
-                    Make = job.Vehicle.Make,
-                    Model = job.Vehicle.Model,
-                    Year = job.Vehicle.Year,
-                    Color = job.Vehicle.Color
-                },
-                ClientId = job.Vehicle.OwnerId,
-                ClientName = job.Vehicle.Owner?.FullName ?? string.Empty,
-                ClientEmail = job.Vehicle.Owner?.Email ?? string.Empty,
-                ClientPhoneNumber = job.Vehicle.Owner?.PhoneNumber,
-                Cost = job.Cost,
-                Notes = job.Notes,
-                DriverId = job.DriverId,
-                DriverName = job.Driver?.FullName,
-                PhotoCount = job.Photos.Count,
-                CreatedAt = job.CreatedAt,
-                CompletedAt = job.CompletedAt,
-                StatusUpdatedById = job.StatusUpdatedById,
-                StatusUpdatedByName = job.StatusUpdatedBy?.FullName,
-                StatusUpdatedAt = job.StatusUpdatedAt
-            };
-
+            var jobDto = MapToJobDto(job);
             return Ok(jobDto);
         }
         catch (Exception ex)
@@ -416,36 +421,7 @@ public class JobsController : ControllerBase
 
             await _context.SaveChangesAsync();
 
-            var jobDto = new JobDto
-            {
-                Id = job.Id,
-                Status = job.Status.ToString(),
-                VehicleId = job.VehicleId,
-                Vehicle = new VehicleDto
-                {
-                    Id = job.Vehicle.Id,
-                    VIN = job.Vehicle.VIN,
-                    Make = job.Vehicle.Make,
-                    Model = job.Vehicle.Model,
-                    Year = job.Vehicle.Year,
-                    Color = job.Vehicle.Color
-                },
-                ClientId = job.Vehicle.OwnerId,
-                ClientName = job.Vehicle.Owner?.FullName ?? string.Empty,
-                ClientEmail = job.Vehicle.Owner?.Email ?? string.Empty,
-                ClientPhoneNumber = job.Vehicle.Owner?.PhoneNumber,
-                Cost = job.Cost,
-                Notes = job.Notes,
-                DriverId = job.DriverId,
-                DriverName = driver.FullName,
-                PhotoCount = job.Photos.Count,
-                CreatedAt = job.CreatedAt,
-                CompletedAt = job.CompletedAt,
-                StatusUpdatedById = job.StatusUpdatedById,
-                StatusUpdatedByName = job.StatusUpdatedBy?.FullName,
-                StatusUpdatedAt = job.StatusUpdatedAt
-            };
-
+            var jobDto = MapToJobDto(job);
             return Ok(jobDto);
         }
         catch (Exception ex)
@@ -511,36 +487,7 @@ public class JobsController : ControllerBase
                 job.StatusUpdatedBy = await _userManager.FindByIdAsync(job.StatusUpdatedById);
             }
 
-            var jobDto = new JobDto
-            {
-                Id = job.Id,
-                Status = job.Status.ToString(),
-                VehicleId = job.VehicleId,
-                Vehicle = new VehicleDto
-                {
-                    Id = job.Vehicle.Id,
-                    VIN = job.Vehicle.VIN,
-                    Make = job.Vehicle.Make,
-                    Model = job.Vehicle.Model,
-                    Year = job.Vehicle.Year,
-                    Color = job.Vehicle.Color
-                },
-                ClientId = job.Vehicle.OwnerId,
-                ClientName = job.Vehicle.Owner?.FullName ?? string.Empty,
-                ClientEmail = job.Vehicle.Owner?.Email ?? string.Empty,
-                ClientPhoneNumber = job.Vehicle.Owner?.PhoneNumber,
-                Cost = job.Cost,
-                Notes = job.Notes,
-                DriverId = job.DriverId,
-                DriverName = job.Driver?.FullName,
-                PhotoCount = job.Photos.Count,
-                CreatedAt = job.CreatedAt,
-                CompletedAt = job.CompletedAt,
-                StatusUpdatedById = job.StatusUpdatedById,
-                StatusUpdatedByName = job.StatusUpdatedBy?.FullName,
-                StatusUpdatedAt = job.StatusUpdatedAt
-            };
-
+            var jobDto = MapToJobDto(job);
             return Ok(jobDto);
         }
         catch (Exception ex)
@@ -557,6 +504,97 @@ public class JobsController : ControllerBase
         var random = new Random();
         return new string(Enumerable.Repeat(chars, 12)
             .Select(s => s[random.Next(s.Length)]).ToArray());
+    }
+
+    private JobDto MapToJobDto(Job job)
+    {
+        // Deserialize invoice charges if present
+        InvoiceChargesData? invoiceCharges = null;
+        if (!string.IsNullOrEmpty(job.InvoiceChargesJson))
+        {
+            try
+            {
+                invoiceCharges = JsonSerializer.Deserialize<InvoiceChargesData>(job.InvoiceChargesJson);
+            }
+            catch
+            {
+                // Ignore deserialization errors
+            }
+        }
+
+        return new JobDto
+        {
+            Id = job.Id,
+            Status = job.Status.ToString(),
+            VehicleId = job.VehicleId,
+            Vehicle = job.Vehicle != null ? new VehicleDto
+            {
+                Id = job.Vehicle.Id,
+                VIN = job.Vehicle.VIN,
+                Make = job.Vehicle.Make,
+                Model = job.Vehicle.Model,
+                Year = job.Vehicle.Year,
+                Color = job.Vehicle.Color
+            } : null,
+            ClientId = job.Vehicle?.OwnerId ?? string.Empty,
+            ClientName = job.Vehicle?.Owner?.FullName ?? string.Empty,
+            ClientEmail = job.Vehicle?.Owner?.Email ?? string.Empty,
+            ClientPhoneNumber = job.Vehicle?.Owner?.PhoneNumber,
+            
+            // Call/Job Type
+            CallType = job.CallType,
+            ScheduledDate = job.ScheduledDate,
+            ScheduledTime = job.ScheduledTime,
+            
+            // Company & Account
+            CompanyName = job.CompanyName,
+            Account = job.Account,
+            CompanyOverride = job.CompanyOverride,
+            
+            // Contact Information
+            ContactName = job.ContactName,
+            ContactPhoneNumber = job.ContactPhoneNumber,
+            
+            // Location
+            PickupLocation = job.PickupLocation,
+            DestinationAddress = job.DestinationAddress,
+            
+            // Job Details
+            Reason = job.Reason,
+            Priority = job.Priority,
+            InvoiceNumber = job.InvoiceNumber,
+            ETA = job.ETA,
+            ServiceType = job.ServiceType,
+            
+            // Vehicle Details
+            LicensePlate = job.LicensePlate,
+            LicenseState = job.LicenseState,
+            DriveType = job.DriveType,
+            VehicleType = job.VehicleType,
+            Odometer = job.Odometer,
+            Drivable = job.Drivable,
+            HaveKeys = job.HaveKeys,
+            KeyLocation = job.KeyLocation,
+            
+            // Assignment
+            DriverId = job.DriverId,
+            DriverName = job.Driver?.FullName,
+            TruckId = job.TruckId,
+            
+            // Financials
+            Cost = job.Cost,
+            Notes = job.Notes,
+            BillingNotes = job.BillingNotes,
+            IncludeBillingNotesOnReceipt = job.IncludeBillingNotesOnReceipt,
+            InvoiceCharges = invoiceCharges,
+            
+            PhotoCount = job.Photos?.Count ?? 0,
+            CreatedAt = job.CreatedAt,
+            CompletedAt = job.CompletedAt,
+            StatusUpdatedById = job.StatusUpdatedById,
+            StatusUpdatedByName = job.StatusUpdatedBy?.FullName,
+            StatusUpdatedAt = job.StatusUpdatedAt
+        };
     }
 }
 
