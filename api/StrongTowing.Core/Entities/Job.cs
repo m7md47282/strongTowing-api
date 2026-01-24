@@ -63,6 +63,14 @@ namespace StrongTowing.Core.Entities
         // Invoice Charges (stored as JSON or separate table - using JSON for simplicity)
         [Column(TypeName = "nvarchar(max)")]
         public string? InvoiceChargesJson { get; set; }
+        
+        // Payment fields
+        public string? PaymentMethod { get; set; } // 'Card', 'PaymentLink', 'Cash'
+        public string PaymentStatus { get; set; } = "Unpaid"; // 'Unpaid', 'Pending', 'Paid', 'Failed'
+        public int? PaymentId { get; set; }
+        public Payment? Payment { get; set; }
+        public DateTime? PaidAt { get; set; }
+        public string? PaidBy { get; set; } // Dispatcher/Driver User ID
 
         // Photos (Stored as a simple list of URLs for MVP)
         // We use a backing field or separate table usually, 

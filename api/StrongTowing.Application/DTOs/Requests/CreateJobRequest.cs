@@ -91,16 +91,16 @@ public class VehicleData
 
 public class ClientData
 {
-    [Required(ErrorMessage = "Email is required")]
-    [EmailAddress(ErrorMessage = "Invalid email format")]
-    public string Email { get; set; } = string.Empty;
+    [Required(ErrorMessage = "Phone number is required")]
+    [Phone(ErrorMessage = "Invalid phone number format")]
+    public string PhoneNumber { get; set; } = string.Empty; // Phone number is the unique identifier
 
     [Required(ErrorMessage = "Full name is required")]
     [MinLength(2, ErrorMessage = "Full name must be at least 2 characters")]
     public string FullName { get; set; } = string.Empty;
 
-    [Phone(ErrorMessage = "Invalid phone number format")]
-    public string? PhoneNumber { get; set; }
+    [EmailAddress(ErrorMessage = "Invalid email format")]
+    public string? Email { get; set; } // Email is now optional
     
     public string? ContactName { get; set; }
 }

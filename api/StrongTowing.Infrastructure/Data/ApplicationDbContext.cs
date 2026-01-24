@@ -14,6 +14,10 @@ namespace StrongTowing.Infrastructure.Data
         public DbSet<Vehicle> Vehicles { get; set; }
         public DbSet<Job> Jobs { get; set; }
         public DbSet<JobPhoto> JobPhotos { get; set; } // Added this one
+        public DbSet<Payment> Payments { get; set; }
+        public DbSet<CashCollection> CashCollections { get; set; }
+        public DbSet<SystemSettings> SystemSettings { get; set; }
+        public DbSet<DriverPayroll> DriverPayrolls { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -55,6 +59,50 @@ namespace StrongTowing.Infrastructure.Data
                 .WithMany()
                 .HasForeignKey(j => j.StatusUpdatedById)
                 .OnDelete(DeleteBehavior.Restrict);
+            
+            // Payment relationships
+            builder.Entity<Payment>()
+                .HasOne(p => p.Job)
+                .WithMany()
+                .HasForeignKey(p => p.JobId)
+                .OnDelete(DeleteBehavior.Restrict);
+            
+            builder.Entity<Job>()
+                .HasOne(j => j.Payment)
+                .WithMany()
+                .HasForeignKey(j => j.PaymentId)
+                .OnDelete(DeleteBehavior.SetNull);
+            
+            // CashCollection relationships
+            builder.Entity<CashCollection>()
+                .HasOne(cc => cc.Job)
+                .WithMany()
+                .HasForeignKey(cc => cc.JobId)
+                .OnDelete(DeleteBehavior.Restrict);
+            
+            builder.Entity<CashCollection>()
+                .HasOne(cc => cc.Payment)
+                .WithMany()
+                .HasForeignKey(cc => cc.PaymentId)
+                .OnDelete(DeleteBehavior.Restrict);
+            
+            builder.Entity<CashCollection>()
+                .HasOne(cc => cc.Driver)
+                .WithMany()
+                .HasForeignKey(cc => cc.DriverId)
+                .OnDelete(DeleteBehavior.Restrict);
+            
+            // DriverPayroll relationships
+            builder.Entity<DriverPayroll>()
+                .HasOne(dp => dp.Driver)
+                .WithMany()
+                .HasForeignKey(dp => dp.DriverId)
+                .OnDelete(DeleteBehavior.Restrict);
+            
+            // SystemSettings - single row table
+            builder.Entity<SystemSettings>()
+                .HasIndex(s => s.Id)
+                .IsUnique();
         }
         
     }

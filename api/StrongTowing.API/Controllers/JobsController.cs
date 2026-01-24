@@ -122,22 +122,28 @@ public class JobsController : ControllerBase
                     return BadRequest(new { error = "Bad Request", message = "Client data is required when ClientId is not provided." });
                 }
 
-                // Check if client already exists by email
-                var existingClient = await _userManager.FindByEmailAsync(request.Client.Email);
+                // Check if client already exists by phone number (phone number is the unique identifier)
+                var existingClient = await _userManager.FindByNameAsync(request.Client.PhoneNumber);
+                if (existingClient == null)
+                {
+                    // Also check by phone number field as fallback
+                    existingClient = _context.Users.FirstOrDefault(u => u.PhoneNumber == request.Client.PhoneNumber);
+                }
+                
                 if (existingClient != null)
                 {
                     // Verify it's a User role
                     var userRoleId = UserRoles.GetRoleId(UserRoles.User);
                     if (existingClient.RoleId != userRoleId)
                     {
-                        return BadRequest(new { error = "Bad Request", message = "A user with this email exists but is not a client." });
+                        return BadRequest(new { error = "Bad Request", message = "A user with this phone number exists but is not a client." });
                     }
                     // Use existing client
                     client = existingClient;
                 }
                 else
                 {
-                    // Create new client user
+                    // Create new client user - phone number is the unique identifier
                     var userRoleId = UserRoles.GetRoleId(UserRoles.User);
                     var userRole = await _roleManager.FindByIdAsync(userRoleId);
                     if (userRole == null)
@@ -147,10 +153,10 @@ public class JobsController : ControllerBase
 
                     client = new ApplicationUser
                     {
-                        UserName = request.Client.Email,
-                        Email = request.Client.Email,
+                        UserName = request.Client.PhoneNumber, // Phone number is used as UserName (unique identifier)
+                        Email = request.Client.Email, // Email is optional
                         FullName = request.Client.FullName,
-                        PhoneNumber = request.Client.PhoneNumber,
+                        PhoneNumber = request.Client.PhoneNumber, // Required - main key
                         RoleId = userRoleId,
                         IsActive = true,
                         CreatedAt = DateTime.UtcNow
