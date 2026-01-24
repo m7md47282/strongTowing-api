@@ -18,6 +18,7 @@ namespace StrongTowing.Infrastructure.Data
         public DbSet<CashCollection> CashCollections { get; set; }
         public DbSet<SystemSettings> SystemSettings { get; set; }
         public DbSet<DriverPayroll> DriverPayrolls { get; set; }
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -103,6 +104,20 @@ namespace StrongTowing.Infrastructure.Data
             builder.Entity<SystemSettings>()
                 .HasIndex(s => s.Id)
                 .IsUnique();
+            
+            // RefreshToken configuration
+            builder.Entity<RefreshToken>()
+                .HasOne(rt => rt.User)
+                .WithMany()
+                .HasForeignKey(rt => rt.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<RefreshToken>()
+                .HasIndex(rt => rt.Token)
+                .IsUnique();
+
+            builder.Entity<RefreshToken>()
+                .HasIndex(rt => rt.UserId);
         }
         
     }

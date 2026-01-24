@@ -10,6 +10,8 @@ public interface IJwtService
 {
     string GenerateToken(ApplicationUser user, IList<string> roles);
     DateTime GetExpirationTime();
+    string GenerateRefreshToken();
+    DateTime GetRefreshTokenExpirationTime();
 }
 
 public class JwtService : IJwtService
@@ -64,6 +66,21 @@ public class JwtService : IJwtService
         var jwtSettings = _configuration.GetSection("JwtSettings");
         var expirationMinutes = int.Parse(jwtSettings["ExpirationMinutes"] ?? "60");
         return DateTime.UtcNow.AddMinutes(expirationMinutes);
+    }
+
+    public string GenerateRefreshToken()
+    {
+        var randomNumber = new byte[64];
+        using var rng = System.Security.Cryptography.RandomNumberGenerator.Create();
+        rng.GetBytes(randomNumber);
+        return Convert.ToBase64String(randomNumber);
+    }
+
+    public DateTime GetRefreshTokenExpirationTime()
+    {
+        var jwtSettings = _configuration.GetSection("JwtSettings");
+        var expirationDays = int.Parse(jwtSettings["RefreshTokenExpirationDays"] ?? "7");
+        return DateTime.UtcNow.AddDays(expirationDays);
     }
 }
 

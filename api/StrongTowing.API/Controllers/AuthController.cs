@@ -170,6 +170,31 @@ public class AuthController : ControllerBase
             var token = _jwtService.GenerateToken(user, roles);
             var expiresAt = _jwtService.GetExpirationTime();
 
+            // Generate and store refresh token
+            var refreshTokenValue = _jwtService.GenerateRefreshToken();
+            var refreshTokenExpiresAt = _jwtService.GetRefreshTokenExpirationTime();
+            
+            var refreshToken = new RefreshToken
+            {
+                Token = refreshTokenValue,
+                UserId = user.Id,
+                ExpiresAt = refreshTokenExpiresAt,
+                CreatedAt = DateTime.UtcNow
+            };
+            
+            // Revoke old refresh tokens for this user (optional - for security)
+            var oldTokens = await _context.RefreshTokens
+                .Where(rt => rt.UserId == user.Id && rt.IsActive)
+                .ToListAsync();
+            
+            foreach (var oldToken in oldTokens)
+            {
+                oldToken.RevokedAt = DateTime.UtcNow;
+            }
+            
+            _context.RefreshTokens.Add(refreshToken);
+            await _context.SaveChangesAsync();
+
             // Map user to DTO
             var userDto = new UserDto
             {
@@ -189,6 +214,7 @@ public class AuthController : ControllerBase
             var response = new LoginResponse
             {
                 Token = token,
+                RefreshToken = refreshTokenValue,
                 User = userDto,
                 ExpiresAt = expiresAt
             };
@@ -576,6 +602,107 @@ public class AuthController : ControllerBase
         {
             _logger.LogError(ex, "Error changing password");
             return StatusCode(500, new { error = "Internal Server Error", message = "An error occurred while changing password" });
+        }
+    }
+
+    /// <summary>
+    /// Refresh Access Token
+    /// </summary>
+    [HttpPost("refresh-token")]
+    [AllowAnonymous]
+    public async Task<ActionResult<LoginResponse>> RefreshToken([FromBody] RefreshTokenRequest request)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(request.RefreshToken))
+            {
+                return BadRequest(new { error = "Bad Request", message = "Refresh token is required" });
+            }
+
+            // Find the refresh token
+            var refreshToken = await _context.RefreshTokens
+                .Include(rt => rt.User)
+                .FirstOrDefaultAsync(rt => rt.Token == request.RefreshToken);
+
+            if (refreshToken == null)
+            {
+                return Unauthorized(new { error = "Unauthorized", message = "Invalid refresh token" });
+            }
+
+            // Check if token is active
+            if (!refreshToken.IsActive)
+            {
+                return Unauthorized(new { error = "Unauthorized", message = "Refresh token has expired or been revoked" });
+            }
+
+            // Check if user is still active
+            if (refreshToken.User == null || !refreshToken.User.IsActive)
+            {
+                return Unauthorized(new { error = "Unauthorized", message = "User account is inactive" });
+            }
+
+            // Get user role
+            var roleName = await GetRoleNameFromRoleIdAsync(refreshToken.User.RoleId);
+            if (string.IsNullOrEmpty(roleName))
+            {
+                return StatusCode(500, new { error = "Internal Server Error", message = "User role not found" });
+            }
+
+            var roles = new List<string> { roleName };
+
+            // Generate new access token
+            var newToken = _jwtService.GenerateToken(refreshToken.User, roles);
+            var expiresAt = _jwtService.GetExpirationTime();
+
+            // Optional: Rotate refresh token (generate new one and revoke old one)
+            var newRefreshTokenValue = _jwtService.GenerateRefreshToken();
+            var newRefreshTokenExpiresAt = _jwtService.GetRefreshTokenExpirationTime();
+            
+            // Revoke old refresh token
+            refreshToken.RevokedAt = DateTime.UtcNow;
+            
+            // Create new refresh token
+            var newRefreshToken = new RefreshToken
+            {
+                Token = newRefreshTokenValue,
+                UserId = refreshToken.User.Id,
+                ExpiresAt = newRefreshTokenExpiresAt,
+                CreatedAt = DateTime.UtcNow
+            };
+            
+            _context.RefreshTokens.Add(newRefreshToken);
+            await _context.SaveChangesAsync();
+
+            // Map user to DTO
+            var userDto = new UserDto
+            {
+                Id = refreshToken.User.Id,
+                Email = refreshToken.User.Email ?? string.Empty,
+                FullName = refreshToken.User.FullName,
+                PhoneNumber = refreshToken.User.PhoneNumber,
+                Role = roleName,
+                RoleId = refreshToken.User.RoleId,
+                IsActive = refreshToken.User.IsActive,
+                HasChangedPassword = refreshToken.User.HasChangedPassword,
+                PasswordChangedAt = refreshToken.User.PasswordChangedAt,
+                CreatedAt = refreshToken.User.CreatedAt,
+                UpdatedAt = refreshToken.User.UpdatedAt
+            };
+
+            var response = new LoginResponse
+            {
+                Token = newToken,
+                RefreshToken = newRefreshTokenValue, // Return new refresh token
+                User = userDto,
+                ExpiresAt = expiresAt
+            };
+
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error refreshing token");
+            return StatusCode(500, new { error = "Internal Server Error", message = "An error occurred while refreshing token" });
         }
     }
 }
