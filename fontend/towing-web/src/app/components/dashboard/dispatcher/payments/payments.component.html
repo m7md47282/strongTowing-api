@@ -1,0 +1,629 @@
+<div class="p-8 min-h-screen bg-gray-50">
+  <!-- Header -->
+  <div class="mb-6 flex items-center justify-between">
+    <div>
+      <h1 class="text-3xl font-bold text-gray-900">Payments</h1>
+      <p class="text-gray-600 mt-1">Manage all payments and track revenue</p>
+    </div>
+    <button
+      (click)="openCreateLinkModal()"
+      class="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors font-medium"
+    >
+      <i class="fas fa-link mr-2"></i>Create Payment Link
+    </button>
+  </div>
+
+  <!-- Statistics Cards -->
+  @if (statistics) {
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+      <!-- Total Revenue -->
+      <div class="bg-white rounded-lg shadow-sm p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-600">Total Revenue</p>
+            <p class="text-2xl font-bold text-gray-900 mt-2">
+              {{ formatCurrency(statistics.totalRevenue) }}
+            </p>
+          </div>
+          <div class="bg-green-100 rounded-full p-3">
+            <i class="fas fa-dollar-sign text-green-600 text-xl"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Total Payments -->
+      <div class="bg-white rounded-lg shadow-sm p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-600">Total Payments</p>
+            <p class="text-2xl font-bold text-gray-900 mt-2">
+              {{ statistics.totalPayments }}
+            </p>
+          </div>
+          <div class="bg-blue-100 rounded-full p-3">
+            <i class="fas fa-receipt text-blue-600 text-xl"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pending Payments -->
+      <div class="bg-white rounded-lg shadow-sm p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-600">Pending Payments</p>
+            <p class="text-2xl font-bold text-gray-900 mt-2">
+              {{ statistics.pendingPayments }}
+            </p>
+          </div>
+          <div class="bg-yellow-100 rounded-full p-3">
+            <i class="fas fa-clock text-yellow-600 text-xl"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Driver Commissions -->
+      <div class="bg-white rounded-lg shadow-sm p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-600">Driver Commissions</p>
+            <p class="text-2xl font-bold text-gray-900 mt-2">
+              {{ formatCurrency(statistics.totalDriverCommissions) }}
+            </p>
+          </div>
+          <div class="bg-purple-100 rounded-full p-3">
+            <i class="fas fa-users text-purple-600 text-xl"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Payment Method Breakdown -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+      <div class="bg-white rounded-lg shadow-sm p-6">
+        <div class="flex items-center justify-between mb-2">
+          <p class="text-sm font-medium text-gray-600">Card Payments</p>
+          <i class="fas fa-credit-card text-gray-400"></i>
+        </div>
+        <p class="text-xl font-bold text-gray-900">{{ formatCurrency(statistics.revenueByMethod.card) }}</p>
+      </div>
+      <div class="bg-white rounded-lg shadow-sm p-6">
+        <div class="flex items-center justify-between mb-2">
+          <p class="text-sm font-medium text-gray-600">Payment Links</p>
+          <i class="fas fa-link text-gray-400"></i>
+        </div>
+        <p class="text-xl font-bold text-gray-900">{{ formatCurrency(statistics.revenueByMethod.paymentLink) }}</p>
+      </div>
+      <div class="bg-white rounded-lg shadow-sm p-6">
+        <div class="flex items-center justify-between mb-2">
+          <p class="text-sm font-medium text-gray-600">Cash Collected</p>
+          <i class="fas fa-money-bill text-gray-400"></i>
+        </div>
+        <p class="text-xl font-bold text-gray-900">{{ formatCurrency(statistics.totalCashCollected) }}</p>
+      </div>
+    </div>
+  }
+
+  <!-- Filters -->
+  <div class="bg-white rounded-lg shadow-sm p-4 mb-6">
+    <form [formGroup]="filtersForm" (ngSubmit)="onFilterChange()" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- Search -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Search</label>
+        <div class="relative">
+          <input
+            type="text"
+            formControlName="searchTerm"
+            [(ngModel)]="searchTerm"
+            (input)="onSearchChange()"
+            placeholder="Job ID, client name, transaction..."
+            class="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary"
+          />
+          <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+        </div>
+      </div>
+
+      <!-- Payment Method -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Payment Method</label>
+        <select
+          formControlName="paymentMethod"
+          [(ngModel)]="paymentMethodFilter"
+          (change)="onFilterChange()"
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary"
+        >
+          <option value="">All Methods</option>
+          <option value="Card">Card</option>
+          <option value="PaymentLink">Payment Link</option>
+          <option value="Cash">Cash</option>
+        </select>
+      </div>
+
+      <!-- Payment Status -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+        <select
+          formControlName="paymentStatus"
+          [(ngModel)]="paymentStatusFilter"
+          (change)="onFilterChange()"
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary"
+        >
+          <option value="">All Statuses</option>
+          <option value="Paid">Paid</option>
+          <option value="Pending">Pending</option>
+          <option value="Failed">Failed</option>
+        </select>
+      </div>
+
+      <!-- Driver -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Driver</label>
+        <select
+          formControlName="driverId"
+          [(ngModel)]="driverFilter"
+          (change)="onFilterChange()"
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary"
+        >
+          <option value="">All Drivers</option>
+          @for (driver of drivers; track driver.id) {
+            <option [value]="driver.id">{{ driver.fullName }}</option>
+          }
+        </select>
+      </div>
+
+      <!-- Date Range -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+        <input
+          type="date"
+          formControlName="startDate"
+          [(ngModel)]="dateRangeStart"
+          (change)="onFilterChange()"
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary"
+        />
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+        <input
+          type="date"
+          formControlName="endDate"
+          [(ngModel)]="dateRangeEnd"
+          (change)="onFilterChange()"
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary"
+        />
+      </div>
+    </form>
+  </div>
+
+  <!-- Messages -->
+  @if (error) {
+    <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+      <i class="fas fa-exclamation-circle mr-2"></i>{{ error }}
+    </div>
+  }
+
+  @if (successMessage) {
+    <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-6">
+      <i class="fas fa-check-circle mr-2"></i>{{ successMessage }}
+    </div>
+  }
+
+  <!-- Payments List -->
+  @if (loading) {
+    <div class="bg-white rounded-lg shadow-sm p-12 text-center">
+      <i class="fas fa-spinner fa-spin text-4xl text-primary mb-4"></i>
+      <p class="text-gray-600">Loading payments...</p>
+    </div>
+  } @else if (filteredPayments.length > 0) {
+    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Driver</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Commission</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+          @for (payment of filteredPayments; track payment.id) {
+            <tr class="hover:bg-gray-50">
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="text-sm font-medium text-gray-900">{{ payment.jobNumber }}</div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="text-sm text-gray-900">{{ payment.clientName }}</div>
+                <div class="text-sm text-gray-500">{{ payment.clientEmail }}</div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="text-sm font-semibold text-gray-900">{{ formatCurrency(payment.amount) }}</div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="flex items-center">
+                  <i class="fas {{ getPaymentMethodIcon(payment.paymentMethod) }} mr-2 text-gray-400"></i>
+                  <span class="text-sm text-gray-900">{{ payment.paymentMethod }}</span>
+                  @if (payment.paymentMethod === 'Card' && payment.cardLast4) {
+                    <span class="ml-2 text-xs text-gray-500">****{{ payment.cardLast4 }}</span>
+                  }
+                </div>
+                @if (payment.paymentMethod === 'Cash' && payment.cashCollected) {
+                  <div class="text-xs text-green-600 mt-1">
+                    <i class="fas fa-check-circle mr-1"></i>Cash Collected
+                  </div>
+                }
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <span class="px-2 py-1 text-xs font-semibold rounded-full {{ getPaymentStatusClass(payment.paymentStatus) }}">
+                  {{ payment.paymentStatus }}
+                </span>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="text-sm text-gray-900">{{ payment.driverName || 'N/A' }}</div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="text-sm font-medium text-gray-900">{{ formatCurrency(payment.driverCommission) }}</div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="text-sm text-gray-600">{{ formatDate(payment.processedAt) }}</div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <button
+                  (click)="viewPaymentDetails(payment)"
+                  class="text-primary hover:text-primary-dark mr-4"
+                  title="View Details"
+                >
+                  <i class="fas fa-eye"></i>
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  } @else {
+    <div class="bg-white rounded-lg shadow-sm p-12 text-center">
+      <i class="fas fa-receipt text-6xl text-gray-300 mb-4"></i>
+      <h3 class="text-xl font-semibold text-gray-900 mb-2">No payments found</h3>
+      <p class="text-gray-600">No payments match your current filters</p>
+    </div>
+  }
+
+  <!-- Create Payment Link Modal -->
+  @if (showCreateLinkModal) {
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div class="p-6 border-b border-gray-200">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-2xl font-bold text-gray-900">Create Payment Link</h2>
+              <p class="text-sm text-gray-600 mt-1">Generate a payment link for a customer to pay online</p>
+            </div>
+            <button
+              (click)="closeCreateLinkModal()"
+              class="text-gray-400 hover:text-gray-600"
+            >
+              <i class="fas fa-times text-xl"></i>
+            </button>
+          </div>
+        </div>
+        <form [formGroup]="createPaymentLinkForm" (ngSubmit)="onCreatePaymentLink()" class="p-6">
+          <div class="space-y-6">
+            <!-- Job Selection -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Select Job *</label>
+              
+              <!-- Job Search -->
+              <div class="mb-3">
+                <div class="relative">
+                  <input
+                    type="text"
+                    [(ngModel)]="jobSearchTerm"
+                    (input)="filterJobsForLink()"
+                    placeholder="Search by job ID, client name, or service type..."
+                    class="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary"
+                  />
+                  <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                </div>
+              </div>
+
+              <!-- Job Dropdown -->
+              <select 
+                formControlName="jobId" 
+                (change)="onJobSelectedForLink(+createPaymentLinkForm.value.jobId)"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary"
+                [class.border-red-300]="createPaymentLinkForm.get('jobId')?.invalid && createPaymentLinkForm.get('jobId')?.touched"
+              >
+                <option value="">Select a job</option>
+                @for (job of filteredJobsForLink; track job.id) {
+                  <option [value]="job.id">
+                    Job #{{ job.id }} - {{ job.serviceType || 'Service' }} - {{ formatCurrency(job.cost) }}
+                    @if (job.clientName) {
+                      - {{ job.clientName }}
+                    }
+                  </option>
+                }
+              </select>
+              
+              @if (createPaymentLinkForm.get('jobId')?.invalid && createPaymentLinkForm.get('jobId')?.touched) {
+                <p class="mt-1 text-sm text-red-600">Please select a job</p>
+              }
+
+              <!-- Selected Job Details -->
+              @if (selectedJobForLink) {
+                <div class="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <h4 class="text-sm font-semibold text-gray-900 mb-3">Job Details</h4>
+                  <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p class="text-gray-500">Job ID</p>
+                      <p class="font-medium text-gray-900">#{{ selectedJobForLink.id }}</p>
+                    </div>
+                    <div>
+                      <p class="text-gray-500">Amount</p>
+                      <p class="font-medium text-gray-900">{{ formatCurrency(selectedJobForLink.cost) }}</p>
+                    </div>
+                    @if (selectedJobForLink.clientName) {
+                      <div>
+                        <p class="text-gray-500">Client</p>
+                        <p class="font-medium text-gray-900">{{ selectedJobForLink.clientName }}</p>
+                      </div>
+                    }
+                    @if (selectedJobForLink.serviceType) {
+                      <div>
+                        <p class="text-gray-500">Service Type</p>
+                        <p class="font-medium text-gray-900">{{ selectedJobForLink.serviceType }}</p>
+                      </div>
+                    }
+                    @if (selectedJobForLink.pickupLocation) {
+                      <div class="col-span-2">
+                        <p class="text-gray-500">Pickup Location</p>
+                        <p class="font-medium text-gray-900">{{ selectedJobForLink.pickupLocation }}</p>
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+
+            <!-- Expiration -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                Link Expiration (Days)
+              </label>
+              <input
+                type="number"
+                formControlName="expiresInDays"
+                min="1"
+                max="30"
+                placeholder="7"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary"
+              />
+              <p class="mt-1 text-sm text-gray-500">
+                The payment link will expire after the specified number of days. Default is 7 days.
+              </p>
+              @if (createPaymentLinkForm.get('expiresInDays')?.invalid && createPaymentLinkForm.get('expiresInDays')?.touched) {
+                <p class="mt-1 text-sm text-red-600">
+                  Expiration must be between 1 and 30 days
+                </p>
+              }
+            </div>
+
+            <!-- Info Box -->
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div class="flex">
+                <div class="flex-shrink-0">
+                  <i class="fas fa-info-circle text-blue-400"></i>
+                </div>
+                <div class="ml-3">
+                  <h3 class="text-sm font-medium text-blue-800">Payment Link Information</h3>
+                  <div class="mt-2 text-sm text-blue-700">
+                    <ul class="list-disc list-inside space-y-1">
+                      <li>The customer can pay using the link without logging in</li>
+                      <li>The link will be active until it expires or is manually deactivated</li>
+                      <li>You can copy and share the link via email, SMS, or any messaging platform</li>
+                      <li>Payment will be automatically processed when the customer completes payment</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-6 flex items-center justify-end gap-3">
+            <button
+              type="button"
+              (click)="closeCreateLinkModal()"
+              class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              [disabled]="submitting || createPaymentLinkForm.invalid"
+              class="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              @if (submitting) {
+                <i class="fas fa-spinner fa-spin mr-2"></i>
+              } @else {
+                <i class="fas fa-link mr-2"></i>
+              }
+              Create Payment Link
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- Payment Details Modal -->
+  @if (showPaymentDetailsModal && selectedPayment) {
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+        <div class="p-6 border-b border-gray-200">
+          <div class="flex items-center justify-between">
+            <h2 class="text-2xl font-bold text-gray-900">Payment Details</h2>
+            <button
+              (click)="closePaymentDetails()"
+              class="text-gray-400 hover:text-gray-600"
+            >
+              <i class="fas fa-times text-xl"></i>
+            </button>
+          </div>
+        </div>
+        <div class="p-6">
+          <div class="grid grid-cols-2 gap-6">
+            <!-- Payment Information -->
+            <div>
+              <h3 class="text-lg font-semibold text-gray-900 mb-4">Payment Information</h3>
+              <div class="space-y-3">
+                <div>
+                  <p class="text-sm font-medium text-gray-500">Payment ID</p>
+                  <p class="text-gray-900">#{{ selectedPayment.id }}</p>
+                </div>
+                <div>
+                  <p class="text-sm font-medium text-gray-500">Job ID</p>
+                  <p class="text-gray-900">#{{ selectedPayment.jobId }}</p>
+                </div>
+                <div>
+                  <p class="text-sm font-medium text-gray-500">Amount</p>
+                  <p class="text-lg font-semibold text-gray-900">{{ formatCurrency(selectedPayment.amount) }}</p>
+                </div>
+                <div>
+                  <p class="text-sm font-medium text-gray-500">Payment Method</p>
+                  <p class="text-gray-900">
+                    <i class="fas {{ getPaymentMethodIcon(selectedPayment.paymentMethod) }} mr-2"></i>
+                    {{ selectedPayment.paymentMethod }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-sm font-medium text-gray-500">Status</p>
+                  <span class="px-2 py-1 text-xs font-semibold rounded-full {{ getPaymentStatusClass(selectedPayment.paymentStatus) }}">
+                    {{ selectedPayment.paymentStatus }}
+                  </span>
+                </div>
+                @if (selectedPayment.transactionId) {
+                  <div>
+                    <p class="text-sm font-medium text-gray-500">Transaction ID</p>
+                    <p class="text-gray-900 font-mono text-sm">{{ selectedPayment.transactionId }}</p>
+                  </div>
+                }
+                @if (selectedPayment.cardLast4) {
+                  <div>
+                    <p class="text-sm font-medium text-gray-500">Card</p>
+                    <p class="text-gray-900">
+                      <i class="fas fa-credit-card mr-2"></i>
+                      {{ selectedPayment.cardBrand }} ****{{ selectedPayment.cardLast4 }}
+                    </p>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <!-- Processing Information -->
+            <div>
+              <h3 class="text-lg font-semibold text-gray-900 mb-4">Processing Information</h3>
+              <div class="space-y-3">
+                <div>
+                  <p class="text-sm font-medium text-gray-500">Processed At</p>
+                  <p class="text-gray-900">{{ formatDate(selectedPayment.processedAt || selectedPayment.createdAt) }}</p>
+                </div>
+                @if (selectedPayment.paymentMethod === 'Cash' && selectedPayment.cashCollectedAt) {
+                  <div>
+                    <p class="text-sm font-medium text-gray-500">Cash Collected At</p>
+                    <p class="text-gray-900">{{ formatDate(selectedPayment.cashCollectedAt) }}</p>
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-6 flex items-center justify-end">
+            <button
+              (click)="closePaymentDetails()"
+              class="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Payment Link Details Modal -->
+  @if (showLinkDetails && selectedLink) {
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full">
+        <div class="p-6 border-b border-gray-200">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-2xl font-bold text-gray-900">Payment Link Created</h2>
+              <p class="text-sm text-gray-600 mt-1">Share this link with your customer</p>
+            </div>
+            <button
+              (click)="showLinkDetails = false; selectedLink = null"
+              class="text-gray-400 hover:text-gray-600"
+            >
+              <i class="fas fa-times text-xl"></i>
+            </button>
+          </div>
+        </div>
+        <div class="p-6">
+          <div class="bg-gray-50 rounded-lg p-4 mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Payment Link</label>
+            <div class="flex items-center gap-2">
+              <input
+                type="text"
+                [value]="selectedLink.paymentLink"
+                readonly
+                class="flex-1 px-4 py-2 bg-white border border-gray-300 rounded-lg font-mono text-sm"
+              />
+              <button
+                (click)="copyToClipboard(selectedLink.paymentLink)"
+                class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark"
+              >
+                <i class="fas fa-copy mr-2"></i>Copy
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <h3 class="text-sm font-medium text-gray-500 mb-1">Job ID</h3>
+              <p class="text-gray-900">#{{ selectedLink.jobId }}</p>
+            </div>
+            <div>
+              <h3 class="text-sm font-medium text-gray-500 mb-1">Amount</h3>
+              <p class="text-lg font-semibold text-gray-900">{{ formatCurrency(selectedLink.amount) }}</p>
+            </div>
+            <div>
+              <h3 class="text-sm font-medium text-gray-500 mb-1">Status</h3>
+              @if (selectedLink.isActive) {
+                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Active</span>
+              } @else {
+                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">Inactive</span>
+              }
+            </div>
+            <div>
+              <h3 class="text-sm font-medium text-gray-500 mb-1">Expires</h3>
+              <p class="text-gray-900">{{ formatDate(selectedLink.expiresAt || '') }}</p>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-end">
+            <button
+              (click)="showLinkDetails = false; selectedLink = null"
+              class="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</div>

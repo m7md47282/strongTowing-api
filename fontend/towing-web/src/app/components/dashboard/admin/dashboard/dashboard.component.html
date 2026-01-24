@@ -1,10 +1,31 @@
 <div class="p-8 min-h-screen bg-white m-4 rounded-xl border border-gray-100 shadow-sm">
-  <!-- Top Header Bar -->
-  <div class="mb-8 flex items-start justify-between">
-    <div>
-      <h1 class="text-2xl font-bold text-gray-900 mb-1">Welcome Back {{ user?.fullName?.split(' ')?.[0] || 'Admin' }}!</h1>
-      <p class="text-sm text-gray-600">You've handled 12 service requests today - great work!</p>
+  <!-- Loading State -->
+  <div *ngIf="loading" class="flex items-center justify-center min-h-screen">
+    <div class="text-center">
+      <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+      <p class="text-gray-600">Loading dashboard data...</p>
     </div>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="error && !loading" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+    <div class="flex items-center gap-2">
+      <i class="fas fa-exclamation-circle text-red-600"></i>
+      <p class="text-red-800">{{ error }}</p>
+      <button (click)="loadDashboardData()" class="ml-auto text-sm text-red-600 hover:text-red-800 underline">
+        Retry
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div *ngIf="!loading">
+    <!-- Top Header Bar -->
+    <div class="mb-8 flex items-start justify-between">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900 mb-1">Welcome Back {{ user?.fullName?.split(' ')?.[0] || 'Admin' }}!</h1>
+        <p class="text-sm text-gray-600">You've handled {{ stats.completedToday }} service request{{ stats.completedToday !== 1 ? 's' : '' }} today - great work!</p>
+      </div>
     <div class="flex items-center gap-3">
       <div class="relative">
         <i class="fas fa-comment-dots text-gray-600 text-lg"></i>
@@ -27,7 +48,8 @@
   <div class="mb-6">
     <div class="flex items-center justify-between mb-4">
       <h2 class="text-lg font-semibold text-gray-900">Highlights</h2>
-      <button class="text-sm text-gray-600 hover:text-gray-900 px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+      <button (click)="refreshData()" [disabled]="loading" class="text-sm text-gray-600 hover:text-gray-900 px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+        <i class="fas fa-sync-alt mr-2" [class.animate-spin]="loading"></i>
         Refresh Data
       </button>
     </div>
@@ -44,8 +66,10 @@
           </div>
         </div>
         <div class="flex items-baseline gap-2">
-          <span class="text-3xl font-bold text-gray-900">24</span>
-          <span class="text-sm font-medium text-green-600">+12%</span>
+          <span class="text-3xl font-bold text-gray-900">{{ stats.activeRequests }}</span>
+          <span *ngIf="stats.activeRequestsChange !== 0" class="text-sm font-medium" [ngClass]="stats.activeRequestsChange > 0 ? 'text-green-600' : 'text-red-600'">
+            {{ stats.activeRequestsChange > 0 ? '+' : '' }}{{ stats.activeRequestsChange }}%
+          </span>
         </div>
       </div>
 
@@ -61,8 +85,10 @@
           </div>
         </div>
         <div class="flex items-baseline gap-2">
-          <span class="text-3xl font-bold text-gray-900">156</span>
-          <span class="text-sm font-medium text-green-600">+8%</span>
+          <span class="text-3xl font-bold text-gray-900">{{ stats.completedToday }}</span>
+          <span *ngIf="stats.completedChange !== 0" class="text-sm font-medium" [ngClass]="stats.completedChange > 0 ? 'text-green-600' : 'text-red-600'">
+            {{ stats.completedChange > 0 ? '+' : '' }}{{ stats.completedChange }}%
+          </span>
         </div>
       </div>
 
@@ -77,8 +103,10 @@
           </div>
         </div>
         <div class="flex items-baseline gap-2">
-          <span class="text-3xl font-bold text-gray-900">$42K</span>
-          <span class="text-sm font-medium text-green-600">+15%</span>
+          <span class="text-3xl font-bold text-gray-900">{{ formatCurrency(stats.monthlyRevenue) }}</span>
+          <span *ngIf="stats.revenueChange !== 0" class="text-sm font-medium" [ngClass]="stats.revenueChange > 0 ? 'text-green-600' : 'text-red-600'">
+            {{ stats.revenueChange > 0 ? '+' : '' }}{{ stats.revenueChange }}%
+          </span>
         </div>
       </div>
 
@@ -95,8 +123,10 @@
           </div>
         </div>
         <div class="flex items-baseline gap-2">
-          <span class="text-3xl font-bold text-gray-900">18</span>
-          <span class="text-sm font-medium text-green-600">+2</span>
+          <span class="text-3xl font-bold text-gray-900">{{ stats.activeDrivers }}</span>
+          <span *ngIf="stats.driversChange !== 0" class="text-sm font-medium" [ngClass]="stats.driversChange > 0 ? 'text-green-600' : 'text-red-600'">
+            {{ stats.driversChange > 0 ? '+' : '' }}{{ stats.driversChange }}
+          </span>
         </div>
       </div>
     </div>
@@ -125,27 +155,12 @@
           </select>
         </div>
       </div>
-      <div class="h-64 flex items-center justify-center bg-gray-50 rounded-lg relative">
-        <!-- Chart placeholder with orange gradient area -->
-        <svg class="w-full h-full" viewBox="0 0 300 200" preserveAspectRatio="none">
-          <defs>
-            <linearGradient id="gradient" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" style="stop-color:var(--primary-blue);stop-opacity:0.3" />
-              <stop offset="100%" style="stop-color:var(--primary-blue);stop-opacity:0" />
-            </linearGradient>
-          </defs>
-          <path d="M 0,180 Q 75,120 150,130 T 300,100" stroke="var(--primary-blue)" stroke-width="3" fill="none"/>
-          <path d="M 0,180 Q 75,120 150,130 T 300,100 L 300,200 L 0,200 Z" fill="url(#gradient)"/>
-          <!-- Tooltip at x=150 (Oct 15) -->
-          <circle cx="150" cy="130" r="4" fill="var(--primary-blue)"/>
-          <foreignObject x="140" y="100" width="80" height="40">
-            <div class="text-xs text-center">
-              <div class="font-semibold">Today</div>
-              <div>156 Services</div>
-              <div class="text-green-600">+8%</div>
-            </div>
-          </foreignObject>
-        </svg>
+      <div class="h-64 bg-gray-50 rounded-lg p-4">
+        <canvas baseChart
+          [data]="lineChartData"
+          [options]="lineChartOptions"
+          [type]="lineChartType">
+        </canvas>
       </div>
     </div>
 
@@ -159,33 +174,14 @@
           <i class="fas fa-chevron-right text-gray-400 cursor-pointer"></i>
         </div>
       </div>
-      <div class="h-64 flex flex-col items-center justify-center">
-        <div class="relative w-48 h-48 mb-6">
-          <div class="absolute inset-0 rounded-full border-8 border-transparent" style="border-top-color:var(--primary-blue);border-right-color:var(--orange-500);border-bottom-color:var(--blue-500);border-left-color:var(--green-500);transform:rotate(-45deg);"></div>
-          <div class="absolute inset-0 flex items-center justify-center">
-            <div class="text-center">
-              <div class="text-2xl font-bold text-gray-900">Total</div>
-              <div class="text-3xl font-bold text-gray-900">156</div>
-            </div>
-          </div>
-        </div>
-        <div class="space-y-2 text-sm w-full">
-          <div class="flex items-center gap-2">
-            <div class="w-3 h-3 bg-primary rounded"></div>
-            <span class="text-gray-600">Towing Services: 45%</span>
-          </div>
-          <div class="flex items-center gap-2">
-            <div class="w-3 h-3 bg-orange-500 rounded"></div>
-            <span class="text-gray-600">Roadside Assistance: 30%</span>
-          </div>
-          <div class="flex items-center gap-2">
-            <div class="w-3 h-3 bg-blue-500 rounded"></div>
-            <span class="text-gray-600">Jump Start: 15%</span>
-          </div>
-          <div class="flex items-center gap-2">
-            <div class="w-3 h-3 bg-green-500 rounded"></div>
-            <span class="text-gray-600">Tire Change: 10%</span>
-          </div>
+      <div class="h-64">
+        <canvas *ngIf="serviceBreakdown.total > 0" baseChart
+          [data]="pieChartData"
+          [options]="pieChartOptions"
+          [type]="pieChartType">
+        </canvas>
+        <div *ngIf="serviceBreakdown.total === 0" class="h-full flex items-center justify-center text-gray-500">
+          No service data available
         </div>
       </div>
     </div>
@@ -215,37 +211,22 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-200">
-            <tr class="hover:bg-gray-50">
-              <td class="py-3 px-4 text-sm text-gray-900">John Smith - Main St & 5th Ave</td>
-              <td class="py-3 px-4 text-sm text-gray-600">10:30 AM</td>
-              <td class="py-3 px-4 text-sm text-gray-600">Towing</td>
+            <tr *ngFor="let job of recentActiveJobs" class="hover:bg-gray-50">
+              <td class="py-3 px-4 text-sm text-gray-900">
+                {{ job.clientName || 'N/A' }} - {{ job.pickupLocation || 'Location not specified' }}
+              </td>
+              <td class="py-3 px-4 text-sm text-gray-600">{{ formatDate(job.createdAt) }}</td>
+              <td class="py-3 px-4 text-sm text-gray-600">{{ job.serviceType || 'N/A' }}</td>
               <td class="py-3 px-4">
-                <span class="text-sm text-primary">In Progress</span>
+                <span class="text-sm" [ngClass]="getStatusColor(job.status)">{{ job.status }}</span>
               </td>
               <td class="py-3 px-4">
-                <span class="text-sm text-gray-900 font-medium">Mike Johnson</span>
-              </td>
-            </tr>
-            <tr class="hover:bg-gray-50">
-              <td class="py-3 px-4 text-sm text-gray-900">Sarah Davis - Highway 101</td>
-              <td class="py-3 px-4 text-sm text-gray-600">11:15 AM</td>
-              <td class="py-3 px-4 text-sm text-gray-600">Roadside</td>
-              <td class="py-3 px-4">
-                <span class="text-sm text-orange-600">Pending</span>
-              </td>
-              <td class="py-3 px-4">
-                <span class="text-sm text-gray-900 font-medium">-</span>
+                <span class="text-sm text-gray-900 font-medium">{{ job.driverName || '-' }}</span>
               </td>
             </tr>
-            <tr class="hover:bg-gray-50">
-              <td class="py-3 px-4 text-sm text-gray-900">Robert Wilson - Park Avenue</td>
-              <td class="py-3 px-4 text-sm text-gray-600">09:45 AM</td>
-              <td class="py-3 px-4 text-sm text-gray-600">Jump Start</td>
-              <td class="py-3 px-4">
-                <span class="text-sm text-green-600">Completed</span>
-              </td>
-              <td class="py-3 px-4">
-                <span class="text-sm text-gray-900 font-medium">Tom Brown</span>
+            <tr *ngIf="recentActiveJobs.length === 0">
+              <td colspan="5" class="py-8 px-4 text-center text-gray-500">
+                No active service requests at the moment
               </td>
             </tr>
           </tbody>
@@ -268,7 +249,10 @@
       
       <div class="mb-4">
         <p class="text-xs text-gray-500 mb-1">Recent Activity:</p>
-        <p class="text-sm text-gray-900 font-medium">Service #2456 - Completed</p>
+        <p *ngIf="recentActiveJobs.length > 0" class="text-sm text-gray-900 font-medium">
+          Job #{{ recentActiveJobs[0].id }} - {{ recentActiveJobs[0].status }}
+        </p>
+        <p *ngIf="recentActiveJobs.length === 0" class="text-sm text-gray-500">No recent activity</p>
       </div>
       
       <div class="flex items-center gap-2 mb-4">
@@ -299,6 +283,7 @@
           <i class="fas fa-plus text-xs"></i>
         </button>
       </div>
+    </div>
     </div>
   </div>
 </div>

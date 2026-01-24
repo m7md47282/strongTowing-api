@@ -47,7 +47,14 @@ export interface LoginRequest {
 
 export interface LoginResponse {
   token: string;
+  refreshToken?: string; // Add refresh token support
   user: User;
+  expiresAt: string;
+}
+
+export interface RefreshTokenResponse {
+  token: string;
+  refreshToken?: string;
   expiresAt: string;
 }
 

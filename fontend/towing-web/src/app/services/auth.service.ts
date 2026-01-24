@@ -1,8 +1,8 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, throwError } from 'rxjs';
-import { map, catchError } from 'rxjs/operators';
+import { BehaviorSubject, Observable, throwError, of } from 'rxjs';
+import { map, catchError, switchMap, shareReplay } from 'rxjs/operators';
 import { ApiService } from './api.service';
-import { User, LoginRequest, LoginResponse, RegisterRequest, ForgotPasswordRequest, ResetPasswordRequest, OtpVerificationRequest } from '../models/user.model';
+import { User, LoginRequest, LoginResponse, RegisterRequest, ForgotPasswordRequest, ResetPasswordRequest, OtpVerificationRequest, RefreshTokenResponse } from '../models/user.model';
 import { RoleId } from '../constants/user-roles.constants';
 
 @Injectable({
@@ -11,6 +11,7 @@ import { RoleId } from '../constants/user-roles.constants';
 export class AuthService {
   private currentUserSubject = new BehaviorSubject<User | null>(null);
   public currentUser$ = this.currentUserSubject.asObservable();
+  private refreshTokenInProgress: Observable<string> | null = null;
 
   constructor(private apiService: ApiService) {
     // Check if user is already logged in
@@ -19,6 +20,8 @@ export class AuthService {
     if (token && user) {
       this.currentUserSubject.next(JSON.parse(user));
     }
+    // Check token expiration on initialization
+    this.checkAndRefreshTokenIfNeeded();
   }
 
   // Login
@@ -36,6 +39,10 @@ export class AuthService {
           localStorage.setItem('stongTowing_user', JSON.stringify(response.user));
           if (response.expiresAt) {
             localStorage.setItem('stongTowing_tokenExpiresAt', response.expiresAt);
+          }
+          // Store refresh token if provided
+          if (response.refreshToken) {
+            localStorage.setItem('stongTowing_refreshToken', response.refreshToken);
           }
           this.currentUserSubject.next(response.user);
         }
@@ -120,6 +127,7 @@ export class AuthService {
     localStorage.removeItem('stongTowing_token');
     localStorage.removeItem('stongTowing_user');
     localStorage.removeItem('stongTowing_tokenExpiresAt');
+    localStorage.removeItem('stongTowing_refreshToken'); // Clear refresh token too
     this.currentUserSubject.next(null);
   }
 
@@ -131,7 +139,110 @@ export class AuthService {
   // Check if user is authenticated
   isAuthenticated(): boolean {
     const token = localStorage.getItem('stongTowing_token');
-    return !!token;
+    if (!token) {
+      return false;
+    }
+    
+    // Check if token is expired
+    if (this.isTokenExpiredOrExpiringSoon()) {
+      const refreshToken = this.getRefreshToken();
+      // If we have a refresh token, we're still considered authenticated
+      // The interceptor will handle the refresh
+      return !!refreshToken;
+    }
+    
+    return true;
+  }
+
+  // Refresh token method
+  refreshToken(): Observable<RefreshTokenResponse> {
+    const refreshToken = this.getRefreshToken();
+    
+    if (!refreshToken) {
+      return throwError(() => new Error('No refresh token available'));
+    }
+
+    // If a refresh is already in progress, return that observable
+    if (this.refreshTokenInProgress) {
+      return this.refreshTokenInProgress.pipe(
+        switchMap(token => of({ token, expiresAt: this.getTokenExpiration() } as RefreshTokenResponse))
+      );
+    }
+
+    // Start new refresh token request
+    this.refreshTokenInProgress = this.apiService.post<RefreshTokenResponse>(
+      'auth/refresh-token', 
+      { refreshToken },
+      false // Don't include auth header for refresh endpoint
+    ).pipe(
+      map((response: RefreshTokenResponse) => {
+        // Update tokens
+        localStorage.setItem('stongTowing_token', response.token);
+        if (response.expiresAt) {
+          localStorage.setItem('stongTowing_tokenExpiresAt', response.expiresAt);
+        }
+        if (response.refreshToken) {
+          localStorage.setItem('stongTowing_refreshToken', response.refreshToken);
+        }
+        
+        this.refreshTokenInProgress = null;
+        return response.token;
+      }),
+      catchError((error) => {
+        this.refreshTokenInProgress = null;
+        // Clear tokens on refresh failure
+        this.clearLocalStorage();
+        return throwError(() => error);
+      }),
+      shareReplay(1) // Share the result with multiple subscribers
+    );
+
+    return this.refreshTokenInProgress.pipe(
+      switchMap(token => of({ token, expiresAt: this.getTokenExpiration() } as RefreshTokenResponse))
+    );
+  }
+
+  // Get refresh token from storage
+  getRefreshToken(): string | null {
+    return localStorage.getItem('stongTowing_refreshToken');
+  }
+
+  // Check if token is expired or expiring soon
+  isTokenExpiredOrExpiringSoon(): boolean {
+    const expiresAt = localStorage.getItem('stongTowing_tokenExpiresAt');
+    if (!expiresAt) {
+      return true; // No expiration date means expired
+    }
+
+    const expirationTime = new Date(expiresAt).getTime();
+    const currentTime = new Date().getTime();
+    const fiveMinutesInMs = 5 * 60 * 1000; // 5 minutes buffer
+
+    return (expirationTime - currentTime) <= fiveMinutesInMs;
+  }
+
+  // Get token expiration date
+  getTokenExpiration(): string {
+    return localStorage.getItem('stongTowing_tokenExpiresAt') || '';
+  }
+
+  // Check and refresh token if needed (called on app initialization)
+  private checkAndRefreshTokenIfNeeded(): void {
+    const token = localStorage.getItem('stongTowing_token');
+    const refreshToken = this.getRefreshToken();
+    
+    if (token && refreshToken && this.isTokenExpiredOrExpiringSoon()) {
+      // Silently refresh token in background
+      this.refreshToken().subscribe({
+        next: () => {
+          console.log('Token refreshed successfully');
+        },
+        error: (error) => {
+          console.error('Failed to refresh token on init:', error);
+          // Don't logout here, let the interceptor handle it
+        }
+      });
+    }
   }
 
   // Check if user is admin (SuperAdmin or Administrator)

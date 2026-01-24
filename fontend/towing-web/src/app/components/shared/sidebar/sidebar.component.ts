@@ -38,8 +38,11 @@ export class SidebarComponent implements OnInit {
 
   autoExpandActiveItems(): void {
     this.menuItems.forEach(item => {
-      if (item.children && this.hasActiveChild(item)) {
-        this.expandedItems.add(item.route);
+      if (item.children) {
+        // Expand if any child is active OR if the parent route itself is active
+        if (this.hasActiveChild(item) || this.isRouteActive(item.route)) {
+          this.expandedItems.add(item.route);
+        }
       }
     });
   }
@@ -82,6 +85,10 @@ export class SidebarComponent implements OnInit {
   hasActiveChild(item: MenuItem): boolean {
     if (!item.children) return false;
     return item.children.some(child => this.currentRoute.startsWith(child.route));
+  }
+
+  isRouteActive(route: string): boolean {
+    return this.currentRoute === route || this.currentRoute.startsWith(route + '/');
   }
 
   getRoleLabel(): string {

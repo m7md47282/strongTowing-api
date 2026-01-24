@@ -39,21 +39,25 @@ export class LoginComponent implements OnInit {
   private redirectToDashboard(): void {
     const user = this.authService.getCurrentUser();
     if (!user) {
-      this.router.navigate(['/home']);
+      // If no user, redirect to customer dashboard as default
+      this.router.navigate(['/customer']);
       return;
     }
 
     // Ensure roleId is a number for comparison (handle both string and number)
     const roleId = typeof user.roleId === 'string' ? parseInt(user.roleId, 10) : Number(user.roleId);
     
-    if (roleId === RoleId.SuperAdmin || roleId === RoleId.Admin || roleId === RoleId.Dispatcher) {
+    if (roleId === RoleId.SuperAdmin || roleId === RoleId.Admin) {
       this.router.navigate(['/admin']);
+    } else if (roleId === RoleId.Dispatcher) {
+      this.router.navigate(['/dispatcher']);
     } else if (roleId === RoleId.Driver) {
       this.router.navigate(['/driver']);
     } else if (roleId === RoleId.User) {
       this.router.navigate(['/customer']);
     } else {
-      this.router.navigate(['/home']);
+      // Default to customer dashboard instead of landing page
+      this.router.navigate(['/customer']);
     }
   }
 

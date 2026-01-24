@@ -3,6 +3,7 @@ import { Router, RouterOutlet, NavigationEnd } from '@angular/router';
 import { filter, Subscription } from 'rxjs';
 import { HeaderComponent } from './components/header/header.component';
 import { FooterComponent } from './components/footer/footer.component';
+import { AuthService } from './services/auth.service';
 
 declare let gtag: Function;
 
@@ -19,22 +20,30 @@ declare let gtag: Function;
 export class AppComponent implements OnInit, OnDestroy {
   title = 'Strong Towing Services';
   private routerSubscription: Subscription | undefined;
+  private authSubscription: Subscription | undefined;
   showHeaderFooter = true;
   currentRoute = '';
 
-  constructor(private router: Router) {}
+  constructor(
+    private router: Router,
+    private authService: AuthService
+  ) {}
 
   ngOnInit() {
     // Check initial route
     this.currentRoute = this.router.url;
     this.updateHeaderFooterVisibility();
 
-    // Track route changes for GTM and header/footer visibility
+    // Subscribe to authentication state changes
+    this.authSubscription = this.authService.currentUser$.subscribe(() => {
+      this.updateHeaderFooterVisibility();
+    });
+
+    // Track route changes for GTM
     this.routerSubscription = this.router.events
       .pipe(filter(event => event instanceof NavigationEnd))
       .subscribe((event: any) => {
         this.currentRoute = event.urlAfterRedirects;
-        this.updateHeaderFooterVisibility();
         
         if (typeof gtag !== 'undefined') {
           gtag('config', 'G-TDTV6MTD42', {
@@ -45,16 +54,16 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   private updateHeaderFooterVisibility(): void {
-    // Hide header and footer on dashboard routes
-    const dashboardRoutes = ['/admin', '/driver', '/customer'];
-    this.showHeaderFooter = !dashboardRoutes.some(route => 
-      this.currentRoute.startsWith(route)
-    );
+    // Hide header and footer when user is logged in
+    this.showHeaderFooter = !this.authService.isAuthenticated();
   }
 
   ngOnDestroy() {
     if (this.routerSubscription) {
       this.routerSubscription.unsubscribe();
+    }
+    if (this.authSubscription) {
+      this.authSubscription.unsubscribe();
     }
   }
 }

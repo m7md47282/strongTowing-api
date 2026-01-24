@@ -1,0 +1,426 @@
+import { Component, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
+import { HttpParams } from '@angular/common/http';
+import { catchError, finalize } from 'rxjs/operators';
+import { of } from 'rxjs';
+import { 
+  PaymentService, 
+  PaymentLink, 
+  CreatePaymentLinkRequest,
+  PaymentListItem,
+  PaymentStatistics,
+  PaymentFilters,
+  Payment
+} from '../../../../services/payment.service';
+import { JobService, Job } from '../../../../services/job.service';
+import { ApiService } from '../../../../services/api.service';
+import { User } from '../../../../models/user.model';
+
+interface PagedResponse<T> {
+  data: T[];
+  pageNumber: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+}
+
+@Component({
+  selector: 'app-payments',
+  standalone: true,
+  imports: [CommonModule, FormsModule, ReactiveFormsModule],
+  templateUrl: './payments.component.html',
+  styleUrls: ['./payments.component.scss']
+})
+export class PaymentsComponent implements OnInit {
+  // Payment data
+  payments: PaymentListItem[] = [];
+  filteredPayments: PaymentListItem[] = [];
+  paymentLinks: PaymentLink[] = [];
+  statistics: PaymentStatistics | null = null;
+  
+  // Jobs and drivers
+  jobs: Job[] = [];
+  drivers: User[] = [];
+  
+  // Loading states
+  loading = false;
+  loadingStatistics = false;
+  error: string | null = null;
+  successMessage: string | null = null;
+  
+  // Modals
+  showCreateLinkModal = false;
+  showPaymentDetailsModal = false;
+  selectedPayment: Payment | null = null;
+  selectedLink: PaymentLink | null = null;
+  showLinkDetails = false;
+  selectedJobForLink: Job | null = null;
+  
+  // Forms
+  createPaymentLinkForm: FormGroup;
+  filtersForm: FormGroup;
+  submitting = false;
+  
+  // Job search for payment link
+  jobSearchTerm: string = '';
+  filteredJobsForLink: Job[] = [];
+  
+  // Filters
+  searchTerm: string = '';
+  paymentMethodFilter: 'Card' | 'PaymentLink' | 'Cash' | '' = '';
+  paymentStatusFilter: 'Pending' | 'Paid' | 'Failed' | '' = '';
+  driverFilter: string = '';
+  dateRangeStart: string = '';
+  dateRangeEnd: string = '';
+
+  constructor(
+    private paymentService: PaymentService,
+    private jobService: JobService,
+    private apiService: ApiService,
+    private fb: FormBuilder
+  ) {
+    this.createPaymentLinkForm = this.fb.group({
+      jobId: [''],
+      expiresInDays: [7]
+    });
+    
+    this.filtersForm = this.fb.group({
+      searchTerm: [''],
+      paymentMethod: [''],
+      paymentStatus: [''],
+      driverId: [''],
+      startDate: [''],
+      endDate: ['']
+    });
+  }
+
+  ngOnInit(): void {
+    this.loadData();
+    this.setupDateRange();
+  }
+
+  setupDateRange(): void {
+    // Default to current month
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    
+    this.dateRangeStart = this.formatDateForInput(firstDay);
+    this.dateRangeEnd = this.formatDateForInput(lastDay);
+    
+    this.filtersForm.patchValue({
+      startDate: this.dateRangeStart,
+      endDate: this.dateRangeEnd
+    });
+  }
+
+  loadData(): void {
+    this.loadPayments();
+    this.loadStatistics();
+    this.loadJobs();
+    this.loadDrivers();
+  }
+
+  loadPayments(): void {
+    this.loading = true;
+    this.error = null;
+
+    const filters: PaymentFilters = {
+      paymentMethod: this.paymentMethodFilter || undefined,
+      paymentStatus: this.paymentStatusFilter || undefined,
+      startDate: this.dateRangeStart || undefined,
+      endDate: this.dateRangeEnd || undefined,
+      driverId: this.driverFilter || undefined,
+      searchTerm: this.searchTerm || undefined
+    };
+
+    this.paymentService.getAllPayments(filters)
+      .pipe(
+        finalize(() => this.loading = false),
+        catchError(error => {
+          this.error = error.error?.message || 'Failed to load payments';
+          return of([]);
+        })
+      )
+      .subscribe(payments => {
+        this.payments = payments;
+        this.applyFilters();
+      });
+  }
+
+  loadStatistics(): void {
+    this.loadingStatistics = true;
+
+    const filters = {
+      startDate: this.dateRangeStart || undefined,
+      endDate: this.dateRangeEnd || undefined
+    };
+
+    this.paymentService.getPaymentStatistics(filters)
+      .pipe(
+        finalize(() => this.loadingStatistics = false),
+        catchError(error => {
+          console.error('Failed to load statistics:', error);
+          return of(null);
+        })
+      )
+      .subscribe(statistics => {
+        this.statistics = statistics;
+      });
+  }
+
+  loadJobs(): void {
+    this.jobService.getAllJobs()
+      .pipe(
+        catchError(error => {
+          console.error('Failed to load jobs:', error);
+          return of([]);
+        })
+      )
+      .subscribe(jobs => {
+        this.jobs = jobs.filter(job => job.cost > 0);
+      });
+  }
+
+  loadDrivers(): void {
+    const params = new HttpParams()
+      .set('pageNumber', '1')
+      .set('pageSize', '100')
+      .set('isActive', 'true');
+
+    this.apiService.get<PagedResponse<User>>('users/drivers', params)
+      .pipe(
+        catchError(error => {
+          console.error('Failed to load drivers:', error);
+          return of({ 
+            data: [], 
+            pageNumber: 1, 
+            pageSize: 100, 
+            totalCount: 0, 
+            totalPages: 0, 
+            hasPreviousPage: false, 
+            hasNextPage: false 
+          } as PagedResponse<User>);
+        })
+      )
+      .subscribe(response => {
+        this.drivers = response.data || [];
+      });
+  }
+
+  applyFilters(): void {
+    let filtered = [...this.payments];
+
+    // Search filter
+    if (this.searchTerm) {
+      const search = this.searchTerm.toLowerCase();
+      filtered = filtered.filter(p => 
+        p.jobNumber.toLowerCase().includes(search) ||
+        p.clientName.toLowerCase().includes(search) ||
+        (p.transactionId && p.transactionId.toLowerCase().includes(search))
+      );
+    }
+
+    // Payment method filter
+    if (this.paymentMethodFilter) {
+      filtered = filtered.filter(p => p.paymentMethod === this.paymentMethodFilter);
+    }
+
+    // Payment status filter
+    if (this.paymentStatusFilter) {
+      filtered = filtered.filter(p => p.paymentStatus === this.paymentStatusFilter);
+    }
+
+    // Driver filter
+    if (this.driverFilter) {
+      filtered = filtered.filter(p => p.driverId === this.driverFilter);
+    }
+
+    this.filteredPayments = filtered;
+  }
+
+  onFilterChange(): void {
+    this.loadPayments();
+    this.loadStatistics();
+  }
+
+  onSearchChange(): void {
+    this.applyFilters();
+  }
+
+  openCreateLinkModal(): void {
+    this.showCreateLinkModal = true;
+    this.createPaymentLinkForm.reset({ expiresInDays: 7 });
+    this.error = null;
+    this.successMessage = null;
+    this.selectedJobForLink = null;
+    this.jobSearchTerm = '';
+    // Filter to show only jobs with cost > 0
+    this.filteredJobsForLink = this.jobs.filter(job => job.cost > 0);
+  }
+
+  closeCreateLinkModal(): void {
+    this.showCreateLinkModal = false;
+    this.createPaymentLinkForm.reset();
+  }
+
+  onJobSelectedForLink(jobId: number): void {
+    const job = this.jobs.find(j => j.id === jobId);
+    this.selectedJobForLink = job || null;
+    this.createPaymentLinkForm.patchValue({ jobId });
+  }
+
+  filterJobsForLink(): void {
+    if (!this.jobSearchTerm) {
+      // Show all jobs with cost > 0
+      this.filteredJobsForLink = this.jobs.filter(job => job.cost > 0);
+    } else {
+      const search = this.jobSearchTerm.toLowerCase();
+      this.filteredJobsForLink = this.jobs.filter(job => 
+        job.cost > 0 &&
+        (
+          job.id.toString().includes(search) ||
+          (job.clientName && job.clientName.toLowerCase().includes(search)) ||
+          (job.serviceType && job.serviceType.toLowerCase().includes(search))
+        )
+      );
+    }
+  }
+
+  onCreatePaymentLink(): void {
+    if (this.createPaymentLinkForm.invalid) {
+      this.createPaymentLinkForm.markAllAsTouched();
+      return;
+    }
+
+    this.submitting = true;
+    this.error = null;
+    this.successMessage = null;
+
+    const linkData: CreatePaymentLinkRequest = {
+      jobId: this.createPaymentLinkForm.value.jobId,
+      expiresInDays: this.createPaymentLinkForm.value.expiresInDays || undefined
+    };
+
+    this.paymentService.createPaymentLink(linkData)
+      .pipe(
+        finalize(() => this.submitting = false),
+        catchError(error => {
+          this.error = error.error?.message || 'Failed to create payment link';
+          return of(null);
+        })
+      )
+      .subscribe(link => {
+        if (link) {
+          this.successMessage = 'Payment link created successfully!';
+          this.selectedLink = link;
+          this.showLinkDetails = true;
+          this.closeCreateLinkModal();
+          this.loadPayments();
+          this.loadStatistics();
+        }
+      });
+  }
+
+  viewPaymentDetails(payment: PaymentListItem): void {
+    this.loading = true;
+    this.paymentService.getPaymentById(payment.id)
+      .pipe(
+        finalize(() => this.loading = false),
+        catchError(error => {
+          this.error = error.error?.message || 'Failed to load payment details';
+          return of(null);
+        })
+      )
+      .subscribe(payment => {
+        if (payment) {
+          this.selectedPayment = payment;
+          this.showPaymentDetailsModal = true;
+        }
+      });
+  }
+
+  closePaymentDetails(): void {
+    this.showPaymentDetailsModal = false;
+    this.selectedPayment = null;
+  }
+
+  copyToClipboard(text: string): void {
+    navigator.clipboard.writeText(text).then(() => {
+      this.successMessage = 'Copied to clipboard!';
+      setTimeout(() => this.successMessage = null, 3000);
+    }).catch(err => {
+      this.error = 'Failed to copy to clipboard';
+    });
+  }
+
+  clearPaymentLink(link: PaymentLink): void {
+    if (!confirm('Are you sure you want to deactivate this payment link?')) {
+      return;
+    }
+
+    this.paymentService.clearPaymentLink(link.linkToken)
+      .pipe(
+        catchError(error => {
+          this.error = error.error?.message || 'Failed to clear payment link';
+          return of(null);
+        })
+      )
+      .subscribe(result => {
+        if (result) {
+          this.loadPayments();
+          this.successMessage = 'Payment link deactivated successfully';
+          setTimeout(() => this.successMessage = null, 3000);
+        }
+      });
+  }
+
+  getJobDisplay(jobId: number): string {
+    const job = this.jobs.find(j => j.id === jobId);
+    if (!job) return `Job #${jobId}`;
+    return `Job #${jobId} - ${job.serviceType || 'Service'}`;
+  }
+
+  getDriverName(driverId?: string): string {
+    if (!driverId) return 'N/A';
+    const driver = this.drivers.find(d => d.id === driverId);
+    return driver ? driver.fullName : 'Unknown';
+  }
+
+  formatDate(dateString: string): string {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleString();
+  }
+
+  formatDateForInput(date: Date): string {
+    return date.toISOString().split('T')[0];
+  }
+
+  formatCurrency(amount: number): string {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(amount);
+  }
+
+  getPaymentMethodIcon(method: string): string {
+    switch (method) {
+      case 'Card': return 'fa-credit-card';
+      case 'PaymentLink': return 'fa-link';
+      case 'Cash': return 'fa-money-bill';
+      default: return 'fa-dollar-sign';
+    }
+  }
+
+  getPaymentStatusClass(status: string): string {
+    switch (status) {
+      case 'Paid': return 'bg-green-100 text-green-800';
+      case 'Pending': return 'bg-yellow-100 text-yellow-800';
+      case 'Failed': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  }
+}
