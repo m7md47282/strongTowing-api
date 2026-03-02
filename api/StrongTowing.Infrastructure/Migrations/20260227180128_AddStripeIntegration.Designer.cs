@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using StrongTowing.Infrastructure.Data;
 
@@ -11,9 +12,11 @@ using StrongTowing.Infrastructure.Data;
 namespace StrongTowing.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260227180128_AddStripeIntegration")]
+    partial class AddStripeIntegration
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -657,32 +660,10 @@ namespace StrongTowing.Infrastructure.Migrations
                     b.Property<bool>("StripeEnabled")
                         .HasColumnType("bit");
 
-                    b.Property<string>("StripeLivePublicKey")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("StripeLiveSecretKey")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("StripeLiveWebhookSecret")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("StripeMode")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("StripePublicKey")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("StripeSecretKey")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("StripeTestPublicKey")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("StripeTestSecretKey")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("StripeTestWebhookSecret")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("StripeWebhookSecret")

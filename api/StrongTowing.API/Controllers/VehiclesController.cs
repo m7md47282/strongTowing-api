@@ -62,7 +62,7 @@ public class VehiclesController : ControllerBase
     /// <param name="request">Vehicle creation request</param>
     /// <returns>Created vehicle</returns>
     [HttpPost]
-    [Authorize(Roles = $"{UserRoles.Administrator},{UserRoles.Dispatcher}")]
+    [Authorize(Roles = $"{UserRoles.SuperAdmin},{UserRoles.Administrator},{UserRoles.Dispatcher}")]
     public async Task<ActionResult<VehicleDto>> CreateVehicle([FromBody] CreateVehicleRequest request)
     {
         try

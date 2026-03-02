@@ -170,16 +170,57 @@
               <p class="text-sm text-gray-600">{{ user.phoneNumber || '-' }}</p>
             </td>
             <td class="py-4 px-6">
-              <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium"
-                    [ngClass]="{
-                      'bg-purple-100 text-purple-800': user.roleId === 69,
-                      'bg-blue-100 text-blue-800': user.roleId === 1,
-                      'bg-indigo-100 text-indigo-800': user.roleId === 2,
-                      'bg-orange-100 text-orange-800': user.roleId === 3,
-                      'bg-gray-100 text-gray-800': user.roleId === 4
-                    }">
-                {{ getRoleLabel(user.roleId) }}
-              </span>
+              @if (editingRoleUserId === user.id) {
+                <div class="flex items-center gap-2">
+                  <select
+                    [(ngModel)]="selectedEditRoleId"
+                    class="px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+                    [disabled]="updatingRole"
+                  >
+                    @for (role of availableRoles; track role.id) {
+                      <option [ngValue]="role.id">{{ role.label }}</option>
+                    }
+                  </select>
+                  <button
+                    (click)="saveRoleEdit(user)"
+                    class="px-2 py-1 text-xs rounded bg-primary text-white hover:opacity-90 disabled:opacity-50"
+                    [disabled]="updatingRole || selectedEditRoleId === null"
+                    title="Save role"
+                  >
+                    <i class="fas" [ngClass]="updatingRole ? 'fa-spinner fa-spin' : 'fa-check'"></i>
+                  </button>
+                  <button
+                    (click)="cancelRoleEdit()"
+                    class="px-2 py-1 text-xs rounded bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    [disabled]="updatingRole"
+                    title="Cancel"
+                  >
+                    <i class="fas fa-times"></i>
+                  </button>
+                </div>
+              } @else {
+                <div class="flex items-center gap-2">
+                  <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium"
+                        [ngClass]="{
+                          'bg-purple-100 text-purple-800': user.roleId === 69,
+                          'bg-blue-100 text-blue-800': user.roleId === 1,
+                          'bg-indigo-100 text-indigo-800': user.roleId === 2,
+                          'bg-orange-100 text-orange-800': user.roleId === 3,
+                          'bg-gray-100 text-gray-800': user.roleId === 4
+                        }">
+                    {{ getRoleLabel(user.roleId) }}
+                  </span>
+                  @if (canEditRoles()) {
+                    <button
+                      (click)="startRoleEdit(user)"
+                      class="text-primary hover:text-primary/80"
+                      title="Edit role"
+                    >
+                      <i class="fas fa-pen text-xs"></i>
+                    </button>
+                  }
+                </div>
+              }
             </td>
             <td class="py-4 px-6">
               <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium"

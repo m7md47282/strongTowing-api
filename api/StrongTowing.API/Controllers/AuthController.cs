@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -21,6 +22,7 @@ public class AuthController : ControllerBase
     private readonly ApplicationDbContext _context;
     private readonly IJwtService _jwtService;
     private readonly ILogger<AuthController> _logger;
+    private readonly IWebHostEnvironment _environment;
 
     public AuthController(
         UserManager<ApplicationUser> userManager,
@@ -28,7 +30,8 @@ public class AuthController : ControllerBase
         RoleManager<IdentityRole> roleManager,
         ApplicationDbContext context,
         IJwtService jwtService,
-        ILogger<AuthController> logger)
+        ILogger<AuthController> logger,
+        IWebHostEnvironment environment)
     {
         _userManager = userManager;
         _signInManager = signInManager;
@@ -36,6 +39,7 @@ public class AuthController : ControllerBase
         _context = context;
         _jwtService = jwtService;
         _logger = logger;
+        _environment = environment;
     }
     
     /// <summary>
@@ -183,8 +187,9 @@ public class AuthController : ControllerBase
             };
             
             // Revoke old refresh tokens for this user (optional - for security)
+            var now = DateTime.UtcNow;
             var oldTokens = await _context.RefreshTokens
-                .Where(rt => rt.UserId == user.Id && rt.IsActive)
+                .Where(rt => rt.UserId == user.Id && rt.RevokedAt == null && rt.ExpiresAt > now)
                 .ToListAsync();
             
             foreach (var oldToken in oldTokens)
@@ -223,8 +228,12 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error during login for email: {Email}", request.Email);
-            return StatusCode(500, new { error = "Internal Server Error", message = "An error occurred during login" });
+            _logger.LogError(ex, "Error during login for email: {Email}. Exception: {Exception}", request.Email, ex.ToString());
+            // Include exception details in development for debugging
+            var errorMessage = _environment.IsDevelopment() 
+                ? $"An error occurred during login: {ex.Message}" 
+                : "An error occurred during login";
+            return StatusCode(500, new { error = "Internal Server Error", message = errorMessage });
         }
     }
 

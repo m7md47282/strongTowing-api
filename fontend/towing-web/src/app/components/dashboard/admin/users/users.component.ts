@@ -61,6 +61,9 @@ export class UsersComponent implements OnInit {
   createUserForm: FormGroup;
   submitting = false;
   successMessage: string | null = null;
+  editingRoleUserId: string | null = null;
+  selectedEditRoleId: RoleId | null = null;
+  updatingRole = false;
   
   temporaryPasswords: Map<string, string> = new Map();
 
@@ -131,12 +134,15 @@ export class UsersComponent implements OnInit {
         { id: RoleId.SuperAdmin, label: 'Super Admin', roleString: 'SuperAdmin' },
         { id: RoleId.Admin, label: 'Administrator', roleString: 'Administrator' },
         { id: RoleId.Dispatcher, label: 'Dispatcher', roleString: 'Dispatcher' },
-        { id: RoleId.Driver, label: 'Driver', roleString: 'Driver' }
+        { id: RoleId.Driver, label: 'Driver', roleString: 'Driver' },
+        { id: RoleId.User, label: 'User', roleString: 'User' }
       ];
     } else if (userRoleId === RoleId.Admin) {
       this.availableRoles = [
+        { id: RoleId.Admin, label: 'Administrator', roleString: 'Administrator' },
         { id: RoleId.Dispatcher, label: 'Dispatcher', roleString: 'Dispatcher' },
-        { id: RoleId.Driver, label: 'Driver', roleString: 'Driver' }
+        { id: RoleId.Driver, label: 'Driver', roleString: 'Driver' },
+        { id: RoleId.User, label: 'User', roleString: 'User' }
       ];
     } else {
       this.availableRoles = [];
@@ -485,6 +491,76 @@ export class UsersComponent implements OnInit {
       error: (err) => {
         this.error = err.error?.message || err.error?.error || `Failed to ${action} user. Please try again.`;
         console.error(`Error ${action}ing user:`, err);
+        setTimeout(() => {
+          this.error = null;
+        }, 5000);
+      }
+    });
+  }
+
+  canEditRoles(): boolean {
+    const currentUser = this.authService.getCurrentUser();
+    if (!currentUser) {
+      return false;
+    }
+
+    const userRoleId = typeof currentUser.roleId === 'string' ? parseInt(currentUser.roleId, 10) : Number(currentUser.roleId);
+    return userRoleId === RoleId.SuperAdmin || userRoleId === RoleId.Admin;
+  }
+
+  startRoleEdit(user: User): void {
+    if (!this.canEditRoles()) {
+      return;
+    }
+
+    this.editingRoleUserId = user.id;
+    this.selectedEditRoleId = user.roleId as RoleId;
+    this.error = null;
+    this.successMessage = null;
+  }
+
+  cancelRoleEdit(): void {
+    this.editingRoleUserId = null;
+    this.selectedEditRoleId = null;
+    this.updatingRole = false;
+  }
+
+  saveRoleEdit(user: User): void {
+    if (!this.canEditRoles() || this.selectedEditRoleId === null) {
+      return;
+    }
+
+    const selectedRole = this.availableRoles.find(role => role.id === this.selectedEditRoleId);
+    if (!selectedRole) {
+      this.error = 'Invalid role selection.';
+      return;
+    }
+
+    if (selectedRole.id === user.roleId) {
+      this.cancelRoleEdit();
+      return;
+    }
+
+    this.updatingRole = true;
+    this.error = null;
+    this.successMessage = null;
+
+    this.apiService.put<UserApiResponse>(`users/${user.id}`, { role: selectedRole.roleString }).subscribe({
+      next: (response) => {
+        const index = this.users.findIndex(u => u.id === user.id);
+        if (index !== -1) {
+          this.users[index] = this.mapApiResponseToUser(response);
+        }
+
+        this.successMessage = `Role updated to ${selectedRole.label} successfully!`;
+        this.cancelRoleEdit();
+        setTimeout(() => {
+          this.successMessage = null;
+        }, 3000);
+      },
+      error: (err) => {
+        this.updatingRole = false;
+        this.error = err.error?.message || err.error?.error || 'Failed to update role. Please try again.';
         setTimeout(() => {
           this.error = null;
         }, 5000);

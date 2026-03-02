@@ -157,25 +157,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// 7. Auto-migrate Database on Startup
-using (var scope = app.Services.CreateScope())
-{
-    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    try
-    {
-        logger.LogInformation("Applying database migrations...");
-        dbContext.Database.Migrate();
-        logger.LogInformation("Database migrations applied successfully");
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "An error occurred while migrating the database");
-        // Don't throw - allow app to start even if migration fails
-    }
-}
-
-// 8. Seed Roles on Startup
+// 7. Seed Roles on Startup
 using (var scope = app.Services.CreateScope())
 {
     var roleSeeder = scope.ServiceProvider.GetRequiredService<RoleSeederService>();
@@ -190,7 +172,7 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// 9. Health Check Endpoint
+// 8. Health Check Endpoint
 app.MapGet("/api/health", () => Results.Ok(new { Status = "Live", ServerTime = DateTime.UtcNow }));
 
 app.Run();

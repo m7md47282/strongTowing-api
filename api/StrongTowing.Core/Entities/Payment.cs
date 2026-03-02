@@ -25,6 +25,8 @@ namespace StrongTowing.Core.Entities
         
         // Payment link
         public int? PaymentLinkId { get; set; }
+        public string? StripePaymentLinkId { get; set; }
+        public string? StripePaymentLinkUrl { get; set; }
         
         // Cash collection
         public string? CashCollectedBy { get; set; } // Driver User ID

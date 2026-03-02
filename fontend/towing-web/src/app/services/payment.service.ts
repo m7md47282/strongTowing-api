@@ -3,6 +3,9 @@ import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { ApiService } from './api.service';
 import { HttpParams } from '@angular/common/http';
+import { loadStripe, Stripe } from '@stripe/stripe-js';
+
+// ─── Existing interfaces ──────────────────────────────────────────────────────
 
 export interface PaymentLink {
   id: number;
@@ -30,12 +33,14 @@ export interface Payment {
   jobId: number;
   amount: number;
   paymentMethod: 'Card' | 'PaymentLink' | 'Cash';
-  paymentStatus: 'Pending' | 'Paid' | 'Failed' | 'Refunded';
+  paymentStatus: 'Pending' | 'Paid' | 'Failed' | 'Refunded' | 'PartiallyRefunded';
   stripePaymentIntentId?: string;
   stripeChargeId?: string;
   cardLast4?: string;
   cardBrand?: string;
   paymentLinkId?: number;
+  stripePaymentLinkId?: string;
+  stripePaymentLinkUrl?: string;
   cashCollectedBy?: string;
   cashCollectedAt?: string;
   processedBy?: string;
@@ -93,11 +98,118 @@ export interface PaymentFilters {
   pageSize?: number;
 }
 
+// ─── Stripe-specific interfaces ───────────────────────────────────────────────
+
+export interface CreatePaymentIntentRequest {
+  jobId: number;
+  amount: number;
+  currency?: string;
+}
+
+export interface CreatePaymentIntentResponse {
+  clientSecret: string;
+  paymentIntentId: string;
+  publishableKey: string;
+  amount: number;
+  currency: string;
+}
+
+export interface CreateStripePaymentLinkRequest {
+  jobId: number;
+  amount: number;
+  successUrl?: string;
+}
+
+export interface CreateStripePaymentLinkResponse {
+  url: string;
+  stripePaymentLinkId: string;
+  paymentRecordId: number;
+  amount: number;
+}
+
+export interface RefundPaymentRequest {
+  amount?: number;
+  reason?: string;
+}
+
+export interface RefundPaymentResponse {
+  refundId: string;
+  amount: number;
+  status: string;
+  paymentId: number;
+  reason?: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
 export class PaymentService {
+
+  /** Cached Stripe.js instance — loaded once per publishable key. */
+  private stripeInstance: Stripe | null = null;
+  private stripePublishableKey: string | null = null;
+
   constructor(private apiService: ApiService) {}
+
+  // ─── Stripe: Payment Intent ──────────────────────────────────────────────
+
+  /**
+   * Ask the backend to create a Stripe PaymentIntent.
+   * Returns the clientSecret and publishableKey needed to confirm the payment on the frontend.
+   */
+  createPaymentIntent(request: CreatePaymentIntentRequest): Observable<CreatePaymentIntentResponse> {
+    return this.apiService.post<CreatePaymentIntentResponse>('payments/create-payment-intent', request).pipe(
+      catchError(error => {
+        console.error('Create payment intent error:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  /**
+   * Load and cache the Stripe.js SDK instance for a given publishable key.
+   * Call this after receiving a CreatePaymentIntentResponse to confirm the payment.
+   */
+  async getStripe(publishableKey: string): Promise<Stripe | null> {
+    if (this.stripeInstance && this.stripePublishableKey === publishableKey) {
+      return this.stripeInstance;
+    }
+    this.stripeInstance = await loadStripe(publishableKey);
+    this.stripePublishableKey = publishableKey;
+    return this.stripeInstance;
+  }
+
+  // ─── Stripe: Payment Links ───────────────────────────────────────────────
+
+  /**
+   * Ask the backend to create a Stripe-hosted Payment Link for a job.
+   * The returned URL can be shared with the customer.
+   */
+  createStripePaymentLink(request: CreateStripePaymentLinkRequest): Observable<CreateStripePaymentLinkResponse> {
+    return this.apiService.post<CreateStripePaymentLinkResponse>('payments/create-stripe-payment-link', request).pipe(
+      catchError(error => {
+        console.error('Create Stripe payment link error:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  // ─── Stripe: Refunds ─────────────────────────────────────────────────────
+
+  /**
+   * Issue a full or partial refund for a payment through Stripe.
+   * Only Admin users can issue refunds.
+   */
+  refundPayment(paymentId: number, request: RefundPaymentRequest = {}): Observable<RefundPaymentResponse> {
+    return this.apiService.post<RefundPaymentResponse>(`payments/${paymentId}/refund`, request).pipe(
+      catchError(error => {
+        console.error('Refund payment error:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  // ─── Existing payment management endpoints ───────────────────────────────
 
   createPaymentLink(request: CreatePaymentLinkRequest): Observable<PaymentLink> {
     return this.apiService.post<PaymentLink>('payments/links', request).pipe(
@@ -144,7 +256,6 @@ export class PaymentService {
     );
   }
 
-  // Payment management endpoints
   getAllPayments(filters?: PaymentFilters): Observable<PaymentListItem[]> {
     let params = new HttpParams();
     if (filters) {
@@ -195,5 +306,3 @@ export class PaymentService {
     );
   }
 }
-
-
