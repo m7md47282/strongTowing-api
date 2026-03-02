@@ -90,7 +90,10 @@ builder.Services.AddScoped<IJwtService, JwtService>();
 // 5. Register Role Seeder Service
 builder.Services.AddScoped<RoleSeederService>();
 
-// 6. Add Controllers with validation
+// 6. Register Encryption service
+builder.Services.AddScoped<IEncryptionService, EncryptionService>();
+
+// 7. Add Controllers with validation
 builder.Services.AddControllers(options =>
 {
     // Return 400 Bad Request for invalid model state
@@ -144,7 +147,7 @@ app.UseForwardedHeaders();
 // CORS (must be before UseAuthentication and UseAuthorization)
 app.UseCors("AllowAngularApp");
 
-// 7. Pipeline
+// 8. Pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -157,7 +160,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// 7. Seed Roles on Startup
+// 9. Seed Roles on Startup
 using (var scope = app.Services.CreateScope())
 {
     var roleSeeder = scope.ServiceProvider.GetRequiredService<RoleSeederService>();
@@ -172,7 +175,7 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// 8. Health Check Endpoint
+// 10. Health Check Endpoint
 app.MapGet("/api/health", () => Results.Ok(new { Status = "Live", ServerTime = DateTime.UtcNow }));
 
 app.Run();

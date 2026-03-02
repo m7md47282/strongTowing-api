@@ -6,6 +6,7 @@ using StrongTowing.Application.DTOs.Responses;
 using StrongTowing.Core.Constants;
 using StrongTowing.Core.Entities;
 using StrongTowing.Infrastructure.Data;
+using StrongTowing.API.Services;
 using System.Security.Claims;
 
 namespace StrongTowing.API.Controllers;
@@ -16,13 +17,16 @@ namespace StrongTowing.API.Controllers;
 public class SettingsController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
+    private readonly IEncryptionService _encryptionService;
     private readonly ILogger<SettingsController> _logger;
 
     public SettingsController(
         ApplicationDbContext context,
+        IEncryptionService encryptionService,
         ILogger<SettingsController> logger)
     {
         _context = context;
+        _encryptionService = encryptionService;
         _logger = logger;
     }
 
@@ -39,12 +43,12 @@ public class SettingsController : ControllerBase
 
             if (settings == null)
             {
-                // Create default settings if none exist
                 settings = new SystemSettings
                 {
                     DriverCommissionPercentage = 30.00m,
                     PayPeriodType = "BiWeekly",
                     StripeEnabled = false,
+                    StripeMode = "test",
                     UpdatedAt = DateTime.UtcNow,
                     UpdatedBy = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "System"
                 };
@@ -75,28 +79,68 @@ public class SettingsController : ControllerBase
                 return BadRequest(new { error = "Bad Request", message = "Driver commission percentage must be between 0 and 100." });
             }
 
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "System";
             var settings = await _context.SystemSettings.FirstOrDefaultAsync();
 
             if (settings == null)
             {
                 settings = new SystemSettings
                 {
-                    DriverCommissionPercentage = request.DriverCommissionPercentage,
                     PayPeriodType = "BiWeekly",
-                    StripePublicKey = request.StripePublicKey,
-                    StripeEnabled = request.StripeEnabled,
                     UpdatedAt = DateTime.UtcNow,
-                    UpdatedBy = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "System"
+                    UpdatedBy = userId
                 };
                 _context.SystemSettings.Add(settings);
             }
-            else
+
+            settings.DriverCommissionPercentage = request.DriverCommissionPercentage;
+            settings.StripePublicKey = request.StripePublicKey;
+            settings.StripeEnabled = request.StripeEnabled;
+            settings.StripeMode = request.StripeMode == "live" ? "live" : "test";
+            settings.UpdatedAt = DateTime.UtcNow;
+            settings.UpdatedBy = userId;
+
+            // Legacy single-key support
+            if (!string.IsNullOrWhiteSpace(request.StripeSecretKey))
             {
-                settings.DriverCommissionPercentage = request.DriverCommissionPercentage;
-                settings.StripePublicKey = request.StripePublicKey;
-                settings.StripeEnabled = request.StripeEnabled;
-                settings.UpdatedAt = DateTime.UtcNow;
-                settings.UpdatedBy = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "System";
+                settings.StripeSecretKey = _encryptionService.Encrypt(request.StripeSecretKey);
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.StripeWebhookSecret))
+            {
+                settings.StripeWebhookSecret = _encryptionService.Encrypt(request.StripeWebhookSecret);
+            }
+
+            // Test-mode keys
+            if (request.StripeTestPublicKey != null)
+            {
+                settings.StripeTestPublicKey = request.StripeTestPublicKey;
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.StripeTestSecretKey))
+            {
+                settings.StripeTestSecretKey = _encryptionService.Encrypt(request.StripeTestSecretKey);
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.StripeTestWebhookSecret))
+            {
+                settings.StripeTestWebhookSecret = _encryptionService.Encrypt(request.StripeTestWebhookSecret);
+            }
+
+            // Live-mode keys
+            if (request.StripeLivePublicKey != null)
+            {
+                settings.StripeLivePublicKey = request.StripeLivePublicKey;
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.StripeLiveSecretKey))
+            {
+                settings.StripeLiveSecretKey = _encryptionService.Encrypt(request.StripeLiveSecretKey);
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.StripeLiveWebhookSecret))
+            {
+                settings.StripeLiveWebhookSecret = _encryptionService.Encrypt(request.StripeLiveWebhookSecret);
             }
 
             await _context.SaveChangesAsync();
@@ -119,6 +163,15 @@ public class SettingsController : ControllerBase
             PayPeriodType = settings.PayPeriodType,
             StripePublicKey = settings.StripePublicKey,
             StripeEnabled = settings.StripeEnabled,
+            StripeSecretKeyConfigured = !string.IsNullOrEmpty(settings.StripeSecretKey),
+            StripeWebhookConfigured = !string.IsNullOrEmpty(settings.StripeWebhookSecret),
+            StripeTestPublicKey = settings.StripeTestPublicKey,
+            StripeTestSecretKeyConfigured = !string.IsNullOrEmpty(settings.StripeTestSecretKey),
+            StripeTestWebhookConfigured = !string.IsNullOrEmpty(settings.StripeTestWebhookSecret),
+            StripeLivePublicKey = settings.StripeLivePublicKey,
+            StripeLiveSecretKeyConfigured = !string.IsNullOrEmpty(settings.StripeLiveSecretKey),
+            StripeLiveWebhookConfigured = !string.IsNullOrEmpty(settings.StripeLiveWebhookSecret),
+            StripeMode = settings.StripeMode,
             UpdatedAt = settings.UpdatedAt,
             UpdatedBy = settings.UpdatedBy
         };
