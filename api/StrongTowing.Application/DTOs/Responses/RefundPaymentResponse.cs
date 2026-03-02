@@ -9,3 +9,4 @@ namespace StrongTowing.Application.DTOs.Responses
         public string? Reason { get; set; }
     }
 }
+
