@@ -35,10 +35,10 @@ public class JobsController : ControllerBase
     }
 
     /// <summary>
-    /// Get All Jobs (Admin/Dispatcher only)
+    /// Get All Jobs (SuperAdmin/Admin/Dispatcher only)
     /// </summary>
     [HttpGet]
-    [Authorize(Roles = $"{UserRoles.Administrator},{UserRoles.Dispatcher}")]
+    [Authorize(Roles = $"{UserRoles.SuperAdmin},{UserRoles.Administrator},{UserRoles.Dispatcher}")]
     public async Task<ActionResult<IEnumerable<JobDto>>> GetAllJobs([FromQuery] string? status = null)
     {
         try

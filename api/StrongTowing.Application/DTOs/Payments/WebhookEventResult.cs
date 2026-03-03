@@ -23,6 +23,12 @@ namespace StrongTowing.Application.DTOs.Payments
         /// <summary>Session/checkout ID — set for payment_link.completed events.</summary>
         public string? SessionId { get; set; }
 
+        /// <summary>
+        /// Optional job identifier extracted from provider metadata when available.
+        /// Used as a fallback correlation key for payment-link webhook reconciliation.
+        /// </summary>
+        public int? JobId { get; set; }
+
         /// <summary>Amount paid in the currency's major unit (e.g. dollars, not cents).</summary>
         public decimal? AmountPaid { get; set; }
 
@@ -37,6 +43,9 @@ namespace StrongTowing.Application.DTOs.Payments
 
         /// <summary>The raw event type string from the provider, for logging/debugging.</summary>
         public string? RawProviderEventType { get; set; }
+
+        /// <summary>Provider error message when a payment fails.</summary>
+        public string? ErrorMessage { get; set; }
 
         // ─── Normalized EventType constants ──────────────────────────────────
 

@@ -79,6 +79,13 @@ public class SettingsController : ControllerBase
                 return BadRequest(new { error = "Bad Request", message = "Driver commission percentage must be between 0 and 100." });
             }
 
+            if (!string.IsNullOrWhiteSpace(request.StripeMode) &&
+                !request.StripeMode.Equals("test", StringComparison.OrdinalIgnoreCase) &&
+                !request.StripeMode.Equals("live", StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest(new { error = "Bad Request", message = "Stripe mode must be either 'test' or 'live'." });
+            }
+
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "System";
             var settings = await _context.SystemSettings.FirstOrDefaultAsync();
 
@@ -96,7 +103,7 @@ public class SettingsController : ControllerBase
             settings.DriverCommissionPercentage = request.DriverCommissionPercentage;
             settings.StripePublicKey = request.StripePublicKey;
             settings.StripeEnabled = request.StripeEnabled;
-            settings.StripeMode = request.StripeMode == "live" ? "live" : "test";
+            settings.StripeMode = request.StripeMode?.Equals("live", StringComparison.OrdinalIgnoreCase) == true ? "live" : "test";
             settings.UpdatedAt = DateTime.UtcNow;
             settings.UpdatedBy = userId;
 

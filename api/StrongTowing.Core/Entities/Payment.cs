@@ -36,6 +36,7 @@ namespace StrongTowing.Core.Entities
         public string? ProcessedBy { get; set; } // Dispatcher User ID
         public DateTime? ProcessedAt { get; set; }
         public string? TransactionId { get; set; }
+        public string? PaymentErrorMessage { get; set; }
         
         // Refund
         public DateTime? RefundedAt { get; set; }

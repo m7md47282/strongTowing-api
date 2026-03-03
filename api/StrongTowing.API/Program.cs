@@ -92,6 +92,7 @@ builder.Services.AddScoped<RoleSeederService>();
 
 // 6. Register Encryption service
 builder.Services.AddScoped<IEncryptionService, EncryptionService>();
+builder.Services.AddScoped<IPaymentProvider, StripePaymentProvider>();
 
 // 7. Add Controllers with validation
 builder.Services.AddControllers(options =>

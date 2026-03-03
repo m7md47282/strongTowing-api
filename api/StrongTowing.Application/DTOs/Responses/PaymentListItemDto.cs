@@ -27,5 +27,6 @@ namespace StrongTowing.Application.DTOs.Responses
         public string? TransactionId { get; set; }
         public string? CardLast4 { get; set; }
         public string? CardBrand { get; set; }
+        public string? PaymentErrorMessage { get; set; }
     }
 }

@@ -456,7 +456,7 @@ public class PaymentsController : ControllerBase
         var encryptionService = HttpContext.RequestServices.GetRequiredService<IEncryptionService>();
 
         // Resolve the active webhook secret based on the current Stripe mode
-        var isLive = settings.StripeMode == "live";
+        var isLive = string.Equals(settings.StripeMode, "live", StringComparison.OrdinalIgnoreCase);
         var encryptedWebhookSecret = isLive
             ? (settings.StripeLiveWebhookSecret ?? settings.StripeWebhookSecret)
             : (settings.StripeTestWebhookSecret ?? settings.StripeWebhookSecret);
@@ -537,9 +537,55 @@ public class PaymentsController : ControllerBase
     {
         if (string.IsNullOrEmpty(webhookEvent.TransactionId)) return;
 
+        PaymentLinkCorrelationResult? correlation = null;
         var payment = await _context.Payments
             .Include(p => p.Job)
             .FirstOrDefaultAsync(p => p.StripePaymentIntentId == webhookEvent.TransactionId);
+
+        // Fallback: payment link flow may only correlate by jobId metadata on first success callback.
+        if (payment == null && webhookEvent.JobId.HasValue)
+        {
+            payment = await _context.Payments
+                .Include(p => p.Job)
+                .Where(p =>
+                    p.JobId == webhookEvent.JobId.Value &&
+                    p.PaymentMethod == "PaymentLink" &&
+                    p.PaymentStatus == "Pending")
+                .OrderByDescending(p => p.CreatedAt)
+                .FirstOrDefaultAsync();
+        }
+
+        // Fallback: if we only received payment_intent.* events, resolve Checkout Session data from Stripe.
+        if (payment == null)
+        {
+            try
+            {
+                correlation = await _paymentProvider.ResolvePaymentLinkCorrelationAsync(webhookEvent.TransactionId);
+            }
+            catch (PaymentProviderException ex)
+            {
+                _logger.LogWarning(ex, "{Provider} could not resolve payment-link correlation for transaction {TransactionId}.", ex.ProviderName, webhookEvent.TransactionId);
+            }
+
+            if (correlation != null && !string.IsNullOrEmpty(correlation.PaymentLinkId))
+            {
+                payment = await _context.Payments
+                    .Include(p => p.Job)
+                    .FirstOrDefaultAsync(p => p.StripePaymentLinkId == correlation.PaymentLinkId);
+            }
+
+            if (payment == null && correlation?.JobId.HasValue == true)
+            {
+                payment = await _context.Payments
+                    .Include(p => p.Job)
+                    .Where(p =>
+                        p.JobId == correlation.JobId.Value &&
+                        p.PaymentMethod == "PaymentLink" &&
+                        p.PaymentStatus == "Pending")
+                    .OrderByDescending(p => p.CreatedAt)
+                    .FirstOrDefaultAsync();
+            }
+        }
 
         if (payment == null)
         {
@@ -549,9 +595,13 @@ public class PaymentsController : ControllerBase
 
         payment.PaymentStatus = "Paid";
         payment.ProcessedAt = DateTime.UtcNow;
+        payment.TransactionId ??= webhookEvent.SessionId ?? correlation?.SessionId;
+        payment.StripePaymentIntentId ??= webhookEvent.TransactionId;
         payment.StripeChargeId = webhookEvent.ChargeId;
         payment.CardLast4 = webhookEvent.CardLast4;
         payment.CardBrand = webhookEvent.CardBrand;
+        payment.StripePaymentLinkId ??= webhookEvent.PaymentLinkId ?? correlation?.PaymentLinkId;
+        payment.PaymentErrorMessage = null;
 
         if (payment.Job != null)
         {
@@ -566,10 +616,57 @@ public class PaymentsController : ControllerBase
 
     private async Task HandlePaymentFailed(WebhookEventResult webhookEvent)
     {
-        if (string.IsNullOrEmpty(webhookEvent.TransactionId)) return;
+        Payment? payment = null;
+        PaymentLinkCorrelationResult? correlation = null;
+        if (!string.IsNullOrEmpty(webhookEvent.TransactionId))
+        {
+            payment = await _context.Payments
+                .Include(p => p.Job)
+                .FirstOrDefaultAsync(p => p.StripePaymentIntentId == webhookEvent.TransactionId);
+        }
 
-        var payment = await _context.Payments
-            .FirstOrDefaultAsync(p => p.StripePaymentIntentId == webhookEvent.TransactionId);
+        if (payment == null && webhookEvent.JobId.HasValue)
+        {
+            payment = await _context.Payments
+                .Include(p => p.Job)
+                .Where(p =>
+                    p.JobId == webhookEvent.JobId.Value &&
+                    p.PaymentMethod == "PaymentLink" &&
+                    p.PaymentStatus == "Pending")
+                .OrderByDescending(p => p.CreatedAt)
+                .FirstOrDefaultAsync();
+        }
+
+        if (payment == null && !string.IsNullOrEmpty(webhookEvent.TransactionId))
+        {
+            try
+            {
+                correlation = await _paymentProvider.ResolvePaymentLinkCorrelationAsync(webhookEvent.TransactionId);
+            }
+            catch (PaymentProviderException ex)
+            {
+                _logger.LogWarning(ex, "{Provider} could not resolve failed payment-link correlation for transaction {TransactionId}.", ex.ProviderName, webhookEvent.TransactionId);
+            }
+
+            if (correlation != null && !string.IsNullOrEmpty(correlation.PaymentLinkId))
+            {
+                payment = await _context.Payments
+                    .Include(p => p.Job)
+                    .FirstOrDefaultAsync(p => p.StripePaymentLinkId == correlation.PaymentLinkId);
+            }
+
+            if (payment == null && correlation?.JobId.HasValue == true)
+            {
+                payment = await _context.Payments
+                    .Include(p => p.Job)
+                    .Where(p =>
+                        p.JobId == correlation.JobId.Value &&
+                        p.PaymentMethod == "PaymentLink" &&
+                        p.PaymentStatus == "Pending")
+                    .OrderByDescending(p => p.CreatedAt)
+                    .FirstOrDefaultAsync();
+            }
+        }
 
         if (payment == null)
         {
@@ -578,27 +675,57 @@ public class PaymentsController : ControllerBase
         }
 
         payment.PaymentStatus = "Failed";
+        payment.PaymentErrorMessage = webhookEvent.ErrorMessage;
+        payment.StripePaymentIntentId ??= webhookEvent.TransactionId;
+        payment.TransactionId ??= webhookEvent.SessionId ?? correlation?.SessionId;
+        payment.StripePaymentLinkId ??= webhookEvent.PaymentLinkId ?? correlation?.PaymentLinkId;
+
+        if (payment.Job != null && payment.Job.PaymentStatus != "Paid")
+        {
+            payment.Job.PaymentStatus = "Failed";
+        }
+
         await _context.SaveChangesAsync();
         _logger.LogInformation("Marked payment as Failed for transaction {TransactionId}.", webhookEvent.TransactionId);
     }
 
     private async Task HandlePaymentLinkCompleted(WebhookEventResult webhookEvent)
     {
-        if (string.IsNullOrEmpty(webhookEvent.PaymentLinkId)) return;
+        Payment? payment = null;
+        if (!string.IsNullOrEmpty(webhookEvent.PaymentLinkId))
+        {
+            payment = await _context.Payments
+                .Include(p => p.Job)
+                .FirstOrDefaultAsync(p => p.StripePaymentLinkId == webhookEvent.PaymentLinkId);
+        }
 
-        var payment = await _context.Payments
-            .Include(p => p.Job)
-            .FirstOrDefaultAsync(p => p.StripePaymentLinkId == webhookEvent.PaymentLinkId);
+        // Fallback: match by jobId metadata if payment_link identifier is not present.
+        if (payment == null && webhookEvent.JobId.HasValue)
+        {
+            payment = await _context.Payments
+                .Include(p => p.Job)
+                .Where(p =>
+                    p.JobId == webhookEvent.JobId.Value &&
+                    p.PaymentMethod == "PaymentLink" &&
+                    p.PaymentStatus == "Pending")
+                .OrderByDescending(p => p.CreatedAt)
+                .FirstOrDefaultAsync();
+        }
 
         if (payment == null)
         {
-            _logger.LogWarning("No payment record found for payment link {PaymentLinkId}.", webhookEvent.PaymentLinkId);
+            _logger.LogWarning(
+                "No payment record found for completed payment link. PaymentLinkId={PaymentLinkId}, JobId={JobId}, SessionId={SessionId}",
+                webhookEvent.PaymentLinkId, webhookEvent.JobId, webhookEvent.SessionId);
             return;
         }
 
         payment.PaymentStatus = "Paid";
         payment.ProcessedAt = DateTime.UtcNow;
         payment.TransactionId = webhookEvent.SessionId;
+        payment.StripePaymentIntentId ??= webhookEvent.TransactionId;
+        payment.StripePaymentLinkId ??= webhookEvent.PaymentLinkId;
+        payment.PaymentErrorMessage = null;
 
         if (payment.Job != null)
         {
@@ -655,6 +782,7 @@ public class PaymentsController : ControllerBase
             ProcessedBy = payment.ProcessedBy,
             ProcessedAt = payment.ProcessedAt,
             TransactionId = payment.TransactionId,
+            PaymentErrorMessage = payment.PaymentErrorMessage,
             RefundedAt = payment.RefundedAt,
             RefundReason = payment.RefundReason,
             RefundAmount = payment.RefundAmount,
@@ -698,7 +826,8 @@ public class PaymentsController : ControllerBase
             CashCollectedAt = cashCollection?.CollectedAt,
             TransactionId = payment.TransactionId,
             CardLast4 = payment.CardLast4,
-            CardBrand = payment.CardBrand
+            CardBrand = payment.CardBrand,
+            PaymentErrorMessage = payment.PaymentErrorMessage
         };
     }
 }

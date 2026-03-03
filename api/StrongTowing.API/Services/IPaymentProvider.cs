@@ -41,6 +41,12 @@ public interface IPaymentProvider
     Task<PaymentIntentResult> GetPaymentIntentAsync(string transactionId);
 
     /// <summary>
+    /// Resolve payment-link correlation information from a provider-specific transaction/intent ID.
+    /// Returns null when no payment-link context can be derived.
+    /// </summary>
+    Task<PaymentLinkCorrelationResult?> ResolvePaymentLinkCorrelationAsync(string transactionId);
+
+    /// <summary>
     /// Verify the webhook signature and parse the inbound event into a normalized
     /// <see cref="WebhookEventResult"/>. Throws <see cref="Application.Exceptions.PaymentProviderException"/>
     /// if the signature is invalid.
