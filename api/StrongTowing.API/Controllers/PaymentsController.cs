@@ -11,6 +11,7 @@ using StrongTowing.Core.Constants;
 using StrongTowing.Infrastructure.Data;
 using StrongTowing.API.Services;
 using System.Security.Claims;
+using System.Text.Json;
 
 namespace StrongTowing.API.Controllers;
 
@@ -486,11 +487,17 @@ public class PaymentsController : ControllerBase
         catch (PaymentProviderException ex)
         {
             _logger.LogWarning(ex, "{Provider} webhook signature verification failed.", ex.ProviderName);
-            return BadRequest(new { error = "Webhook signature verification failed." });
+            var reason = string.IsNullOrWhiteSpace(ex.Message)
+                ? "Webhook signature verification failed."
+                : ex.Message;
+            await PersistWebhookErrorFromPayloadAsync(json, reason, ex.ErrorCode);
+            return BadRequest(new
+            {
+                error = "Webhook signature verification failed.",
+                code = ex.ErrorCode ?? "webhook_signature_verification_failed",
+                reason
+            });
         }
-
-        _logger.LogInformation("Received webhook event: {EventType} (raw: {RawType})",
-            webhookEvent.EventType, webhookEvent.RawProviderEventType);
 
         try
         {
@@ -499,7 +506,18 @@ public class PaymentsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error processing webhook event {EventType}", webhookEvent.EventType);
-            // Return 200 to prevent the provider from retrying — the error is logged
+            await PersistWebhookErrorAsync(webhookEvent, ex.Message);
+            return StatusCode(500, new
+            {
+                error = "Webhook processing failed.",
+                eventType = webhookEvent.EventType,
+                rawProviderEventType = webhookEvent.RawProviderEventType,
+                sessionId = webhookEvent.SessionId,
+                transactionId = webhookEvent.TransactionId,
+                paymentLinkId = webhookEvent.PaymentLinkId,
+                jobId = webhookEvent.JobId,
+                details = ex.Message
+            });
         }
 
         return Ok(new { received = true });
@@ -691,12 +709,46 @@ public class PaymentsController : ControllerBase
 
     private async Task HandlePaymentLinkCompleted(WebhookEventResult webhookEvent)
     {
+        var sessionPaymentStatus = webhookEvent.SessionPaymentStatus?.Trim().ToLowerInvariant();
+        if (sessionPaymentStatus == WebhookEventResult.SessionPaymentUnpaid)
+        {
+            await PersistWebhookErrorAsync(webhookEvent, "Checkout session completed but payment_status is unpaid.");
+            return;
+        }
+
         Payment? payment = null;
+        PaymentLinkCorrelationResult? correlation = null;
         if (!string.IsNullOrEmpty(webhookEvent.PaymentLinkId))
         {
             payment = await _context.Payments
                 .Include(p => p.Job)
                 .FirstOrDefaultAsync(p => p.StripePaymentLinkId == webhookEvent.PaymentLinkId);
+        }
+
+        if (payment == null && !string.IsNullOrEmpty(webhookEvent.TransactionId))
+        {
+            payment = await _context.Payments
+                .Include(p => p.Job)
+                .FirstOrDefaultAsync(p => p.StripePaymentIntentId == webhookEvent.TransactionId);
+        }
+
+        if (payment == null && !string.IsNullOrEmpty(webhookEvent.TransactionId))
+        {
+            try
+            {
+                correlation = await _paymentProvider.ResolvePaymentLinkCorrelationAsync(webhookEvent.TransactionId);
+            }
+            catch (PaymentProviderException ex)
+            {
+                _logger.LogWarning(ex, "{Provider} could not resolve completed payment-link correlation for transaction {TransactionId}.", ex.ProviderName, webhookEvent.TransactionId);
+            }
+
+            if (correlation != null && !string.IsNullOrEmpty(correlation.PaymentLinkId))
+            {
+                payment = await _context.Payments
+                    .Include(p => p.Job)
+                    .FirstOrDefaultAsync(p => p.StripePaymentLinkId == correlation.PaymentLinkId);
+            }
         }
 
         // Fallback: match by jobId metadata if payment_link identifier is not present.
@@ -712,19 +764,29 @@ public class PaymentsController : ControllerBase
                 .FirstOrDefaultAsync();
         }
 
+        if (payment == null && correlation?.JobId.HasValue == true)
+        {
+            payment = await _context.Payments
+                .Include(p => p.Job)
+                .Where(p =>
+                    p.JobId == correlation.JobId.Value &&
+                    p.PaymentMethod == "PaymentLink" &&
+                    p.PaymentStatus == "Pending")
+                .OrderByDescending(p => p.CreatedAt)
+                .FirstOrDefaultAsync();
+        }
+
         if (payment == null)
         {
-            _logger.LogWarning(
-                "No payment record found for completed payment link. PaymentLinkId={PaymentLinkId}, JobId={JobId}, SessionId={SessionId}",
-                webhookEvent.PaymentLinkId, webhookEvent.JobId, webhookEvent.SessionId);
+            await PersistWebhookErrorAsync(webhookEvent, "No payment record found for completed payment link webhook event.");
             return;
         }
 
         payment.PaymentStatus = "Paid";
         payment.ProcessedAt = DateTime.UtcNow;
-        payment.TransactionId = webhookEvent.SessionId;
+        payment.TransactionId ??= webhookEvent.SessionId ?? correlation?.SessionId;
         payment.StripePaymentIntentId ??= webhookEvent.TransactionId;
-        payment.StripePaymentLinkId ??= webhookEvent.PaymentLinkId;
+        payment.StripePaymentLinkId ??= webhookEvent.PaymentLinkId ?? correlation?.PaymentLinkId;
         payment.PaymentErrorMessage = null;
 
         if (payment.Job != null)
@@ -736,6 +798,175 @@ public class PaymentsController : ControllerBase
 
         await _context.SaveChangesAsync();
         _logger.LogInformation("Marked payment as Paid for payment link {PaymentLinkId}.", webhookEvent.PaymentLinkId);
+    }
+
+    private async Task PersistWebhookErrorAsync(WebhookEventResult webhookEvent, string errorMessage)
+    {
+        if (string.IsNullOrWhiteSpace(errorMessage))
+        {
+            return;
+        }
+
+        Payment? payment = null;
+        PaymentLinkCorrelationResult? correlation = null;
+
+        if (!string.IsNullOrEmpty(webhookEvent.PaymentLinkId))
+        {
+            payment = await _context.Payments
+                .FirstOrDefaultAsync(p => p.StripePaymentLinkId == webhookEvent.PaymentLinkId);
+        }
+
+        if (payment == null && !string.IsNullOrEmpty(webhookEvent.TransactionId))
+        {
+            payment = await _context.Payments
+                .FirstOrDefaultAsync(p => p.StripePaymentIntentId == webhookEvent.TransactionId);
+        }
+
+        if (payment == null && webhookEvent.JobId.HasValue)
+        {
+            payment = await _context.Payments
+                .Where(p =>
+                    p.JobId == webhookEvent.JobId.Value &&
+                    p.PaymentMethod == "PaymentLink")
+                .OrderByDescending(p => p.CreatedAt)
+                .FirstOrDefaultAsync();
+        }
+
+        if (payment == null && !string.IsNullOrEmpty(webhookEvent.TransactionId))
+        {
+            try
+            {
+                correlation = await _paymentProvider.ResolvePaymentLinkCorrelationAsync(webhookEvent.TransactionId);
+            }
+            catch (PaymentProviderException)
+            {
+                // Best-effort persistence only. Ignore lookup failures here.
+            }
+
+            if (payment == null && correlation?.PaymentLinkId != null)
+            {
+                payment = await _context.Payments
+                    .FirstOrDefaultAsync(p => p.StripePaymentLinkId == correlation.PaymentLinkId);
+            }
+
+            if (payment == null && correlation?.JobId.HasValue == true)
+            {
+                payment = await _context.Payments
+                    .Where(p =>
+                        p.JobId == correlation.JobId.Value &&
+                        p.PaymentMethod == "PaymentLink")
+                    .OrderByDescending(p => p.CreatedAt)
+                    .FirstOrDefaultAsync();
+            }
+        }
+
+        if (payment == null)
+        {
+            return;
+        }
+
+        payment.PaymentErrorMessage = $"Webhook: {errorMessage}";
+        await _context.SaveChangesAsync();
+    }
+
+    private async Task PersistWebhookErrorFromPayloadAsync(string rawPayload, string errorMessage, string? errorCode)
+    {
+        if (string.IsNullOrWhiteSpace(rawPayload) || string.IsNullOrWhiteSpace(errorMessage))
+        {
+            return;
+        }
+
+        string? paymentIntentId = null;
+        string? paymentLinkId = null;
+        int? jobId = null;
+
+        try
+        {
+            using var jsonDoc = JsonDocument.Parse(rawPayload);
+            var root = jsonDoc.RootElement;
+            if (!root.TryGetProperty("data", out var dataNode) ||
+                !dataNode.TryGetProperty("object", out var objectNode))
+            {
+                return;
+            }
+
+            if (objectNode.TryGetProperty("payment_intent", out var paymentIntentProp) && paymentIntentProp.ValueKind == JsonValueKind.String)
+            {
+                paymentIntentId = paymentIntentProp.GetString();
+            }
+
+            if (objectNode.TryGetProperty("id", out var objectIdProp) && objectIdProp.ValueKind == JsonValueKind.String)
+            {
+                var objectId = objectIdProp.GetString();
+                if (!string.IsNullOrWhiteSpace(objectId))
+                {
+                    if (objectId.StartsWith("pi_", StringComparison.Ordinal))
+                    {
+                        paymentIntentId ??= objectId;
+                    }
+                    else if (objectId.StartsWith("plink_", StringComparison.Ordinal))
+                    {
+                        paymentLinkId ??= objectId;
+                    }
+                }
+            }
+
+            if (objectNode.TryGetProperty("payment_link", out var paymentLinkProp) && paymentLinkProp.ValueKind == JsonValueKind.String)
+            {
+                paymentLinkId = paymentLinkProp.GetString();
+            }
+
+            if (objectNode.TryGetProperty("metadata", out var metadataProp) &&
+                metadataProp.ValueKind == JsonValueKind.Object &&
+                metadataProp.TryGetProperty("jobId", out var jobIdProp))
+            {
+                if (jobIdProp.ValueKind == JsonValueKind.String && int.TryParse(jobIdProp.GetString(), out var parsedJobId))
+                {
+                    jobId = parsedJobId;
+                }
+                else if (jobIdProp.ValueKind == JsonValueKind.Number && jobIdProp.TryGetInt32(out var numericJobId))
+                {
+                    jobId = numericJobId;
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            return;
+        }
+
+        Payment? payment = null;
+
+        if (!string.IsNullOrEmpty(paymentLinkId))
+        {
+            payment = await _context.Payments
+                .FirstOrDefaultAsync(p => p.StripePaymentLinkId == paymentLinkId);
+        }
+
+        if (payment == null && !string.IsNullOrEmpty(paymentIntentId))
+        {
+            payment = await _context.Payments
+                .FirstOrDefaultAsync(p => p.StripePaymentIntentId == paymentIntentId);
+        }
+
+        if (payment == null && jobId.HasValue)
+        {
+            payment = await _context.Payments
+                .Where(p =>
+                    p.JobId == jobId.Value &&
+                    p.PaymentMethod == "PaymentLink")
+                .OrderByDescending(p => p.CreatedAt)
+                .FirstOrDefaultAsync();
+        }
+
+        if (payment == null)
+        {
+            return;
+        }
+
+        var prefix = string.IsNullOrWhiteSpace(errorCode) ? "Webhook" : $"Webhook[{errorCode}]";
+        payment.PaymentErrorMessage = $"{prefix}: {errorMessage}";
+        await _context.SaveChangesAsync();
     }
 
     private async Task HandlePaymentRefunded(WebhookEventResult webhookEvent)

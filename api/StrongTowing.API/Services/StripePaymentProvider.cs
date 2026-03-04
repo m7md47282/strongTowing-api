@@ -16,6 +16,10 @@ public class StripePaymentProvider : IPaymentProvider
 
     public string ProviderName => "Stripe";
     public string WebhookSignatureHeaderName => "Stripe-Signature";
+    private const string SignatureMismatchCode = "signature_mismatch";
+    private const string SignatureTimestampCode = "signature_timestamp_out_of_tolerance";
+    private const string WebhookPayloadInvalidCode = "webhook_payload_invalid";
+    private const string WebhookParseFailedCode = "webhook_parse_failed";
 
     public StripePaymentProvider(
         ApplicationDbContext context,
@@ -276,7 +280,11 @@ public class StripePaymentProvider : IPaymentProvider
     {
         try
         {
-            var stripeEvent = EventUtility.ConstructEvent(json, signature, webhookSecret);
+            var stripeEvent = EventUtility.ConstructEvent(
+                json,
+                signature,
+                webhookSecret,
+                throwOnApiVersionMismatch: false);
             using var jsonDoc = JsonDocument.Parse(json);
             var objectNode = jsonDoc.RootElement
                 .GetProperty("data")
@@ -298,6 +306,10 @@ public class StripePaymentProvider : IPaymentProvider
             if (objectNode.TryGetProperty("id", out var objectIdProp) && objectIdProp.ValueKind == JsonValueKind.String)
             {
                 result.SessionId = objectIdProp.GetString();
+            }
+            if (objectNode.TryGetProperty("payment_status", out var paymentStatusProp) && paymentStatusProp.ValueKind == JsonValueKind.String)
+            {
+                result.SessionPaymentStatus = paymentStatusProp.GetString();
             }
             if (objectNode.TryGetProperty("amount_total", out var amountTotalProp) && amountTotalProp.ValueKind == JsonValueKind.Number)
             {
@@ -356,6 +368,7 @@ public class StripePaymentProvider : IPaymentProvider
                     result.PaymentLinkId ??= session?.PaymentLinkId;
                     result.SessionId ??= session?.Id;
                     result.TransactionId ??= session?.PaymentIntentId;
+                    result.SessionPaymentStatus ??= session?.PaymentStatus;
                     break;
                 }
                 case "charge.refunded":
@@ -379,7 +392,33 @@ public class StripePaymentProvider : IPaymentProvider
         catch (StripeException ex)
         {
             _logger.LogWarning(ex, "Stripe webhook signature verification/parsing failed.");
-            throw new PaymentProviderException(ProviderName, ex.StripeError?.Message ?? ex.Message, ex);
+            var providerMessage = ex.StripeError?.Message ?? ex.Message;
+            var normalizedMessage = providerMessage;
+            var errorCode = WebhookParseFailedCode;
+            var lowered = providerMessage.ToLowerInvariant();
+
+            if (lowered.Contains("no signatures found matching the expected signature") ||
+                lowered.Contains("unable to extract timestamp and signatures from header"))
+            {
+                errorCode = SignatureMismatchCode;
+                normalizedMessage = "Stripe signature mismatch: verify webhook signing secret for this endpoint and mode.";
+            }
+            else if (lowered.Contains("timestamp outside the tolerance zone"))
+            {
+                errorCode = SignatureTimestampCode;
+                normalizedMessage = "Stripe signature timestamp outside tolerance: check server time synchronization (NTP).";
+            }
+            else if (lowered.Contains("json") || lowered.Contains("payload"))
+            {
+                errorCode = WebhookPayloadInvalidCode;
+                normalizedMessage = "Invalid webhook payload received from Stripe.";
+            }
+
+            throw new PaymentProviderException(
+                ProviderName,
+                $"{normalizedMessage} Raw: {providerMessage}",
+                ex,
+                errorCode);
         }
     }
 

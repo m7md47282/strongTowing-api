@@ -8,11 +8,13 @@ namespace StrongTowing.Application.Exceptions
     public class PaymentProviderException : Exception
     {
         public string ProviderName { get; }
+        public string? ErrorCode { get; }
 
-        public PaymentProviderException(string providerName, string message, Exception? inner = null)
+        public PaymentProviderException(string providerName, string message, Exception? inner = null, string? errorCode = null)
             : base(message, inner)
         {
             ProviderName = providerName;
+            ErrorCode = errorCode;
         }
     }
 }

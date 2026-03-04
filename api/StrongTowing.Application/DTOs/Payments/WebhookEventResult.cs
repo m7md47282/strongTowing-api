@@ -24,6 +24,12 @@ namespace StrongTowing.Application.DTOs.Payments
         public string? SessionId { get; set; }
 
         /// <summary>
+        /// Checkout session payment status when available (e.g. paid, unpaid, no_payment_required).
+        /// Useful for Payment Links/Checkout fulfillment gating.
+        /// </summary>
+        public string? SessionPaymentStatus { get; set; }
+
+        /// <summary>
         /// Optional job identifier extracted from provider metadata when available.
         /// Used as a fallback correlation key for payment-link webhook reconciliation.
         /// </summary>
@@ -54,5 +60,9 @@ namespace StrongTowing.Application.DTOs.Payments
         public const string PaymentLinkCompleted = "payment_link.completed";
         public const string PaymentRefunded = "payment.refunded";
         public const string Unknown = "unknown";
+
+        public const string SessionPaymentPaid = "paid";
+        public const string SessionPaymentUnpaid = "unpaid";
+        public const string SessionPaymentNoPaymentRequired = "no_payment_required";
     }
 }
