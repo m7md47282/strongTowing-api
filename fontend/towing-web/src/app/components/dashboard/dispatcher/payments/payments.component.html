@@ -224,6 +224,7 @@
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Error</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Driver</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Commission</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
@@ -261,6 +262,15 @@
                 <span class="px-2 py-1 text-xs font-semibold rounded-full {{ getPaymentStatusClass(payment.paymentStatus) }}">
                   {{ payment.paymentStatus }}
                 </span>
+              </td>
+              <td class="px-6 py-4">
+                @if (payment.paymentErrorMessage) {
+                  <div class="text-sm text-red-600 max-w-xs truncate" [title]="payment.paymentErrorMessage">
+                    {{ payment.paymentErrorMessage }}
+                  </div>
+                } @else {
+                  <span class="text-sm text-gray-400">-</span>
+                }
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="text-sm text-gray-900">{{ payment.driverName || 'N/A' }}</div>
@@ -518,6 +528,12 @@
                       <i class="fas fa-credit-card mr-2"></i>
                       {{ selectedPayment.cardBrand }} ****{{ selectedPayment.cardLast4 }}
                     </p>
+                  </div>
+                }
+                @if (selectedPayment.paymentErrorMessage) {
+                  <div>
+                    <p class="text-sm font-medium text-gray-500">Payment Error</p>
+                    <p class="text-red-600">{{ selectedPayment.paymentErrorMessage }}</p>
                   </div>
                 }
               </div>

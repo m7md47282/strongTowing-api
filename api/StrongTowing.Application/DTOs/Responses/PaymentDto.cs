@@ -16,6 +16,8 @@ namespace StrongTowing.Application.DTOs.Responses
         
         // Payment link
         public int? PaymentLinkId { get; set; }
+        public string? StripePaymentLinkId { get; set; }
+        public string? StripePaymentLinkUrl { get; set; }
         
         // Cash collection
         public string? CashCollectedBy { get; set; }
@@ -25,6 +27,7 @@ namespace StrongTowing.Application.DTOs.Responses
         public string? ProcessedBy { get; set; }
         public DateTime? ProcessedAt { get; set; }
         public string? TransactionId { get; set; }
+        public string? PaymentErrorMessage { get; set; }
         
         // Refund
         public DateTime? RefundedAt { get; set; }

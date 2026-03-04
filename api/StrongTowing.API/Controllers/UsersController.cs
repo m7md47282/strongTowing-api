@@ -172,7 +172,7 @@ public class UsersController : ControllerBase
     /// Get Clients (Users with role=User) - For Dispatchers to select clients when creating jobs
     /// </summary>
     [HttpGet("clients")]
-    [Authorize(Roles = $"{UserRoles.Administrator},{UserRoles.Dispatcher}")]
+    [Authorize(Roles = $"{UserRoles.SuperAdmin},{UserRoles.Administrator},{UserRoles.Dispatcher}")]
     public async Task<ActionResult<PagedResponse<UserDto>>> GetClients(
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10,
@@ -271,7 +271,7 @@ public class UsersController : ControllerBase
     /// Get Drivers (Users with role=Driver) - For Dispatchers to assign drivers to jobs
     /// </summary>
     [HttpGet("drivers")]
-    [Authorize(Roles = $"{UserRoles.Administrator},{UserRoles.Dispatcher}")]
+    [Authorize(Roles = $"{UserRoles.SuperAdmin},{UserRoles.Administrator},{UserRoles.Dispatcher}")]
     public async Task<ActionResult<PagedResponse<UserDto>>> GetDrivers(
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10,
@@ -464,22 +464,32 @@ public class UsersController : ControllerBase
             bool canCreate = false;
             if (currentUserRole.Equals(UserRoles.SuperAdmin, StringComparison.OrdinalIgnoreCase))
             {
-                // SuperAdmin can create Admins, Dispatchers, and Drivers
-                canCreate = requestedRole.Equals(UserRoles.Administrator, StringComparison.OrdinalIgnoreCase) ||
-                           requestedRole.Equals(UserRoles.Dispatcher, StringComparison.OrdinalIgnoreCase) ||
-                           requestedRole.Equals(UserRoles.Driver, StringComparison.OrdinalIgnoreCase);
+                // SuperAdmin can create all roles
+                canCreate = UserRoles.All.Contains(requestedRole, StringComparer.OrdinalIgnoreCase);
             }
             else if (currentUserRole.Equals(UserRoles.Administrator, StringComparison.OrdinalIgnoreCase))
             {
-                // Admin can create Dispatchers and Drivers only
-                canCreate = requestedRole.Equals(UserRoles.Dispatcher, StringComparison.OrdinalIgnoreCase) ||
-                           requestedRole.Equals(UserRoles.Driver, StringComparison.OrdinalIgnoreCase);
+                // Admin can create Admin, Dispatcher, Driver, and User
+                canCreate = requestedRole.Equals(UserRoles.Administrator, StringComparison.OrdinalIgnoreCase) ||
+                           requestedRole.Equals(UserRoles.Dispatcher, StringComparison.OrdinalIgnoreCase) ||
+                           requestedRole.Equals(UserRoles.Driver, StringComparison.OrdinalIgnoreCase) ||
+                           requestedRole.Equals(UserRoles.User, StringComparison.OrdinalIgnoreCase);
+            }
+
+            // SuperAdmin assignment is restricted to SuperAdmin creators
+            if (requestedRole.Equals(UserRoles.SuperAdmin, StringComparison.OrdinalIgnoreCase) &&
+                !currentUserRole.Equals(UserRoles.SuperAdmin, StringComparison.OrdinalIgnoreCase))
+            {
+                canCreate = false;
             }
 
             if (!canCreate)
             {
                 return StatusCode(403, new { error = "Forbidden", message = "You do not have permission to create users with this role." });
             }
+            
+            // Normalize requested role casing to canonical role name
+            requestedRole = UserRoles.All.First(r => r.Equals(requestedRole, StringComparison.OrdinalIgnoreCase));
 
             // Check if user already exists
             var existingUser = await _userManager.FindByEmailAsync(request.Email);
@@ -605,6 +615,62 @@ public class UsersController : ControllerBase
                 user.IsActive = request.IsActive.Value;
             }
 
+            // Role update flow
+            var roleChanged = false;
+            var requestedRole = request.Role?.Trim();
+            var currentUserRole = await GetRoleNameFromRoleIdAsync(currentUser.RoleId);
+            var targetUserCurrentRole = await GetRoleNameFromRoleIdAsync(user.RoleId);
+            var originalRoleId = user.RoleId;
+            var targetUserIdentityRoles = await _userManager.GetRolesAsync(user);
+
+            if (!string.IsNullOrEmpty(requestedRole))
+            {
+                if (!UserRoles.All.Contains(requestedRole, StringComparer.OrdinalIgnoreCase))
+                {
+                    return BadRequest(new { error = "Bad Request", message = $"Invalid role. Valid roles are: {string.Join(", ", UserRoles.All)}" });
+                }
+
+                // Normalize requested role casing to canonical role name
+                requestedRole = UserRoles.All.First(r => r.Equals(requestedRole, StringComparison.OrdinalIgnoreCase));
+
+                // Enforce hierarchy rules
+                bool canAssignRole = false;
+                if (currentUserRole.Equals(UserRoles.SuperAdmin, StringComparison.OrdinalIgnoreCase))
+                {
+                    canAssignRole = true;
+                }
+                else if (currentUserRole.Equals(UserRoles.Administrator, StringComparison.OrdinalIgnoreCase))
+                {
+                    canAssignRole = requestedRole.Equals(UserRoles.Administrator, StringComparison.OrdinalIgnoreCase) ||
+                                    requestedRole.Equals(UserRoles.Dispatcher, StringComparison.OrdinalIgnoreCase) ||
+                                    requestedRole.Equals(UserRoles.Driver, StringComparison.OrdinalIgnoreCase) ||
+                                    requestedRole.Equals(UserRoles.User, StringComparison.OrdinalIgnoreCase);
+                }
+
+                if (requestedRole.Equals(UserRoles.SuperAdmin, StringComparison.OrdinalIgnoreCase) &&
+                    !currentUserRole.Equals(UserRoles.SuperAdmin, StringComparison.OrdinalIgnoreCase))
+                {
+                    canAssignRole = false;
+                }
+
+                if (!canAssignRole)
+                {
+                    return StatusCode(403, new { error = "Forbidden", message = "You do not have permission to assign this role." });
+                }
+
+                if (!targetUserCurrentRole.Equals(requestedRole, StringComparison.OrdinalIgnoreCase))
+                {
+                    var newRoleId = UserRoles.GetRoleId(requestedRole);
+                    if (string.IsNullOrEmpty(newRoleId))
+                    {
+                        return BadRequest(new { error = "Bad Request", message = "Role not configured properly." });
+                    }
+
+                    user.RoleId = newRoleId;
+                    roleChanged = true;
+                }
+            }
+
             user.UpdatedAt = DateTime.UtcNow;
 
             var updateResult = await _userManager.UpdateAsync(user);
@@ -612,6 +678,48 @@ public class UsersController : ControllerBase
             {
                 var errors = string.Join(", ", updateResult.Errors.Select(e => e.Description));
                 return BadRequest(new { error = "Bad Request", message = $"Failed to update user: {errors}" });
+            }
+
+            // Keep Identity roles in sync with RoleId
+            if (roleChanged && !string.IsNullOrEmpty(requestedRole))
+            {
+                if (targetUserIdentityRoles.Any())
+                {
+                    var removeRolesResult = await _userManager.RemoveFromRolesAsync(user, targetUserIdentityRoles);
+                    if (!removeRolesResult.Succeeded)
+                    {
+                        // Best-effort rollback RoleId
+                        user.RoleId = originalRoleId;
+                        user.UpdatedAt = DateTime.UtcNow;
+                        await _userManager.UpdateAsync(user);
+
+                        var errors = string.Join(", ", removeRolesResult.Errors.Select(e => e.Description));
+                        return BadRequest(new { error = "Bad Request", message = $"Failed to remove old role assignments: {errors}" });
+                    }
+                }
+
+                var addRoleResult = await _userManager.AddToRoleAsync(user, requestedRole);
+                if (!addRoleResult.Succeeded)
+                {
+                    // Best-effort rollback role membership
+                    var currentRolesAfterFailure = await _userManager.GetRolesAsync(user);
+                    if (currentRolesAfterFailure.Any())
+                    {
+                        await _userManager.RemoveFromRolesAsync(user, currentRolesAfterFailure);
+                    }
+                    if (targetUserIdentityRoles.Any())
+                    {
+                        await _userManager.AddToRolesAsync(user, targetUserIdentityRoles);
+                    }
+
+                    // Best-effort rollback RoleId
+                    user.RoleId = originalRoleId;
+                    user.UpdatedAt = DateTime.UtcNow;
+                    await _userManager.UpdateAsync(user);
+
+                    var errors = string.Join(", ", addRoleResult.Errors.Select(e => e.Description));
+                    return BadRequest(new { error = "Bad Request", message = $"Failed to assign new role: {errors}" });
+                }
             }
 
             var roleName = await GetRoleNameFromRoleIdAsync(user.RoleId);
