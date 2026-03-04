@@ -1,0 +1,322 @@
+<div class="p-8 min-h-screen bg-white m-4 rounded-xl border border-gray-100 shadow-sm">
+  <div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-900 mb-1">System Settings</h1>
+    <p class="text-sm text-gray-600">Manage system configuration and payment providers.</p>
+  </div>
+
+  <div class="border-b border-gray-200 mb-6">
+    <nav class="flex gap-2">
+      <button
+        type="button"
+        (click)="selectTab('general')"
+        class="px-4 py-2.5 text-sm font-medium rounded-t-lg border-b-2 transition-colors"
+        [ngClass]="activeTab === 'general' ? 'border-primary text-primary bg-primary/5' : 'border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50'"
+      >
+        General
+      </button>
+      <button
+        type="button"
+        (click)="selectTab('payments')"
+        class="px-4 py-2.5 text-sm font-medium rounded-t-lg border-b-2 transition-colors"
+        [ngClass]="activeTab === 'payments' ? 'border-primary text-primary bg-primary/5' : 'border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50'"
+      >
+        Payments
+      </button>
+    </nav>
+  </div>
+
+  @if (loading) {
+    <div class="flex items-center justify-center py-12">
+      <div class="text-center">
+        <i class="fas fa-spinner fa-spin text-4xl text-primary mb-4"></i>
+        <p class="text-gray-600">Loading settings...</p>
+      </div>
+    </div>
+  }
+
+  @if (error && !loading) {
+    <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+      <div class="flex items-center gap-2">
+        <i class="fas fa-exclamation-circle text-red-600"></i>
+        <p class="text-red-800">{{ error }}</p>
+      </div>
+    </div>
+  }
+
+  @if (successMessage && !loading) {
+    <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+      <div class="flex items-center gap-2">
+        <i class="fas fa-check-circle text-green-600"></i>
+        <p class="text-green-800">{{ successMessage }}</p>
+      </div>
+    </div>
+  }
+
+  @if (!loading) {
+    @if (activeTab === 'general') {
+      <div class="bg-gray-50 border border-gray-200 rounded-xl p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-2">General Settings</h2>
+        <p class="text-sm text-gray-600">This section is ready for future system-level configurations.</p>
+      </div>
+    }
+
+    @if (activeTab === 'payments') {
+      <form [formGroup]="settingsForm" (ngSubmit)="saveSettings()" class="space-y-6">
+        <div class="bg-white border border-gray-200 rounded-xl p-6">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <h2 class="text-lg font-semibold text-gray-900">Payment Providers</h2>
+              <p class="text-sm text-gray-600 mt-1">Manage gateway integrations. Stripe is configured in its own container for future provider expansion.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white border border-gray-200 rounded-xl p-6">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="text-base font-semibold text-gray-900">Stripe</h3>
+              <p class="text-sm text-gray-600">Enable Stripe and manage test/live API credentials.</p>
+            </div>
+            <div class="flex items-center gap-3">
+              <button
+                type="button"
+                (click)="openPaymentTestModal()"
+                class="px-3 py-2 text-sm font-medium rounded-lg border border-primary text-primary hover:bg-primary/5 transition-colors"
+              >
+                Test Payment
+              </button>
+              <label class="inline-flex items-center gap-2">
+                <span class="text-sm text-gray-700">Enabled</span>
+                <input type="checkbox" formControlName="stripeEnabled" class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
+              </label>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Mode</label>
+              <div class="inline-flex rounded-lg border border-gray-300 p-1 bg-white">
+                <button
+                  type="button"
+                  (click)="setStripeMode('test')"
+                  class="px-3 py-1.5 text-sm rounded-md transition-colors"
+                  [ngClass]="isStripeMode('test') ? 'bg-primary text-white' : 'text-gray-700 hover:bg-gray-100'"
+                >
+                  Test
+                </button>
+                <button
+                  type="button"
+                  (click)="setStripeMode('live')"
+                  class="px-3 py-1.5 text-sm rounded-md transition-colors"
+                  [ngClass]="isStripeMode('live') ? 'bg-primary text-white' : 'text-gray-700 hover:bg-gray-100'"
+                >
+                  Live
+                </button>
+              </div>
+              <p class="text-xs text-gray-500 mt-1">
+                Active mode for payment intents, links, and webhook verification.
+              </p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Driver Commission (%)</label>
+              <input type="number" min="0" max="100" formControlName="driverCommissionPercentage" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="border border-gray-200 rounded-lg p-4">
+              <h4 class="text-sm font-semibold text-gray-900 mb-3">Test Keys</h4>
+              <div class="space-y-3">
+                <div>
+                  <label class="block text-xs font-medium text-gray-700 mb-1">Publishable Key</label>
+                  <input type="text" formControlName="stripeTestPublicKey" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" placeholder="pk_test_..." />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-gray-700 mb-1">Secret Key</label>
+                  @if (currentSettings?.stripeTestSecretKeyConfigured) {
+                    <p class="mb-1 text-[11px] text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1 inline-block">
+                      Configured
+                    </p>
+                  } @else {
+                    <p class="mb-1 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 inline-block">
+                      Not configured
+                    </p>
+                  }
+                  <input type="password" formControlName="stripeTestSecretKey" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" placeholder="sk_test_..." />
+                  <p class="mt-1 text-[11px] text-gray-500">Leave blank to keep existing key. Enter a new value to update.</p>
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-gray-700 mb-1">Webhook Secret</label>
+                  @if (currentSettings?.stripeTestWebhookConfigured) {
+                    <p class="mb-1 text-[11px] text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1 inline-block">
+                      Configured
+                    </p>
+                  } @else {
+                    <p class="mb-1 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 inline-block">
+                      Not configured
+                    </p>
+                  }
+                  <input type="password" formControlName="stripeTestWebhookSecret" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" placeholder="whsec_..." />
+                  <p class="mt-1 text-[11px] text-gray-500">Leave blank to keep existing secret. Enter a new value to update.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="border border-gray-200 rounded-lg p-4">
+              <h4 class="text-sm font-semibold text-gray-900 mb-3">Live Keys</h4>
+              <div class="space-y-3">
+                <div>
+                  <label class="block text-xs font-medium text-gray-700 mb-1">Publishable Key</label>
+                  <input type="text" formControlName="stripeLivePublicKey" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" placeholder="pk_live_..." />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-gray-700 mb-1">Secret Key</label>
+                  @if (currentSettings?.stripeLiveSecretKeyConfigured) {
+                    <p class="mb-1 text-[11px] text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1 inline-block">
+                      Configured
+                    </p>
+                  } @else {
+                    <p class="mb-1 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 inline-block">
+                      Not configured
+                    </p>
+                  }
+                  <input type="password" formControlName="stripeLiveSecretKey" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" placeholder="sk_live_..." />
+                  <p class="mt-1 text-[11px] text-gray-500">Leave blank to keep existing key. Enter a new value to update.</p>
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-gray-700 mb-1">Webhook Secret</label>
+                  @if (currentSettings?.stripeLiveWebhookConfigured) {
+                    <p class="mb-1 text-[11px] text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1 inline-block">
+                      Configured
+                    </p>
+                  } @else {
+                    <p class="mb-1 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 inline-block">
+                      Not configured
+                    </p>
+                  }
+                  <input type="password" formControlName="stripeLiveWebhookSecret" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" placeholder="whsec_..." />
+                  <p class="mt-1 text-[11px] text-gray-500">Leave blank to keep existing secret. Enter a new value to update.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white border border-dashed border-gray-300 rounded-xl p-6">
+          <h3 class="text-base font-semibold text-gray-900">More Providers (Coming Soon)</h3>
+          <p class="text-sm text-gray-600 mt-1">This container is reserved for additional gateways like PayPal or other processors.</p>
+        </div>
+
+        <div class="flex items-center justify-end gap-3">
+          @if (!isSuperAdmin()) {
+            <span class="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg">
+              You can view settings but only Super Admin can save changes.
+            </span>
+          }
+          <button
+            type="submit"
+            class="px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            [disabled]="saving || !isSuperAdmin()"
+          >
+            @if (saving) {
+              <span class="flex items-center gap-2">
+                <i class="fas fa-spinner fa-spin"></i>
+                Saving...
+              </span>
+            } @else {
+              <span>Save Payment Settings</span>
+            }
+          </button>
+        </div>
+      </form>
+    }
+  }
+</div>
+
+@if (showPaymentTestModal) {
+  <div class="fixed inset-0 z-40 bg-black/40" (click)="closePaymentTestModal()"></div>
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="w-full max-w-2xl bg-white rounded-xl shadow-xl border border-gray-200" (click)="$event.stopPropagation()">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+        <div>
+          <h3 class="text-base font-semibold text-gray-900">Stripe Test Payment</h3>
+          <p class="text-sm text-gray-600">Use test data to validate payment intent and payment link APIs.</p>
+        </div>
+        <button
+          type="button"
+          (click)="closePaymentTestModal()"
+          class="h-8 w-8 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+          aria-label="Close"
+        >
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <div class="p-5">
+        <form [formGroup]="paymentTestForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">Job ID</label>
+            <input type="number" formControlName="jobId" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">Amount</label>
+            <input type="number" step="0.01" formControlName="amount" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">Currency</label>
+            <input type="text" formControlName="currency" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" placeholder="usd" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">Success URL (optional)</label>
+            <input type="text" formControlName="successUrl" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" placeholder="https://example.com/success" />
+          </div>
+        </form>
+
+        @if (paymentTestError) {
+          <div class="mt-4 bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+            {{ paymentTestError }}
+          </div>
+        }
+
+        <div class="mt-5 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            (click)="createTestPaymentIntent()"
+            class="px-3 py-2 text-sm font-medium bg-primary text-white rounded-lg hover:opacity-90 disabled:opacity-50"
+            [disabled]="paymentTestLoading"
+          >
+            Create Payment Intent
+          </button>
+          <button
+            type="button"
+            (click)="createTestPaymentLink()"
+            class="px-3 py-2 text-sm font-medium border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            [disabled]="paymentTestLoading"
+          >
+            Create Payment Link
+          </button>
+          @if (paymentTestLoading) {
+            <span class="text-sm text-gray-600 flex items-center gap-2">
+              <i class="fas fa-spinner fa-spin"></i>
+              Processing...
+            </span>
+          }
+        </div>
+
+        @if (paymentIntentResult) {
+          <div class="mt-5 p-3 border border-gray-200 rounded-lg bg-gray-50">
+            <p class="text-sm font-semibold text-gray-900 mb-2">Payment Intent Response</p>
+            <pre class="text-xs text-gray-700 overflow-auto whitespace-pre-wrap">{{ paymentIntentResult | json }}</pre>
+          </div>
+        }
+
+        @if (paymentLinkResult) {
+          <div class="mt-4 p-3 border border-gray-200 rounded-lg bg-gray-50">
+            <p class="text-sm font-semibold text-gray-900 mb-2">Payment Link Response</p>
+            <pre class="text-xs text-gray-700 overflow-auto whitespace-pre-wrap">{{ paymentLinkResult | json }}</pre>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+}

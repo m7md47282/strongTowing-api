@@ -20,6 +20,7 @@ import { authGuard } from './guards/auth.guard';
 import { guestGuard } from './guards/guest.guard';
 import { RoleId } from './constants/user-roles.constants';
 import { DriverAssignmentsComponent } from './components/dashboard/shared/driver-assignments/driver-assignments.component';
+import { SettingsComponent } from './components/dashboard/admin/settings/settings.component';
 
 export const routes: Routes = [
   { 
@@ -69,6 +70,12 @@ export const routes: Routes = [
       { 
         path: 'payments',
         component: PaymentsComponent,
+        canActivate: [roleGuard, authGuard],
+        data: { roles: [RoleId.SuperAdmin, RoleId.Admin] }
+      },
+      {
+        path: 'settings',
+        component: SettingsComponent,
         canActivate: [roleGuard, authGuard],
         data: { roles: [RoleId.SuperAdmin, RoleId.Admin] }
       }

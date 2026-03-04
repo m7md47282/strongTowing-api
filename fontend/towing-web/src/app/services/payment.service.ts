@@ -46,6 +46,7 @@ export interface Payment {
   processedBy?: string;
   processedAt?: string;
   transactionId?: string;
+  paymentErrorMessage?: string;
   refundedAt?: string;
   refundReason?: string;
   refundAmount?: number;
@@ -72,6 +73,7 @@ export interface PaymentListItem {
   transactionId?: string;
   cardLast4?: string;
   cardBrand?: string;
+  paymentErrorMessage?: string;
 }
 
 export interface PaymentStatistics {
@@ -186,7 +188,7 @@ export class PaymentService {
    * The returned URL can be shared with the customer.
    */
   createStripePaymentLink(request: CreateStripePaymentLinkRequest): Observable<CreateStripePaymentLinkResponse> {
-    return this.apiService.post<CreateStripePaymentLinkResponse>('payments/create-stripe-payment-link', request).pipe(
+    return this.apiService.post<CreateStripePaymentLinkResponse>('payments/create-payment-link', request).pipe(
       catchError(error => {
         console.error('Create Stripe payment link error:', error);
         return throwError(() => error);
