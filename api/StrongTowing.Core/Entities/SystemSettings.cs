@@ -33,6 +33,25 @@ namespace StrongTowing.Core.Entities
         /// Active Stripe mode. Valid values: "test" or "live".
         /// </summary>
         public string StripeMode { get; set; } = "test";
+
+        // Pre-authorization hold settings
+        public bool PreAuthorizationEnabled { get; set; } = true;
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal PreAuthorizationMinAmount { get; set; } = 150.00m;
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal PreAuthorizationMaxAmount { get; set; } = 300.00m;
+
+        // Fraud/risk settings
+        public int FraudReviewScoreThreshold { get; set; } = 60;
+        public int DuplicateRequestWindowMinutes { get; set; } = 30;
+
+        // Cancellation fee matrix
+        [Column(TypeName = "decimal(5,2)")]
+        public decimal CancelFeeBeforeDispatchPercent { get; set; } = 0.00m;
+        [Column(TypeName = "decimal(5,2)")]
+        public decimal CancelFeeAfterDispatchPercent { get; set; } = 30.00m;
+        [Column(TypeName = "decimal(5,2)")]
+        public decimal CancelFeeAfterArrivalPercent { get; set; } = 50.00m;
         
         // Metadata
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

@@ -65,8 +65,8 @@ Authorization: Bearer {your-jwt-token}
 - `GET /api/payments/job/{jobId}` - Get payment by job
 
 ### Reports (Admin Only)
-- `GET /api/reports/financial` - Financial summary
-- `GET /api/reports/export` - Export report (CSV/Excel/PDF)
+- `GET /api/reports/financial` - Extended financial summary (revenue, refunds, net, methods, status counts)
+- `GET /api/reports/export?type=csv` - Export financial summary as CSV
 
 ## Job Status Flow
 
@@ -149,5 +149,82 @@ For photo uploads (`POST /api/jobs/{id}/photos`):
 ## Support
 
 For questions or issues, contact the backend development team.
+
+## Payment Workflow (2026-03 update)
+
+### New Public Entry Endpoint
+- `POST /api/orders` (AllowAnonymous)
+  - Creates guest request mapped to Job + Payment records.
+  - Supports `paymentDueMode`:
+    - `PayNow`: creates Stripe payment intent and returns `clientSecret`, `paymentIntentId`, `publishableKey`.
+    - `PayLater`: creates payment in pending state.
+
+### Payment Lifecycle
+- Supported statuses:
+  - `Unpaid`
+  - `Pending`
+  - `PendingCash`
+  - `UnderReview`
+  - `CapturePending`
+  - `Authorized`
+  - `Paid`
+  - `Failed`
+  - `Cancelled`
+  - `Refunded`
+  - `PartiallyRefunded`
+
+### Fraud Review Queue
+- Risk scoring now runs during `POST /api/orders` intake.
+- High-risk requests are set to `PaymentStatus = UnderReview` and blocked from payment progression.
+- Review endpoints:
+  - `GET /api/payments/fraud-review-queue` (Admin/Dispatcher)
+  - `POST /api/payments/{id}/review-decision` with `decision = approve|reject` (Admin/SuperAdmin)
+
+### Manual-Capture Pre-Authorization (Stripe)
+- `PayNow` requests default to pre-authorization when enabled in system settings.
+- PaymentIntent uses Stripe manual capture flow.
+- Auth-hold operations:
+  - `POST /api/payments/{id}/capture-authorization`
+  - `POST /api/payments/{id}/release-authorization`
+- Webhook behavior:
+  - `payment_intent.amount_capturable_updated` => marks payment `Authorized`
+  - `payment_intent.succeeded` => marks payment `Paid` (capture completed)
+- **Important:** authorization success alone does **not** mark payment as paid.
+
+### Cancellation Fee Rules
+- Cancellation fee matrix is configurable in system settings:
+  - `CancelFeeBeforeDispatchPercent`
+  - `CancelFeeAfterDispatchPercent`
+  - `CancelFeeAfterArrivalPercent`
+- Job cancellation endpoint:
+  - `POST /api/jobs/{id}/cancel-with-fee`
+- Cancellation fee settlement:
+  - captures from authorization hold when available;
+  - otherwise records cancellation outcome and payment status.
+
+### New Settings Fields
+- `PreAuthorizationEnabled`
+- `PreAuthorizationMinAmount`
+- `PreAuthorizationMaxAmount`
+- `FraudReviewScoreThreshold`
+- `DuplicateRequestWindowMinutes`
+- `CancelFeeBeforeDispatchPercent`
+- `CancelFeeAfterDispatchPercent`
+- `CancelFeeAfterArrivalPercent`
+
+### Payment Operations
+- `POST /api/payments/{id}/mark-cash-pending` (Admin/Dispatcher)
+- `POST /api/payments/{id}/mark-cash-collected` (Admin/Dispatcher)
+- `POST /api/payments/{id}/cancel` (Admin/Dispatcher)
+
+### Completion Settlement Enforcement
+- `PUT /api/jobs/{id}/status` rejects transition to `Completed` when payment is not settled.
+- `POST /api/jobs/{id}/complete-with-override` (SuperAdmin/Admin) allows explicit override with required reason and audit note.
+
+### Rollout Guidance
+- Stage 1: enable lifecycle + review queue only (`PreAuthorizationEnabled=false`).
+- Stage 2: enable pre-authorization for selected operators and monitor webhook transitions.
+- Stage 3: enable cancellation-fee policy once dispatch teams are trained.
+- Keep dashboards focused on `UnderReview`, `Authorized`, and `Cancelled` counts during rollout week.
 
 

@@ -133,7 +133,10 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAngularApp", policy =>
     {
-        policy.WithOrigins("http://localhost:4200")
+        policy.WithOrigins(
+                "http://localhost:4200",
+                "https://strongtowing.services",
+                "https://www.strongtowing.services")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();

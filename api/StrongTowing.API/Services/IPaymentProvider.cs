@@ -22,7 +22,7 @@ public interface IPaymentProvider
     /// Create a payment intent and return the client secret needed by the frontend SDK
     /// to confirm the payment on the customer's device.
     /// </summary>
-    Task<PaymentIntentResult> CreatePaymentIntentAsync(decimal amount, string currency, int jobId);
+    Task<PaymentIntentResult> CreatePaymentIntentAsync(decimal amount, string currency, int jobId, bool manualCapture = false);
 
     /// <summary>
     /// Create a hosted payment link that can be shared with a customer.
@@ -39,6 +39,16 @@ public interface IPaymentProvider
     /// Retrieve the current state of a previously created payment intent.
     /// </summary>
     Task<PaymentIntentResult> GetPaymentIntentAsync(string transactionId);
+
+    /// <summary>
+    /// Capture all or part of a previously authorized manual-capture payment intent.
+    /// </summary>
+    Task<PaymentIntentResult> CapturePaymentIntentAsync(string transactionId, decimal? amount = null);
+
+    /// <summary>
+    /// Cancel/release a previously authorized manual-capture payment intent.
+    /// </summary>
+    Task<PaymentIntentResult> CancelPaymentIntentAsync(string transactionId);
 
     /// <summary>
     /// Resolve payment-link correlation information from a provider-specific transaction/intent ID.

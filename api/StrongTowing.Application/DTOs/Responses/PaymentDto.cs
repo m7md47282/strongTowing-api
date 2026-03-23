@@ -7,6 +7,13 @@ namespace StrongTowing.Application.DTOs.Responses
         public decimal Amount { get; set; }
         public string PaymentMethod { get; set; } = string.Empty; // 'Card', 'PaymentLink', 'Cash'
         public string PaymentStatus { get; set; } = string.Empty; // 'Pending', 'Paid', 'Failed', 'Refunded'
+        public string CaptureStatus { get; set; } = string.Empty;
+        public bool IsPreAuthorization { get; set; }
+        public decimal? AuthorizedAmount { get; set; }
+        public decimal? CapturedAmount { get; set; }
+        public DateTime? AuthorizationExpiresAt { get; set; }
+        public DateTime? CapturedAt { get; set; }
+        public DateTime? ReleasedAt { get; set; }
         
         // Stripe fields
         public string? StripePaymentIntentId { get; set; }
@@ -28,6 +35,17 @@ namespace StrongTowing.Application.DTOs.Responses
         public DateTime? ProcessedAt { get; set; }
         public string? TransactionId { get; set; }
         public string? PaymentErrorMessage { get; set; }
+
+        // Fraud
+        public string FraudStatus { get; set; } = string.Empty;
+        public int? FraudScore { get; set; }
+        public string? FraudReasons { get; set; }
+        public string? FraudReviewedBy { get; set; }
+        public DateTime? FraudReviewedAt { get; set; }
+
+        // Cancellation fee
+        public bool IsCancellationFeePayment { get; set; }
+        public decimal? CancellationFeeAmount { get; set; }
         
         // Refund
         public DateTime? RefundedAt { get; set; }
