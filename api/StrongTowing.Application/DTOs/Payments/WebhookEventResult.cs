@@ -49,6 +49,7 @@ namespace StrongTowing.Application.DTOs.Payments
 
         /// <summary>The raw event type string from the provider, for logging/debugging.</summary>
         public string? RawProviderEventType { get; set; }
+        public string? ProviderStatus { get; set; }
 
         /// <summary>Provider error message when a payment fails.</summary>
         public string? ErrorMessage { get; set; }
@@ -56,6 +57,7 @@ namespace StrongTowing.Application.DTOs.Payments
         // ─── Normalized EventType constants ──────────────────────────────────
 
         public const string PaymentSucceeded = "payment.succeeded";
+        public const string PaymentAuthorized = "payment.authorized";
         public const string PaymentFailed = "payment.failed";
         public const string PaymentLinkCompleted = "payment_link.completed";
         public const string PaymentRefunded = "payment.refunded";

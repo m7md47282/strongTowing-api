@@ -175,17 +175,17 @@ public class PaymentsController : ControllerBase
             var statistics = new PaymentStatisticsDto
             {
                 TotalPayments = payments.Count,
-                TotalRevenue = payments.Where(p => p.PaymentStatus == "Paid").Sum(p => p.Amount),
+                TotalRevenue = payments.Where(p => p.PaymentStatus == PaymentLifecycle.Statuses.Paid).Sum(p => p.Amount),
                 RevenueByMethod = new RevenueByMethodDto
                 {
-                    Card = payments.Where(p => p.PaymentMethod == "Card" && p.PaymentStatus == "Paid").Sum(p => p.Amount),
-                    PaymentLink = payments.Where(p => p.PaymentMethod == "PaymentLink" && p.PaymentStatus == "Paid").Sum(p => p.Amount),
-                    Cash = payments.Where(p => p.PaymentMethod == "Cash" && p.PaymentStatus == "Paid").Sum(p => p.Amount)
+                    Card = payments.Where(p => p.PaymentMethod == PaymentLifecycle.Methods.Card && p.PaymentStatus == PaymentLifecycle.Statuses.Paid).Sum(p => p.Amount),
+                    PaymentLink = payments.Where(p => p.PaymentMethod == PaymentLifecycle.Methods.PaymentLink && p.PaymentStatus == PaymentLifecycle.Statuses.Paid).Sum(p => p.Amount),
+                    Cash = payments.Where(p => p.PaymentMethod == PaymentLifecycle.Methods.Cash && p.PaymentStatus == PaymentLifecycle.Statuses.Paid).Sum(p => p.Amount)
                 },
-                PendingPayments = payments.Count(p => p.PaymentStatus == "Pending"),
-                TotalCashCollected = payments.Where(p => p.PaymentMethod == "Cash" && p.PaymentStatus == "Paid").Sum(p => p.Amount),
+                PendingPayments = payments.Count(p => p.PaymentStatus == PaymentLifecycle.Statuses.Pending || p.PaymentStatus == PaymentLifecycle.Statuses.PendingCash),
+                TotalCashCollected = payments.Where(p => p.PaymentMethod == PaymentLifecycle.Methods.Cash && p.PaymentStatus == PaymentLifecycle.Statuses.Paid).Sum(p => p.Amount),
                 TotalDriverCommissions = payments
-                    .Where(p => p.PaymentStatus == "Paid")
+                    .Where(p => p.PaymentStatus == PaymentLifecycle.Statuses.Paid)
                     .Sum(p => p.Amount * (commissionPercentage / 100))
             };
 
@@ -196,6 +196,82 @@ public class PaymentsController : ControllerBase
             _logger.LogError(ex, "Error retrieving payment statistics");
             return StatusCode(500, new { error = "Internal Server Error", message = "An error occurred while retrieving payment statistics." });
         }
+    }
+
+    /// <summary>
+    /// Get payments waiting for fraud review (Admin/Dispatcher only)
+    /// </summary>
+    [HttpGet("fraud-review-queue")]
+    [Authorize(Roles = $"{UserRoles.SuperAdmin},{UserRoles.Administrator},{UserRoles.Dispatcher}")]
+    public async Task<ActionResult<IEnumerable<PaymentListItemDto>>> GetFraudReviewQueue()
+    {
+        var queue = await _context.Payments
+            .Include(p => p.Job)
+                .ThenInclude(j => j.Vehicle)
+                    .ThenInclude(v => v.Owner)
+            .Include(p => p.Job)
+                .ThenInclude(j => j.Driver)
+            .Where(p => p.FraudStatus == PaymentLifecycle.FraudStatuses.UnderReview
+                     || p.PaymentStatus == PaymentLifecycle.Statuses.UnderReview)
+            .OrderByDescending(p => p.CreatedAt)
+            .ToListAsync();
+
+        return Ok(queue.Select(MapToPaymentListItemDto).ToList());
+    }
+
+    /// <summary>
+    /// Approve or reject a payment under fraud review.
+    /// </summary>
+    [HttpPost("{id}/review-decision")]
+    [Authorize(Roles = $"{UserRoles.SuperAdmin},{UserRoles.Administrator}")]
+    public async Task<ActionResult<PaymentDto>> ReviewPayment(int id, [FromBody] ReviewPaymentRequest request)
+    {
+        var payment = await _context.Payments
+            .Include(p => p.Job)
+            .FirstOrDefaultAsync(p => p.Id == id);
+
+        if (payment == null)
+            return NotFound(new { error = "Not Found", message = $"Payment with ID {id} was not found." });
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized();
+
+        var approve = string.Equals(request.Decision, "approve", StringComparison.OrdinalIgnoreCase);
+        var reject = string.Equals(request.Decision, "reject", StringComparison.OrdinalIgnoreCase);
+        if (!approve && !reject)
+            return BadRequest(new { error = "Bad Request", message = "Decision must be either approve or reject." });
+
+        payment.FraudReviewedBy = userId;
+        payment.FraudReviewedAt = DateTime.UtcNow;
+        payment.FraudReasons = $"{payment.FraudReasons} {(string.IsNullOrWhiteSpace(request.Notes) ? "" : $" ReviewNotes: {request.Notes}")}".Trim();
+
+        if (approve)
+        {
+            payment.FraudStatus = PaymentLifecycle.FraudStatuses.Approved;
+            if (payment.PaymentStatus == PaymentLifecycle.Statuses.UnderReview)
+            {
+                payment.PaymentStatus = payment.IsPreAuthorization
+                    ? PaymentLifecycle.Statuses.CapturePending
+                    : PaymentLifecycle.Statuses.Pending;
+            }
+            if (payment.Job != null && payment.Job.PaymentStatus == PaymentLifecycle.Statuses.UnderReview)
+            {
+                payment.Job.PaymentStatus = payment.PaymentStatus;
+            }
+        }
+        else
+        {
+            payment.FraudStatus = PaymentLifecycle.FraudStatuses.Rejected;
+            payment.PaymentStatus = PaymentLifecycle.Statuses.Cancelled;
+            if (payment.Job != null)
+            {
+                payment.Job.PaymentStatus = PaymentLifecycle.Statuses.Cancelled;
+            }
+        }
+
+        await _context.SaveChangesAsync();
+        return Ok(MapToPaymentDto(payment));
     }
 
     /// <summary>
@@ -218,14 +294,17 @@ public class PaymentsController : ControllerBase
             if (string.IsNullOrEmpty(userId))
                 return Unauthorized();
 
+            var normalizedMethod = NormalizePaymentMethod(request.PaymentMethod);
+            var initialStatus = normalizedMethod == "Cash" ? "PendingCash" : "Paid";
+
             var payment = new Payment
             {
                 JobId = request.JobId,
                 Amount = request.Amount,
-                PaymentMethod = request.PaymentMethod,
-                PaymentStatus = "Paid",
+                PaymentMethod = normalizedMethod,
+                PaymentStatus = initialStatus,
                 ProcessedBy = userId,
-                ProcessedAt = DateTime.UtcNow,
+                ProcessedAt = initialStatus == "Paid" ? DateTime.UtcNow : null,
                 TransactionId = request.TransactionId,
                 StripePaymentIntentId = request.PaymentIntentId
             };
@@ -233,10 +312,11 @@ public class PaymentsController : ControllerBase
             _context.Payments.Add(payment);
             await _context.SaveChangesAsync();
 
-            job.PaymentStatus = "Paid";
+            job.PaymentStatus = initialStatus;
             job.PaymentId = payment.Id;
-            job.PaidAt = DateTime.UtcNow;
-            job.PaidBy = userId;
+            job.PaidAt = initialStatus == "Paid" ? DateTime.UtcNow : null;
+            job.PaidBy = initialStatus == "Paid" ? userId : null;
+            job.PaymentMethod = normalizedMethod;
             await _context.SaveChangesAsync();
 
             return CreatedAtAction(nameof(GetPaymentById), new { id = payment.Id }, MapToPaymentDto(payment));
@@ -245,6 +325,128 @@ public class PaymentsController : ControllerBase
         {
             _logger.LogError(ex, "Error processing payment");
             return StatusCode(500, new { error = "Internal Server Error", message = "An error occurred while processing payment." });
+        }
+    }
+
+    /// <summary>
+    /// Mark a payment as cash-selected/pending collection (Admin/Dispatcher only)
+    /// </summary>
+    [HttpPost("{id}/mark-cash-pending")]
+    [Authorize(Roles = $"{UserRoles.SuperAdmin},{UserRoles.Administrator},{UserRoles.Dispatcher}")]
+    public async Task<ActionResult<PaymentDto>> MarkCashPending(int id)
+    {
+        try
+        {
+            var payment = await _context.Payments
+                .Include(p => p.Job)
+                .FirstOrDefaultAsync(p => p.Id == id);
+
+            if (payment == null)
+                return NotFound(new { error = "Not Found", message = $"Payment with ID {id} was not found." });
+
+            payment.PaymentMethod = "Cash";
+            payment.PaymentStatus = "PendingCash";
+            payment.ProcessedAt = null;
+
+            if (payment.Job != null)
+            {
+                payment.Job.PaymentMethod = "Cash";
+                payment.Job.PaymentStatus = "PendingCash";
+                payment.Job.PaidAt = null;
+                payment.Job.PaidBy = null;
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(MapToPaymentDto(payment));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error marking payment {PaymentId} as cash pending", id);
+            return StatusCode(500, new { error = "Internal Server Error", message = "An error occurred while updating payment." });
+        }
+    }
+
+    /// <summary>
+    /// Confirm cash was collected and settle payment (Admin/Dispatcher only)
+    /// </summary>
+    [HttpPost("{id}/mark-cash-collected")]
+    [Authorize(Roles = $"{UserRoles.SuperAdmin},{UserRoles.Administrator},{UserRoles.Dispatcher}")]
+    public async Task<ActionResult<PaymentDto>> MarkCashCollected(int id)
+    {
+        try
+        {
+            var payment = await _context.Payments
+                .Include(p => p.Job)
+                .FirstOrDefaultAsync(p => p.Id == id);
+
+            if (payment == null)
+                return NotFound(new { error = "Not Found", message = $"Payment with ID {id} was not found." });
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
+            payment.PaymentMethod = "Cash";
+            payment.PaymentStatus = PaymentLifecycle.Statuses.Paid;
+            payment.CashCollectedBy = userId;
+            payment.CashCollectedAt = DateTime.UtcNow;
+            payment.ProcessedBy = userId;
+            payment.ProcessedAt = DateTime.UtcNow;
+            payment.PaymentErrorMessage = null;
+
+            if (payment.Job != null)
+            {
+                payment.Job.PaymentMethod = "Cash";
+                payment.Job.PaymentStatus = PaymentLifecycle.Statuses.Paid;
+                payment.Job.PaymentId = payment.Id;
+                payment.Job.PaidBy = userId;
+                payment.Job.PaidAt = DateTime.UtcNow;
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(MapToPaymentDto(payment));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error marking payment {PaymentId} as cash collected", id);
+            return StatusCode(500, new { error = "Internal Server Error", message = "An error occurred while updating payment." });
+        }
+    }
+
+    /// <summary>
+    /// Cancel a payment if it is not already settled (Admin/Dispatcher only)
+    /// </summary>
+    [HttpPost("{id}/cancel")]
+    [Authorize(Roles = $"{UserRoles.SuperAdmin},{UserRoles.Administrator},{UserRoles.Dispatcher}")]
+    public async Task<ActionResult<PaymentDto>> CancelPayment(int id)
+    {
+        try
+        {
+            var payment = await _context.Payments
+                .Include(p => p.Job)
+                .FirstOrDefaultAsync(p => p.Id == id);
+
+            if (payment == null)
+                return NotFound(new { error = "Not Found", message = $"Payment with ID {id} was not found." });
+
+            if (payment.PaymentStatus == "Paid")
+                return BadRequest(new { error = "Invalid State", message = "Paid payments cannot be cancelled." });
+
+            payment.PaymentStatus = "Cancelled";
+            payment.PaymentErrorMessage = null;
+
+            if (payment.Job != null && payment.Job.PaymentStatus != "Paid")
+            {
+                payment.Job.PaymentStatus = PaymentLifecycle.Statuses.Cancelled;
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(MapToPaymentDto(payment));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error cancelling payment {PaymentId}", id);
+            return StatusCode(500, new { error = "Internal Server Error", message = "An error occurred while cancelling payment." });
         }
     }
 
@@ -269,7 +471,7 @@ public class PaymentsController : ControllerBase
                 return BadRequest(new { error = "Payment Provider Disabled", message = "The payment provider is not enabled. Please configure it in Settings." });
 
             var result = await _paymentProvider.CreatePaymentIntentAsync(
-                request.Amount, request.Currency, request.JobId);
+                request.Amount, request.Currency, request.JobId, request.ManualCapture);
 
             return Ok(new CreatePaymentIntentResponse
             {
@@ -277,7 +479,11 @@ public class PaymentsController : ControllerBase
                 PaymentIntentId = result.IntentId,
                 PublishableKey = result.PublishableKey,
                 Amount = request.Amount,
-                Currency = request.Currency
+                Currency = request.Currency,
+                ManualCapture = result.ManualCapture,
+                CapturableAmount = result.CapturableAmount,
+                AuthorizationExpiresAt = result.AuthorizationExpiresAt,
+                RiskLevel = result.RiskLevel
             });
         }
         catch (InvalidOperationException ex)
@@ -361,6 +567,80 @@ public class PaymentsController : ControllerBase
     }
 
     /// <summary>
+    /// Capture all or part of a pre-authorized payment intent (Admin/Dispatcher only)
+    /// </summary>
+    [HttpPost("{id}/capture-authorization")]
+    [Authorize(Roles = $"{UserRoles.SuperAdmin},{UserRoles.Administrator},{UserRoles.Dispatcher}")]
+    public async Task<ActionResult<PaymentDto>> CaptureAuthorization(int id, [FromBody] CaptureAuthorizationRequest request)
+    {
+        var payment = await _context.Payments
+            .Include(p => p.Job)
+            .FirstOrDefaultAsync(p => p.Id == id);
+
+        if (payment == null)
+            return NotFound(new { error = "Not Found", message = $"Payment with ID {id} was not found." });
+
+        if (string.IsNullOrWhiteSpace(payment.StripePaymentIntentId))
+            return BadRequest(new { error = "Bad Request", message = "Payment does not have an authorization intent ID." });
+
+        if (!payment.IsPreAuthorization)
+            return BadRequest(new { error = "Bad Request", message = "Payment is not a pre-authorization record." });
+
+        var captureResult = await _paymentProvider.CapturePaymentIntentAsync(payment.StripePaymentIntentId, request.Amount);
+        var capturedAmount = request.Amount ?? captureResult.Amount;
+
+        payment.CapturedAmount = capturedAmount;
+        payment.CapturedAt = DateTime.UtcNow;
+        payment.CaptureStatus = capturedAmount < (payment.AuthorizedAmount ?? capturedAmount)
+            ? PaymentLifecycle.CaptureStatuses.PartiallyCaptured
+            : PaymentLifecycle.CaptureStatuses.Captured;
+        payment.PaymentStatus = PaymentLifecycle.Statuses.Paid;
+        payment.ProcessedAt = DateTime.UtcNow;
+        payment.PaymentErrorMessage = null;
+
+        if (payment.Job != null)
+        {
+            payment.Job.PaymentStatus = PaymentLifecycle.Statuses.Paid;
+            payment.Job.PaidAt = DateTime.UtcNow;
+            payment.Job.PaymentId = payment.Id;
+        }
+
+        await _context.SaveChangesAsync();
+        return Ok(MapToPaymentDto(payment));
+    }
+
+    /// <summary>
+    /// Release/void a pre-authorization hold (Admin/Dispatcher only)
+    /// </summary>
+    [HttpPost("{id}/release-authorization")]
+    [Authorize(Roles = $"{UserRoles.SuperAdmin},{UserRoles.Administrator},{UserRoles.Dispatcher}")]
+    public async Task<ActionResult<PaymentDto>> ReleaseAuthorization(int id)
+    {
+        var payment = await _context.Payments
+            .Include(p => p.Job)
+            .FirstOrDefaultAsync(p => p.Id == id);
+
+        if (payment == null)
+            return NotFound(new { error = "Not Found", message = $"Payment with ID {id} was not found." });
+
+        if (string.IsNullOrWhiteSpace(payment.StripePaymentIntentId))
+            return BadRequest(new { error = "Bad Request", message = "Payment does not have an authorization intent ID." });
+
+        await _paymentProvider.CancelPaymentIntentAsync(payment.StripePaymentIntentId);
+        payment.CaptureStatus = PaymentLifecycle.CaptureStatuses.Released;
+        payment.ReleasedAt = DateTime.UtcNow;
+        payment.PaymentStatus = PaymentLifecycle.Statuses.Cancelled;
+
+        if (payment.Job != null && payment.Job.PaymentStatus != PaymentLifecycle.Statuses.Paid)
+        {
+            payment.Job.PaymentStatus = PaymentLifecycle.Statuses.Cancelled;
+        }
+
+        await _context.SaveChangesAsync();
+        return Ok(MapToPaymentDto(payment));
+    }
+
+    /// <summary>
     /// Issue a full or partial refund for a payment (Admin only)
     /// </summary>
     [HttpPost("{id}/refund")]
@@ -398,7 +678,7 @@ public class PaymentsController : ControllerBase
             payment.RefundAmount = refundAmount;
 
             if (isFullRefund && payment.Job != null)
-                payment.Job.PaymentStatus = "Refunded";
+                payment.Job.PaymentStatus = PaymentLifecycle.Statuses.Refunded;
 
             await _context.SaveChangesAsync();
 
@@ -529,6 +809,10 @@ public class PaymentsController : ControllerBase
     {
         switch (webhookEvent.EventType)
         {
+            case WebhookEventResult.PaymentAuthorized:
+                await HandlePaymentAuthorized(webhookEvent);
+                break;
+
             case WebhookEventResult.PaymentSucceeded:
                 await HandlePaymentSucceeded(webhookEvent);
                 break;
@@ -551,6 +835,33 @@ public class PaymentsController : ControllerBase
         }
     }
 
+    private async Task HandlePaymentAuthorized(WebhookEventResult webhookEvent)
+    {
+        if (string.IsNullOrEmpty(webhookEvent.TransactionId)) return;
+
+        var payment = await _context.Payments
+            .Include(p => p.Job)
+            .FirstOrDefaultAsync(p => p.StripePaymentIntentId == webhookEvent.TransactionId);
+
+        if (payment == null)
+        {
+            return;
+        }
+
+        payment.CaptureStatus = PaymentLifecycle.CaptureStatuses.Authorized;
+        payment.PaymentStatus = PaymentLifecycle.Statuses.Authorized;
+        payment.AuthorizedAmount = webhookEvent.AmountPaid ?? payment.AuthorizedAmount ?? payment.Amount;
+        payment.PaymentErrorMessage = null;
+
+        if (payment.Job != null)
+        {
+            payment.Job.PaymentStatus = PaymentLifecycle.Statuses.Authorized;
+            payment.Job.PaymentId = payment.Id;
+        }
+
+        await _context.SaveChangesAsync();
+    }
+
     private async Task HandlePaymentSucceeded(WebhookEventResult webhookEvent)
     {
         if (string.IsNullOrEmpty(webhookEvent.TransactionId)) return;
@@ -567,7 +878,7 @@ public class PaymentsController : ControllerBase
                 .Include(p => p.Job)
                 .Where(p =>
                     p.JobId == webhookEvent.JobId.Value &&
-                    p.PaymentMethod == "PaymentLink" &&
+                    p.PaymentMethod == PaymentLifecycle.Methods.PaymentLink &&
                     p.PaymentStatus == "Pending")
                 .OrderByDescending(p => p.CreatedAt)
                 .FirstOrDefaultAsync();
@@ -598,7 +909,7 @@ public class PaymentsController : ControllerBase
                     .Include(p => p.Job)
                     .Where(p =>
                         p.JobId == correlation.JobId.Value &&
-                        p.PaymentMethod == "PaymentLink" &&
+                        p.PaymentMethod == PaymentLifecycle.Methods.PaymentLink &&
                         p.PaymentStatus == "Pending")
                     .OrderByDescending(p => p.CreatedAt)
                     .FirstOrDefaultAsync();
@@ -611,7 +922,7 @@ public class PaymentsController : ControllerBase
             return;
         }
 
-        payment.PaymentStatus = "Paid";
+        payment.PaymentStatus = PaymentLifecycle.Statuses.Paid;
         payment.ProcessedAt = DateTime.UtcNow;
         payment.TransactionId ??= webhookEvent.SessionId ?? correlation?.SessionId;
         payment.StripePaymentIntentId ??= webhookEvent.TransactionId;
@@ -623,7 +934,7 @@ public class PaymentsController : ControllerBase
 
         if (payment.Job != null)
         {
-            payment.Job.PaymentStatus = "Paid";
+            payment.Job.PaymentStatus = PaymentLifecycle.Statuses.Paid;
             payment.Job.PaymentId = payment.Id;
             payment.Job.PaidAt = DateTime.UtcNow;
         }
@@ -649,7 +960,7 @@ public class PaymentsController : ControllerBase
                 .Include(p => p.Job)
                 .Where(p =>
                     p.JobId == webhookEvent.JobId.Value &&
-                    p.PaymentMethod == "PaymentLink" &&
+                    p.PaymentMethod == PaymentLifecycle.Methods.PaymentLink &&
                     p.PaymentStatus == "Pending")
                 .OrderByDescending(p => p.CreatedAt)
                 .FirstOrDefaultAsync();
@@ -679,7 +990,7 @@ public class PaymentsController : ControllerBase
                     .Include(p => p.Job)
                     .Where(p =>
                         p.JobId == correlation.JobId.Value &&
-                        p.PaymentMethod == "PaymentLink" &&
+                        p.PaymentMethod == PaymentLifecycle.Methods.PaymentLink &&
                         p.PaymentStatus == "Pending")
                     .OrderByDescending(p => p.CreatedAt)
                     .FirstOrDefaultAsync();
@@ -692,7 +1003,7 @@ public class PaymentsController : ControllerBase
             return;
         }
 
-        payment.PaymentStatus = "Failed";
+        payment.PaymentStatus = PaymentLifecycle.Statuses.Failed;
         payment.PaymentErrorMessage = webhookEvent.ErrorMessage;
         payment.StripePaymentIntentId ??= webhookEvent.TransactionId;
         payment.TransactionId ??= webhookEvent.SessionId ?? correlation?.SessionId;
@@ -700,7 +1011,7 @@ public class PaymentsController : ControllerBase
 
         if (payment.Job != null && payment.Job.PaymentStatus != "Paid")
         {
-            payment.Job.PaymentStatus = "Failed";
+            payment.Job.PaymentStatus = PaymentLifecycle.Statuses.Failed;
         }
 
         await _context.SaveChangesAsync();
@@ -758,7 +1069,7 @@ public class PaymentsController : ControllerBase
                 .Include(p => p.Job)
                 .Where(p =>
                     p.JobId == webhookEvent.JobId.Value &&
-                    p.PaymentMethod == "PaymentLink" &&
+                    p.PaymentMethod == PaymentLifecycle.Methods.PaymentLink &&
                     p.PaymentStatus == "Pending")
                 .OrderByDescending(p => p.CreatedAt)
                 .FirstOrDefaultAsync();
@@ -770,7 +1081,7 @@ public class PaymentsController : ControllerBase
                 .Include(p => p.Job)
                 .Where(p =>
                     p.JobId == correlation.JobId.Value &&
-                    p.PaymentMethod == "PaymentLink" &&
+                    p.PaymentMethod == PaymentLifecycle.Methods.PaymentLink &&
                     p.PaymentStatus == "Pending")
                 .OrderByDescending(p => p.CreatedAt)
                 .FirstOrDefaultAsync();
@@ -782,7 +1093,7 @@ public class PaymentsController : ControllerBase
             return;
         }
 
-        payment.PaymentStatus = "Paid";
+        payment.PaymentStatus = PaymentLifecycle.Statuses.Paid;
         payment.ProcessedAt = DateTime.UtcNow;
         payment.TransactionId ??= webhookEvent.SessionId ?? correlation?.SessionId;
         payment.StripePaymentIntentId ??= webhookEvent.TransactionId;
@@ -791,7 +1102,7 @@ public class PaymentsController : ControllerBase
 
         if (payment.Job != null)
         {
-            payment.Job.PaymentStatus = "Paid";
+            payment.Job.PaymentStatus = PaymentLifecycle.Statuses.Paid;
             payment.Job.PaymentId = payment.Id;
             payment.Job.PaidAt = DateTime.UtcNow;
         }
@@ -827,7 +1138,7 @@ public class PaymentsController : ControllerBase
             payment = await _context.Payments
                 .Where(p =>
                     p.JobId == webhookEvent.JobId.Value &&
-                    p.PaymentMethod == "PaymentLink")
+                    p.PaymentMethod == PaymentLifecycle.Methods.PaymentLink)
                 .OrderByDescending(p => p.CreatedAt)
                 .FirstOrDefaultAsync();
         }
@@ -854,7 +1165,7 @@ public class PaymentsController : ControllerBase
                 payment = await _context.Payments
                     .Where(p =>
                         p.JobId == correlation.JobId.Value &&
-                        p.PaymentMethod == "PaymentLink")
+                        p.PaymentMethod == PaymentLifecycle.Methods.PaymentLink)
                     .OrderByDescending(p => p.CreatedAt)
                     .FirstOrDefaultAsync();
             }
@@ -954,7 +1265,7 @@ public class PaymentsController : ControllerBase
             payment = await _context.Payments
                 .Where(p =>
                     p.JobId == jobId.Value &&
-                    p.PaymentMethod == "PaymentLink")
+                    p.PaymentMethod == PaymentLifecycle.Methods.PaymentLink)
                 .OrderByDescending(p => p.CreatedAt)
                 .FirstOrDefaultAsync();
         }
@@ -982,12 +1293,23 @@ public class PaymentsController : ControllerBase
             return;
         }
 
-        payment.PaymentStatus = "Refunded";
+        payment.PaymentStatus = PaymentLifecycle.Statuses.Refunded;
         payment.RefundedAt = DateTime.UtcNow;
         payment.RefundAmount = webhookEvent.AmountRefunded;
 
         await _context.SaveChangesAsync();
         _logger.LogInformation("Marked payment as Refunded for transaction {TransactionId}.", webhookEvent.TransactionId);
+    }
+
+    private static string NormalizePaymentMethod(string? method)
+    {
+        if (string.Equals(method, "Cash", StringComparison.OrdinalIgnoreCase))
+            return "Cash";
+
+        if (string.Equals(method, "PaymentLink", StringComparison.OrdinalIgnoreCase))
+            return "PaymentLink";
+
+        return "Card";
     }
 
     // ─── Mapping helpers ─────────────────────────────────────────────────────
@@ -1001,6 +1323,13 @@ public class PaymentsController : ControllerBase
             Amount = payment.Amount,
             PaymentMethod = payment.PaymentMethod,
             PaymentStatus = payment.PaymentStatus,
+            CaptureStatus = payment.CaptureStatus,
+            IsPreAuthorization = payment.IsPreAuthorization,
+            AuthorizedAmount = payment.AuthorizedAmount,
+            CapturedAmount = payment.CapturedAmount,
+            AuthorizationExpiresAt = payment.AuthorizationExpiresAt,
+            CapturedAt = payment.CapturedAt,
+            ReleasedAt = payment.ReleasedAt,
             StripePaymentIntentId = payment.StripePaymentIntentId,
             StripeChargeId = payment.StripeChargeId,
             CardLast4 = payment.CardLast4,
@@ -1014,6 +1343,13 @@ public class PaymentsController : ControllerBase
             ProcessedAt = payment.ProcessedAt,
             TransactionId = payment.TransactionId,
             PaymentErrorMessage = payment.PaymentErrorMessage,
+            FraudStatus = payment.FraudStatus,
+            FraudScore = payment.FraudScore,
+            FraudReasons = payment.FraudReasons,
+            FraudReviewedBy = payment.FraudReviewedBy,
+            FraudReviewedAt = payment.FraudReviewedAt,
+            IsCancellationFeePayment = payment.IsCancellationFeePayment,
+            CancellationFeeAmount = payment.CancellationFeeAmount,
             RefundedAt = payment.RefundedAt,
             RefundReason = payment.RefundReason,
             RefundAmount = payment.RefundAmount,
@@ -1047,6 +1383,11 @@ public class PaymentsController : ControllerBase
             Amount = payment.Amount,
             PaymentMethod = payment.PaymentMethod,
             PaymentStatus = payment.PaymentStatus,
+            CaptureStatus = payment.CaptureStatus,
+            IsPreAuthorization = payment.IsPreAuthorization,
+            AuthorizedAmount = payment.AuthorizedAmount,
+            CapturedAmount = payment.CapturedAmount,
+            AuthorizationExpiresAt = payment.AuthorizationExpiresAt,
             ProcessedAt = payment.ProcessedAt ?? payment.CreatedAt,
             ProcessedByName = processedByUser?.FullName ?? "Unknown",
             DriverId = job?.DriverId,
@@ -1058,7 +1399,11 @@ public class PaymentsController : ControllerBase
             TransactionId = payment.TransactionId,
             CardLast4 = payment.CardLast4,
             CardBrand = payment.CardBrand,
-            PaymentErrorMessage = payment.PaymentErrorMessage
+            PaymentErrorMessage = payment.PaymentErrorMessage,
+            FraudStatus = payment.FraudStatus,
+            FraudScore = payment.FraudScore,
+            IsCancellationFeePayment = payment.IsCancellationFeePayment,
+            CancellationFeeAmount = payment.CancellationFeeAmount
         };
     }
 }

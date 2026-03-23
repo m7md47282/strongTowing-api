@@ -66,11 +66,16 @@ namespace StrongTowing.Core.Entities
         
         // Payment fields
         public string? PaymentMethod { get; set; } // 'Card', 'PaymentLink', 'Cash'
-        public string PaymentStatus { get; set; } = "Unpaid"; // 'Unpaid', 'Pending', 'Paid', 'Failed'
+        public string PaymentStatus { get; set; } = "Unpaid"; // 'Unpaid', 'Pending', 'PendingCash', 'Paid', 'Failed', 'Cancelled', 'Refunded'
         public int? PaymentId { get; set; }
         public Payment? Payment { get; set; }
         public DateTime? PaidAt { get; set; }
         public string? PaidBy { get; set; } // Dispatcher/Driver User ID
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? CancellationFeeAmount { get; set; }
+        public string? CancellationReason { get; set; }
+        public DateTime? CancelledAt { get; set; }
+        public string? CancelledBy { get; set; }
 
         // Photos (Stored as a simple list of URLs for MVP)
         // We use a backing field or separate table usually, 

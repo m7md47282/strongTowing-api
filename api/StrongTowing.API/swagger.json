@@ -628,6 +628,20 @@
             "format": "decimal",
             "example": 15000.00
           },
+          "totalRefunded": {
+            "type": "number",
+            "format": "decimal",
+            "example": 500.00
+          },
+          "netRevenue": {
+            "type": "number",
+            "format": "decimal",
+            "example": 14500.00
+          },
+          "totalPayments": {
+            "type": "integer",
+            "example": 120
+          },
           "totalJobs": {
             "type": "integer",
             "example": 100
@@ -636,6 +650,51 @@
             "type": "number",
             "format": "decimal",
             "example": 150.00
+          },
+          "revenueByMethod": {
+            "type": "object",
+            "properties": {
+              "card": {
+                "type": "number",
+                "format": "decimal",
+                "example": 10000.00
+              },
+              "paymentLink": {
+                "type": "number",
+                "format": "decimal",
+                "example": 3000.00
+              },
+              "cash": {
+                "type": "number",
+                "format": "decimal",
+                "example": 2000.00
+              }
+            }
+          },
+          "statusCounts": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "integer",
+                "example": 10
+              },
+              "paid": {
+                "type": "integer",
+                "example": 95
+              },
+              "failed": {
+                "type": "integer",
+                "example": 8
+              },
+              "refunded": {
+                "type": "integer",
+                "example": 5
+              },
+              "partiallyRefunded": {
+                "type": "integer",
+                "example": 2
+              }
+            }
           },
           "period": {
             "type": "object",
@@ -2178,7 +2237,7 @@
       "get": {
         "tags": ["Reports"],
         "summary": "Export Report",
-        "description": "Export report in CSV, Excel, or PDF format (Admin only)",
+        "description": "Export report in CSV format (Admin only)",
         "operationId": "exportReport",
         "security": [
           {
@@ -2193,7 +2252,7 @@
             "description": "Export format",
             "schema": {
               "type": "string",
-              "enum": ["csv", "excel", "pdf"]
+              "enum": ["csv"]
             }
           },
           {
@@ -2221,18 +2280,6 @@
           "200": {
             "description": "Report file",
             "content": {
-              "application/pdf": {
-                "schema": {
-                  "type": "string",
-                  "format": "binary"
-                }
-              },
-              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
-                "schema": {
-                  "type": "string",
-                  "format": "binary"
-                }
-              },
               "text/csv": {
                 "schema": {
                   "type": "string",

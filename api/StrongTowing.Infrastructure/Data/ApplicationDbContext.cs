@@ -17,6 +17,7 @@ namespace StrongTowing.Infrastructure.Data
         public DbSet<Payment> Payments { get; set; }
         public DbSet<CashCollection> CashCollections { get; set; }
         public DbSet<SystemSettings> SystemSettings { get; set; }
+        public DbSet<InsuranceAccount> InsuranceAccounts { get; set; }
         public DbSet<DriverPayroll> DriverPayrolls { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
 
@@ -67,6 +68,9 @@ namespace StrongTowing.Infrastructure.Data
                 .WithMany()
                 .HasForeignKey(p => p.JobId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<Payment>()
+                .HasIndex(p => new { p.PaymentStatus, p.FraudStatus });
             
             builder.Entity<Job>()
                 .HasOne(j => j.Payment)
@@ -104,6 +108,15 @@ namespace StrongTowing.Infrastructure.Data
             builder.Entity<SystemSettings>()
                 .HasIndex(s => s.Id)
                 .IsUnique();
+
+            builder.Entity<InsuranceAccount>()
+                .HasIndex(a => a.Name)
+                .IsUnique();
+
+            builder.Entity<InsuranceAccount>()
+                .Property(a => a.Name)
+                .IsRequired()
+                .HasMaxLength(200);
             
             // RefreshToken configuration
             builder.Entity<RefreshToken>()

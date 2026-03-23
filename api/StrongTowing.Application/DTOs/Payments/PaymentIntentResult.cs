@@ -13,6 +13,10 @@ namespace StrongTowing.Application.DTOs.Payments
 
         public decimal Amount { get; set; }
         public string Currency { get; set; } = string.Empty;
+        public bool ManualCapture { get; set; }
+        public decimal CapturableAmount { get; set; }
+        public DateTime? AuthorizationExpiresAt { get; set; }
+        public string? RiskLevel { get; set; }
 
         /// <summary>Provider-agnostic status: "requires_payment_method", "succeeded", "canceled", etc.</summary>
         public string Status { get; set; } = string.Empty;

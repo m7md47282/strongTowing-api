@@ -49,6 +49,14 @@ public class SettingsController : ControllerBase
                     PayPeriodType = "BiWeekly",
                     StripeEnabled = false,
                     StripeMode = "test",
+                    PreAuthorizationEnabled = true,
+                    PreAuthorizationMinAmount = 150.00m,
+                    PreAuthorizationMaxAmount = 300.00m,
+                    FraudReviewScoreThreshold = 60,
+                    DuplicateRequestWindowMinutes = 30,
+                    CancelFeeBeforeDispatchPercent = 0.00m,
+                    CancelFeeAfterDispatchPercent = 30.00m,
+                    CancelFeeAfterArrivalPercent = 50.00m,
                     UpdatedAt = DateTime.UtcNow,
                     UpdatedBy = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "System"
                 };
@@ -104,6 +112,14 @@ public class SettingsController : ControllerBase
             settings.StripePublicKey = request.StripePublicKey;
             settings.StripeEnabled = request.StripeEnabled;
             settings.StripeMode = request.StripeMode?.Equals("live", StringComparison.OrdinalIgnoreCase) == true ? "live" : "test";
+            settings.PreAuthorizationEnabled = request.PreAuthorizationEnabled;
+            settings.PreAuthorizationMinAmount = request.PreAuthorizationMinAmount;
+            settings.PreAuthorizationMaxAmount = request.PreAuthorizationMaxAmount;
+            settings.FraudReviewScoreThreshold = request.FraudReviewScoreThreshold;
+            settings.DuplicateRequestWindowMinutes = request.DuplicateRequestWindowMinutes;
+            settings.CancelFeeBeforeDispatchPercent = request.CancelFeeBeforeDispatchPercent;
+            settings.CancelFeeAfterDispatchPercent = request.CancelFeeAfterDispatchPercent;
+            settings.CancelFeeAfterArrivalPercent = request.CancelFeeAfterArrivalPercent;
             settings.UpdatedAt = DateTime.UtcNow;
             settings.UpdatedBy = userId;
 
@@ -179,6 +195,14 @@ public class SettingsController : ControllerBase
             StripeLiveSecretKeyConfigured = !string.IsNullOrEmpty(settings.StripeLiveSecretKey),
             StripeLiveWebhookConfigured = !string.IsNullOrEmpty(settings.StripeLiveWebhookSecret),
             StripeMode = settings.StripeMode,
+            PreAuthorizationEnabled = settings.PreAuthorizationEnabled,
+            PreAuthorizationMinAmount = settings.PreAuthorizationMinAmount,
+            PreAuthorizationMaxAmount = settings.PreAuthorizationMaxAmount,
+            FraudReviewScoreThreshold = settings.FraudReviewScoreThreshold,
+            DuplicateRequestWindowMinutes = settings.DuplicateRequestWindowMinutes,
+            CancelFeeBeforeDispatchPercent = settings.CancelFeeBeforeDispatchPercent,
+            CancelFeeAfterDispatchPercent = settings.CancelFeeAfterDispatchPercent,
+            CancelFeeAfterArrivalPercent = settings.CancelFeeAfterArrivalPercent,
             UpdatedAt = settings.UpdatedAt,
             UpdatedBy = settings.UpdatedBy
         };

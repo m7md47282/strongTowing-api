@@ -31,7 +31,7 @@ public class StripePaymentProvider : IPaymentProvider
         _logger = logger;
     }
 
-    public async Task<PaymentIntentResult> CreatePaymentIntentAsync(decimal amount, string currency, int jobId)
+    public async Task<PaymentIntentResult> CreatePaymentIntentAsync(decimal amount, string currency, int jobId, bool manualCapture = false)
     {
         try
         {
@@ -43,6 +43,7 @@ public class StripePaymentProvider : IPaymentProvider
             {
                 Amount = ToMinorUnits(amount),
                 Currency = NormalizeCurrency(currency),
+                CaptureMethod = manualCapture ? "manual" : "automatic",
                 Metadata = new Dictionary<string, string>
                 {
                     { "jobId", jobId.ToString() }
@@ -62,7 +63,11 @@ public class StripePaymentProvider : IPaymentProvider
                 PublishableKey = config.PublishableKey,
                 Amount = amount,
                 Currency = NormalizeCurrency(currency),
-                Status = intent.Status ?? string.Empty
+                Status = intent.Status ?? string.Empty,
+                ManualCapture = string.Equals(intent.CaptureMethod, "manual", StringComparison.OrdinalIgnoreCase),
+                CapturableAmount = intent.AmountCapturable / 100m,
+                AuthorizationExpiresAt = null,
+                RiskLevel = null
             };
         }
         catch (InvalidOperationException)
@@ -206,7 +211,11 @@ public class StripePaymentProvider : IPaymentProvider
                 PublishableKey = config.PublishableKey,
                 Amount = intent.Amount / 100m,
                 Currency = intent.Currency ?? "usd",
-                Status = intent.Status ?? string.Empty
+                Status = intent.Status ?? string.Empty,
+                ManualCapture = string.Equals(intent.CaptureMethod, "manual", StringComparison.OrdinalIgnoreCase),
+                CapturableAmount = intent.AmountCapturable / 100m,
+                AuthorizationExpiresAt = null,
+                RiskLevel = null
             };
         }
         catch (InvalidOperationException)
@@ -272,6 +281,79 @@ public class StripePaymentProvider : IPaymentProvider
         catch (StripeException ex)
         {
             _logger.LogWarning(ex, "Stripe error while resolving payment link correlation for transaction {TransactionId}.", transactionId);
+            throw new PaymentProviderException(ProviderName, ex.StripeError?.Message ?? ex.Message, ex);
+        }
+    }
+
+    public async Task<PaymentIntentResult> CapturePaymentIntentAsync(string transactionId, decimal? amount = null)
+    {
+        try
+        {
+            var config = await GetActiveStripeConfigurationAsync();
+            StripeConfiguration.ApiKey = config.SecretKey;
+
+            var service = new PaymentIntentService();
+            var options = new PaymentIntentCaptureOptions();
+            if (amount.HasValue)
+            {
+                options.AmountToCapture = ToMinorUnits(amount.Value);
+            }
+
+            var intent = await service.CaptureAsync(transactionId, options);
+            return new PaymentIntentResult
+            {
+                IntentId = intent.Id,
+                ClientSecret = intent.ClientSecret ?? string.Empty,
+                PublishableKey = config.PublishableKey,
+                Amount = intent.Amount / 100m,
+                Currency = intent.Currency ?? "usd",
+                Status = intent.Status ?? string.Empty,
+                ManualCapture = string.Equals(intent.CaptureMethod, "manual", StringComparison.OrdinalIgnoreCase),
+                CapturableAmount = intent.AmountCapturable / 100m,
+                RiskLevel = null
+            };
+        }
+        catch (InvalidOperationException)
+        {
+            throw;
+        }
+        catch (StripeException ex)
+        {
+            _logger.LogError(ex, "Stripe error while capturing payment intent {TransactionId}.", transactionId);
+            throw new PaymentProviderException(ProviderName, ex.StripeError?.Message ?? ex.Message, ex);
+        }
+    }
+
+    public async Task<PaymentIntentResult> CancelPaymentIntentAsync(string transactionId)
+    {
+        try
+        {
+            var config = await GetActiveStripeConfigurationAsync();
+            StripeConfiguration.ApiKey = config.SecretKey;
+
+            var service = new PaymentIntentService();
+            var intent = await service.CancelAsync(transactionId);
+            return new PaymentIntentResult
+            {
+                IntentId = intent.Id,
+                ClientSecret = intent.ClientSecret ?? string.Empty,
+                PublishableKey = config.PublishableKey,
+                Amount = intent.Amount / 100m,
+                Currency = intent.Currency ?? "usd",
+                Status = intent.Status ?? string.Empty,
+                ManualCapture = string.Equals(intent.CaptureMethod, "manual", StringComparison.OrdinalIgnoreCase),
+                CapturableAmount = intent.AmountCapturable / 100m,
+                AuthorizationExpiresAt = null,
+                RiskLevel = null
+            };
+        }
+        catch (InvalidOperationException)
+        {
+            throw;
+        }
+        catch (StripeException ex)
+        {
+            _logger.LogError(ex, "Stripe error while cancelling payment intent {TransactionId}.", transactionId);
             throw new PaymentProviderException(ProviderName, ex.StripeError?.Message ?? ex.Message, ex);
         }
     }
@@ -351,6 +433,20 @@ public class StripePaymentProvider : IPaymentProvider
                     var intent = stripeEvent.Data.Object as PaymentIntent;
                     result.EventType = WebhookEventResult.PaymentSucceeded;
                     result.TransactionId = intent?.Id;
+                    result.ProviderStatus = intent?.Status;
+                    result.ChargeId = intent?.LatestChargeId;
+                    break;
+                }
+                case "payment_intent.amount_capturable_updated":
+                {
+                    var intent = stripeEvent.Data.Object as PaymentIntent;
+                    result.EventType = WebhookEventResult.PaymentAuthorized;
+                    result.TransactionId = intent?.Id;
+                    result.ProviderStatus = intent?.Status;
+                    if (intent != null)
+                    {
+                        result.AmountPaid = intent.AmountCapturable / 100m;
+                    }
                     break;
                 }
                 case "payment_intent.payment_failed":
@@ -358,6 +454,7 @@ public class StripePaymentProvider : IPaymentProvider
                     var intent = stripeEvent.Data.Object as PaymentIntent;
                     result.EventType = WebhookEventResult.PaymentFailed;
                     result.TransactionId = intent?.Id;
+                    result.ProviderStatus = intent?.Status;
                     break;
                 }
                 case "checkout.session.completed":

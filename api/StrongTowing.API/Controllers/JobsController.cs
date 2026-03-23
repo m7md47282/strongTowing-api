@@ -4,11 +4,13 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using StrongTowing.Application.DTOs.Requests;
 using StrongTowing.Application.DTOs.Responses;
+using StrongTowing.Application.Exceptions;
 using StrongTowing.Core.Entities;
 using StrongTowing.Core.Constants;
 using StrongTowing.Core.Enums;
 using StrongTowing.Infrastructure.Data;
 using System.Text.Json;
+using StrongTowing.API.Services;
 
 namespace StrongTowing.API.Controllers;
 
@@ -21,17 +23,20 @@ public class JobsController : ControllerBase
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly RoleManager<IdentityRole> _roleManager;
     private readonly ILogger<JobsController> _logger;
+    private readonly IPaymentProvider _paymentProvider;
 
     public JobsController(
         ApplicationDbContext context,
         UserManager<ApplicationUser> userManager,
         RoleManager<IdentityRole> roleManager,
-        ILogger<JobsController> logger)
+        ILogger<JobsController> logger,
+        IPaymentProvider paymentProvider)
     {
         _context = context;
         _userManager = userManager;
         _roleManager = roleManager;
         _logger = logger;
+        _paymentProvider = paymentProvider;
     }
 
     /// <summary>
@@ -479,6 +484,16 @@ public class JobsController : ControllerBase
                 return BadRequest(new { error = "Bad Request", message = "Job must have exactly 5 photos before marking as ReadyToRelease." });
             }
 
+            // Settlement gate: job cannot be marked completed unless payment is settled.
+            if (status == JobStatus.Completed && !IsPaymentSettled(job.PaymentStatus))
+            {
+                return BadRequest(new
+                {
+                    error = "Payment Not Settled",
+                    message = "Job cannot be completed until payment is settled. Use admin override if required."
+                });
+            }
+
             // Update status and audit fields
             job.Status = status;
             job.StatusUpdatedAt = DateTime.UtcNow;
@@ -503,6 +518,144 @@ public class JobsController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Admin-only override to complete a job even when payment is not settled.
+    /// </summary>
+    [HttpPost("{id}/complete-with-override")]
+    [Authorize(Roles = $"{UserRoles.SuperAdmin},{UserRoles.Administrator}")]
+    public async Task<ActionResult<JobDto>> CompleteWithOverride(int id, [FromBody] OverrideJobCompletionRequest request)
+    {
+        try
+        {
+            var job = await _context.Jobs
+                .Include(j => j.Vehicle)
+                    .ThenInclude(v => v.Owner)
+                .Include(j => j.Driver)
+                .Include(j => j.Photos)
+                .FirstOrDefaultAsync(j => j.Id == id);
+
+            if (job == null)
+            {
+                return NotFound(new { error = "Not Found", message = $"Job with ID {id} was not found." });
+            }
+
+            var currentUserId = _userManager.GetUserId(User);
+            var currentUser = !string.IsNullOrEmpty(currentUserId)
+                ? await _userManager.FindByIdAsync(currentUserId)
+                : null;
+            var actorName = currentUser?.FullName ?? "Unknown Admin";
+
+            var previousStatus = job.Status;
+            job.Status = JobStatus.Completed;
+            job.CompletedAt = DateTime.UtcNow;
+            job.StatusUpdatedAt = DateTime.UtcNow;
+            job.StatusUpdatedById = currentUserId;
+            job.Notes = $"{job.Notes}\n[Payment Override] Completed by {actorName} at {DateTime.UtcNow:u}. Reason: {request.Reason}".Trim();
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogWarning(
+                "Job {JobId} completed via admin override by {UserId}. PreviousStatus={PreviousStatus}, PaymentStatus={PaymentStatus}, Reason={Reason}",
+                job.Id,
+                currentUserId,
+                previousStatus,
+                job.PaymentStatus,
+                request.Reason);
+
+            var jobDto = MapToJobDto(job);
+            return Ok(jobDto);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error overriding completion for job {JobId}", id);
+            return StatusCode(500, new { error = "Internal Server Error", message = "An error occurred while overriding job completion." });
+        }
+    }
+
+    /// <summary>
+    /// Cancel a job and apply cancellation fee policy by current job stage.
+    /// </summary>
+    [HttpPost("{id}/cancel-with-fee")]
+    [Authorize(Roles = $"{UserRoles.SuperAdmin},{UserRoles.Administrator},{UserRoles.Dispatcher}")]
+    public async Task<ActionResult<JobDto>> CancelWithFee(int id, [FromBody] CancelJobWithFeeRequest request)
+    {
+        try
+        {
+            var job = await _context.Jobs
+                .Include(j => j.Vehicle)
+                    .ThenInclude(v => v.Owner)
+                .Include(j => j.Driver)
+                .Include(j => j.Photos)
+                .FirstOrDefaultAsync(j => j.Id == id);
+
+            if (job == null)
+            {
+                return NotFound(new { error = "Not Found", message = $"Job with ID {id} was not found." });
+            }
+
+            if (job.Status == JobStatus.Completed || job.Status == JobStatus.Cancelled)
+            {
+                return BadRequest(new { error = "Bad Request", message = "Job is already closed and cannot be cancelled." });
+            }
+
+            var settings = await _context.SystemSettings.FirstOrDefaultAsync();
+            var feePercent = request.OverrideFeePercent ?? ResolveCancellationFeePercent(job.Status, settings);
+            var feeAmount = decimal.Round(job.Cost * (feePercent / 100m), 2);
+            var userId = _userManager.GetUserId(User);
+
+            var payment = await _context.Payments
+                .Include(p => p.Job)
+                .Where(p => p.JobId == job.Id)
+                .OrderByDescending(p => p.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            if (payment != null && payment.IsPreAuthorization &&
+                !string.IsNullOrWhiteSpace(payment.StripePaymentIntentId))
+            {
+                if (feeAmount > 0)
+                {
+                    await _paymentProvider.CapturePaymentIntentAsync(payment.StripePaymentIntentId, feeAmount);
+                    payment.CapturedAmount = feeAmount;
+                    payment.CapturedAt = DateTime.UtcNow;
+                    payment.CaptureStatus = PaymentLifecycle.CaptureStatuses.PartiallyCaptured;
+                    payment.PaymentStatus = PaymentLifecycle.Statuses.Paid;
+                    payment.IsCancellationFeePayment = true;
+                    payment.CancellationFeeAmount = feeAmount;
+                }
+                else
+                {
+                    await _paymentProvider.CancelPaymentIntentAsync(payment.StripePaymentIntentId);
+                    payment.CaptureStatus = PaymentLifecycle.CaptureStatuses.Released;
+                    payment.ReleasedAt = DateTime.UtcNow;
+                    payment.PaymentStatus = PaymentLifecycle.Statuses.Cancelled;
+                }
+            }
+
+            job.CancellationFeeAmount = feeAmount;
+            job.CancellationReason = request.Reason;
+            job.CancelledAt = DateTime.UtcNow;
+            job.CancelledBy = userId;
+            job.Status = JobStatus.Cancelled;
+            job.PaymentStatus = feeAmount > 0 ? PaymentLifecycle.Statuses.Paid : PaymentLifecycle.Statuses.Cancelled;
+            job.Notes = $"{job.Notes}\n[Cancellation] Reason: {request.Reason}. FeePercent: {feePercent}. FeeAmount: {feeAmount}".Trim();
+            job.StatusUpdatedAt = DateTime.UtcNow;
+            job.StatusUpdatedById = userId;
+
+            await _context.SaveChangesAsync();
+            return Ok(MapToJobDto(job));
+        }
+        catch (PaymentProviderException ex)
+        {
+            _logger.LogError(ex, "{Provider} error during cancellation settlement for job {JobId}", ex.ProviderName, id);
+            return StatusCode(502, new { error = "Payment Provider Error", message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error cancelling job {JobId} with fee", id);
+            return StatusCode(500, new { error = "Internal Server Error", message = "An error occurred while cancelling the job." });
+        }
+    }
+
     private string GenerateRandomPassword()
     {
         // Generate a random password for new clients
@@ -510,6 +663,39 @@ public class JobsController : ControllerBase
         var random = new Random();
         return new string(Enumerable.Repeat(chars, 12)
             .Select(s => s[random.Next(s.Length)]).ToArray());
+    }
+
+    private static bool IsPaymentSettled(string? paymentStatus)
+    {
+        return paymentStatus == "Paid"
+            || paymentStatus == "Refunded"
+            || paymentStatus == "PartiallyRefunded";
+    }
+
+    private static decimal ResolveCancellationFeePercent(JobStatus status, SystemSettings? settings)
+    {
+        if (settings == null)
+        {
+            return status switch
+            {
+                JobStatus.Pending => 0m,
+                JobStatus.Assigned => 0m,
+                JobStatus.OnRoute => 30m,
+                JobStatus.InProgress => 50m,
+                JobStatus.ReadyToRelease => 50m,
+                _ => 0m
+            };
+        }
+
+        return status switch
+        {
+            JobStatus.Pending => settings.CancelFeeBeforeDispatchPercent,
+            JobStatus.Assigned => settings.CancelFeeBeforeDispatchPercent,
+            JobStatus.OnRoute => settings.CancelFeeAfterDispatchPercent,
+            JobStatus.InProgress => settings.CancelFeeAfterArrivalPercent,
+            JobStatus.ReadyToRelease => settings.CancelFeeAfterArrivalPercent,
+            _ => settings.CancelFeeBeforeDispatchPercent
+        };
     }
 
     private JobDto MapToJobDto(Job job)

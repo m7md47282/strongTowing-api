@@ -16,6 +16,14 @@ namespace StrongTowing.Application.DTOs.Responses
         public bool StripeLiveSecretKeyConfigured { get; set; }
         public bool StripeLiveWebhookConfigured { get; set; }
         public string StripeMode { get; set; } = "test";
+        public bool PreAuthorizationEnabled { get; set; }
+        public decimal PreAuthorizationMinAmount { get; set; }
+        public decimal PreAuthorizationMaxAmount { get; set; }
+        public int FraudReviewScoreThreshold { get; set; }
+        public int DuplicateRequestWindowMinutes { get; set; }
+        public decimal CancelFeeBeforeDispatchPercent { get; set; }
+        public decimal CancelFeeAfterDispatchPercent { get; set; }
+        public decimal CancelFeeAfterArrivalPercent { get; set; }
         public DateTime UpdatedAt { get; set; }
         public string UpdatedBy { get; set; } = string.Empty;
     }

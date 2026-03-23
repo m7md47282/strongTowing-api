@@ -7,7 +7,8 @@ namespace StrongTowing.Core.Enums
         OnRoute,        // Driver moving to location
         InProgress,     // Driver arrived, towing started
         ReadyToRelease, // Job done, photos uploaded
-        Completed       // Admin verified and closed
+        Completed,      // Admin verified and closed
+        Cancelled       // Job cancelled
     }
 }
 
