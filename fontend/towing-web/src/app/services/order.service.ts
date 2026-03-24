@@ -1,8 +1,16 @@
 import { Injectable } from '@angular/core';
 import { Observable, throwError } from 'rxjs';
-import { map, catchError } from 'rxjs/operators';
+import { catchError } from 'rxjs/operators';
+import { HttpParams } from '@angular/common/http';
 import { ApiService } from './api.service';
-import { Order, CreateOrderRequest, OrderTracking, OrderFilter, OrderStatus } from '../models/order.model';
+import {
+  Order,
+  CreateOrderRequest,
+  CreateOrderResponse,
+  OrderTracking,
+  OrderFilter,
+  OrderStatus
+} from '../models/order.model';
 
 @Injectable({
   providedIn: 'root'
@@ -11,8 +19,8 @@ export class OrderService {
   constructor(private apiService: ApiService) { }
 
   // Create new order
-  createOrder(orderData: CreateOrderRequest): Observable<Order> {
-    return this.apiService.post<Order>('orders', orderData).pipe(
+  createOrder(orderData: CreateOrderRequest): Observable<CreateOrderResponse> {
+    return this.apiService.post<CreateOrderResponse>('orders', orderData, false).pipe(
       catchError(error => {
         console.error('Create order error:', error);
         return throwError(() => error);
@@ -22,21 +30,21 @@ export class OrderService {
 
   // Get all orders
   getOrders(filter?: OrderFilter): Observable<{ orders: Order[], totalCount: number }> {
-    let params = new URLSearchParams();
+    let params = new HttpParams();
     
     if (filter) {
-      if (filter.status) params.append('status', filter.status);
-      if (filter.priority) params.append('priority', filter.priority);
-      if (filter.serviceType) params.append('serviceType', filter.serviceType);
-      if (filter.dateFrom) params.append('dateFrom', filter.dateFrom.toISOString());
-      if (filter.dateTo) params.append('dateTo', filter.dateTo.toISOString());
-      if (filter.customerId) params.append('customerId', filter.customerId.toString());
-      if (filter.driverId) params.append('driverId', filter.driverId.toString());
-      if (filter.page) params.append('page', filter.page.toString());
-      if (filter.pageSize) params.append('pageSize', filter.pageSize.toString());
+      if (filter.status) params = params.set('status', filter.status);
+      if (filter.priority) params = params.set('priority', filter.priority);
+      if (filter.serviceType) params = params.set('serviceType', filter.serviceType);
+      if (filter.dateFrom) params = params.set('dateFrom', filter.dateFrom.toISOString());
+      if (filter.dateTo) params = params.set('dateTo', filter.dateTo.toISOString());
+      if (filter.customerId) params = params.set('customerId', filter.customerId.toString());
+      if (filter.driverId) params = params.set('driverId', filter.driverId.toString());
+      if (filter.page) params = params.set('page', filter.page.toString());
+      if (filter.pageSize) params = params.set('pageSize', filter.pageSize.toString());
     }
 
-    return this.apiService.get<{ orders: Order[], totalCount: number }>(`orders?${params.toString()}`).pipe(
+    return this.apiService.get<{ orders: Order[], totalCount: number }>('orders', params).pipe(
       catchError(error => {
         console.error('Get orders error:', error);
         return throwError(() => error);
@@ -148,7 +156,7 @@ export class OrderService {
 
   // Cancel order
   cancelOrder(orderId: number, reason: string): Observable<Order> {
-    return this.apiService.post<Order>(`orders/${orderId}/cancel`, { reason }).pipe(
+    return this.apiService.post<Order>(`jobs/${orderId}/cancel-with-fee`, { reason }, true).pipe(
       catchError(error => {
         console.error('Cancel order error:', error);
         return throwError(() => error);

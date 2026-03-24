@@ -64,6 +64,10 @@ export interface Job {
   
   // Financials
   cost: number;
+  /** Mirrors backend Job.PaymentStatus (e.g. Unpaid, Pending, Paid). */
+  paymentStatus?: string;
+  paymentMethod?: string;
+  paidAt?: string | null;
   notes?: string | null;
   billingNotes?: string;
   includeBillingNotesOnReceipt?: boolean;

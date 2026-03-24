@@ -55,6 +55,10 @@ public class JobDto
     
     // Financials
     public decimal Cost { get; set; }
+    /// <summary>Job-level payment state (synced when Stripe/cash flows update).</summary>
+    public string PaymentStatus { get; set; } = "Unpaid";
+    public string? PaymentMethod { get; set; }
+    public DateTime? PaidAt { get; set; }
     public string? Notes { get; set; }
     public string? BillingNotes { get; set; }
     public bool IncludeBillingNotesOnReceipt { get; set; }

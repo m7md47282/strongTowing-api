@@ -128,6 +128,9 @@
           <button class="btn btn-outline" (click)="viewOrderDetails(order.id)">
             View Details
           </button>
+          <span class="text-xs text-gray-500 mr-2" *ngIf="order.status === 'Pending'">
+            {{ getCancellationFeeNotice(order.status) }}
+          </span>
           <button class="btn btn-primary" *ngIf="order.status === 'Pending'" (click)="cancelOrder(order.id)">
             Cancel Order
           </button>

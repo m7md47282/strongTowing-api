@@ -6,8 +6,6 @@ import { catchError, finalize } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { 
   PaymentService, 
-  PaymentLink, 
-  CreatePaymentLinkRequest,
   PaymentListItem,
   PaymentStatistics,
   PaymentFilters,
@@ -38,7 +36,7 @@ export class PaymentsComponent implements OnInit {
   // Payment data
   payments: PaymentListItem[] = [];
   filteredPayments: PaymentListItem[] = [];
-  paymentLinks: PaymentLink[] = [];
+  paymentLinks: any[] = [];
   statistics: PaymentStatistics | null = null;
   
   // Jobs and drivers
@@ -54,8 +52,10 @@ export class PaymentsComponent implements OnInit {
   // Modals
   showCreateLinkModal = false;
   showPaymentDetailsModal = false;
+  showErrorLogModal = false;
   selectedPayment: Payment | null = null;
-  selectedLink: PaymentLink | null = null;
+  selectedErrorPayment: PaymentListItem | null = null;
+  selectedLink: any | null = null;
   showLinkDetails = false;
   selectedJobForLink: Job | null = null;
   
@@ -71,10 +71,11 @@ export class PaymentsComponent implements OnInit {
   // Filters
   searchTerm: string = '';
   paymentMethodFilter: 'Card' | 'PaymentLink' | 'Cash' | '' = '';
-  paymentStatusFilter: 'Pending' | 'Paid' | 'Failed' | '' = '';
+  paymentStatusFilter: 'Unpaid' | 'Pending' | 'PendingCash' | 'UnderReview' | 'Authorized' | 'CapturePending' | 'Paid' | 'Failed' | 'Cancelled' | '' = '';
   driverFilter: string = '';
   dateRangeStart: string = '';
   dateRangeEnd: string = '';
+  showingFraudQueue = false;
 
   constructor(
     private paymentService: PaymentService,
@@ -243,8 +244,25 @@ export class PaymentsComponent implements OnInit {
   }
 
   onFilterChange(): void {
+    this.showingFraudQueue = false;
     this.loadPayments();
     this.loadStatistics();
+  }
+
+  viewFraudQueue(): void {
+    this.showingFraudQueue = true;
+    this.loading = true;
+    this.paymentService.getFraudReviewQueue()
+      .pipe(
+        finalize(() => this.loading = false),
+        catchError(error => {
+          this.error = error.error?.message || 'Failed to load fraud review queue';
+          return of([]);
+        })
+      )
+      .subscribe(payments => {
+        this.filteredPayments = payments;
+      });
   }
 
   onSearchChange(): void {
@@ -300,12 +318,13 @@ export class PaymentsComponent implements OnInit {
     this.error = null;
     this.successMessage = null;
 
-    const linkData: CreatePaymentLinkRequest = {
+    const linkData = {
       jobId: this.createPaymentLinkForm.value.jobId,
-      expiresInDays: this.createPaymentLinkForm.value.expiresInDays || undefined
+      amount: this.selectedJobForLink?.cost || 0,
+      successUrl: `${window.location.origin}/dispatcher/payments`
     };
 
-    this.paymentService.createPaymentLink(linkData)
+    this.paymentService.createStripePaymentLink(linkData)
       .pipe(
         finalize(() => this.submitting = false),
         catchError(error => {
@@ -316,9 +335,135 @@ export class PaymentsComponent implements OnInit {
       .subscribe(link => {
         if (link) {
           this.successMessage = 'Payment link created successfully!';
-          this.selectedLink = link;
+          this.selectedLink = {
+            id: link.paymentRecordId,
+            jobId: this.createPaymentLinkForm.value.jobId,
+            linkToken: link.stripePaymentLinkId,
+            paymentLink: link.url,
+            amount: link.amount,
+            isActive: true,
+            createdAt: new Date().toISOString(),
+            expiresAt: null
+          };
           this.showLinkDetails = true;
           this.closeCreateLinkModal();
+          this.loadPayments();
+          this.loadStatistics();
+        }
+      });
+  }
+
+  markPaymentCashPending(payment: PaymentListItem): void {
+    this.paymentService.markCashPending(payment.id)
+      .pipe(
+        catchError(error => {
+          this.error = error.error?.message || 'Failed to mark cash pending';
+          return of(null);
+        })
+      )
+      .subscribe(result => {
+        if (result) {
+          this.successMessage = 'Payment marked as cash pending';
+          this.loadPayments();
+          this.loadStatistics();
+        }
+      });
+  }
+
+  markPaymentCashCollected(payment: PaymentListItem): void {
+    this.paymentService.markCashCollected(payment.id)
+      .pipe(
+        catchError(error => {
+          this.error = error.error?.message || 'Failed to mark cash collected';
+          return of(null);
+        })
+      )
+      .subscribe(result => {
+        if (result) {
+          this.successMessage = 'Cash collection confirmed';
+          this.loadPayments();
+          this.loadStatistics();
+        }
+      });
+  }
+
+  cancelPayment(payment: PaymentListItem): void {
+    if (!confirm('Cancel this payment?')) {
+      return;
+    }
+
+    this.paymentService.cancelPayment(payment.id)
+      .pipe(
+        catchError(error => {
+          this.error = error.error?.message || 'Failed to cancel payment';
+          return of(null);
+        })
+      )
+      .subscribe(result => {
+        if (result) {
+          this.successMessage = 'Payment cancelled';
+          this.loadPayments();
+          this.loadStatistics();
+        }
+      });
+  }
+
+  reviewPayment(payment: PaymentListItem, decision: 'approve' | 'reject'): void {
+    this.paymentService.reviewPayment(payment.id, { decision })
+      .pipe(
+        catchError(error => {
+          this.error = error.error?.message || `Failed to ${decision} payment review`;
+          return of(null);
+        })
+      )
+      .subscribe(result => {
+        if (result) {
+          this.successMessage = `Payment ${decision}d successfully`;
+          this.loadPayments();
+          this.loadStatistics();
+        }
+      });
+  }
+
+  captureAuthorization(payment: PaymentListItem): void {
+    const amountInput = prompt('Capture amount (leave empty to capture full authorized amount):');
+    const amount = amountInput ? Number(amountInput) : undefined;
+    if (amountInput && (!Number.isFinite(amount) || Number(amount) <= 0)) {
+      this.error = 'Invalid capture amount';
+      return;
+    }
+
+    this.paymentService.captureAuthorization(payment.id, amount ? { amount } : {})
+      .pipe(
+        catchError(error => {
+          this.error = error.error?.message || 'Failed to capture authorization';
+          return of(null);
+        })
+      )
+      .subscribe(result => {
+        if (result) {
+          this.successMessage = 'Authorization captured successfully';
+          this.loadPayments();
+          this.loadStatistics();
+        }
+      });
+  }
+
+  releaseAuthorization(payment: PaymentListItem): void {
+    if (!confirm('Release this authorization hold?')) {
+      return;
+    }
+
+    this.paymentService.releaseAuthorization(payment.id)
+      .pipe(
+        catchError(error => {
+          this.error = error.error?.message || 'Failed to release authorization';
+          return of(null);
+        })
+      )
+      .subscribe(result => {
+        if (result) {
+          this.successMessage = 'Authorization released';
           this.loadPayments();
           this.loadStatistics();
         }
@@ -348,6 +493,24 @@ export class PaymentsComponent implements OnInit {
     this.selectedPayment = null;
   }
 
+  hasPaymentError(payment: PaymentListItem): boolean {
+    return !!payment.paymentErrorMessage?.trim();
+  }
+
+  openErrorLog(payment: PaymentListItem): void {
+    if (!this.hasPaymentError(payment)) {
+      return;
+    }
+
+    this.selectedErrorPayment = payment;
+    this.showErrorLogModal = true;
+  }
+
+  closeErrorLog(): void {
+    this.showErrorLogModal = false;
+    this.selectedErrorPayment = null;
+  }
+
   copyToClipboard(text: string): void {
     navigator.clipboard.writeText(text).then(() => {
       this.successMessage = 'Copied to clipboard!';
@@ -357,7 +520,7 @@ export class PaymentsComponent implements OnInit {
     });
   }
 
-  clearPaymentLink(link: PaymentLink): void {
+  clearPaymentLink(link: any): void {
     if (!confirm('Are you sure you want to deactivate this payment link?')) {
       return;
     }
@@ -419,7 +582,12 @@ export class PaymentsComponent implements OnInit {
     switch (status) {
       case 'Paid': return 'bg-green-100 text-green-800';
       case 'Pending': return 'bg-yellow-100 text-yellow-800';
+      case 'CapturePending': return 'bg-blue-100 text-blue-800';
+      case 'Authorized': return 'bg-indigo-100 text-indigo-800';
+      case 'PendingCash': return 'bg-amber-100 text-amber-800';
+      case 'UnderReview': return 'bg-orange-100 text-orange-800';
       case 'Failed': return 'bg-red-100 text-red-800';
+      case 'Cancelled': return 'bg-gray-200 text-gray-700';
       default: return 'bg-gray-100 text-gray-800';
     }
   }

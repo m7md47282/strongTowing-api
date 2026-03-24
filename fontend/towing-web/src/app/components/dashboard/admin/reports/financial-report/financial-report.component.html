@@ -1,0 +1,225 @@
+<div class="p-8 min-h-screen bg-gray-50">
+  <div class="mb-6 flex items-center justify-between">
+    <div>
+      <h1 class="text-3xl font-bold text-gray-900">Financial Report</h1>
+      <p class="text-gray-600 mt-1">Track revenue, refunds, and payment health</p>
+    </div>
+    <button
+      (click)="exportCsv()"
+      [disabled]="exporting || loading"
+      class="px-5 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors font-medium disabled:opacity-60"
+    >
+      @if (exporting) {
+        <i class="fas fa-spinner fa-spin mr-2"></i>
+      } @else {
+        <i class="fas fa-file-csv mr-2"></i>
+      }
+      Export CSV
+    </button>
+  </div>
+
+  <div class="bg-white rounded-lg shadow-sm p-4 mb-6">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+        <input
+          type="date"
+          [(ngModel)]="startDate"
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary"
+        />
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+        <input
+          type="date"
+          [(ngModel)]="endDate"
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary"
+        />
+      </div>
+      <div class="flex items-end gap-2 md:col-span-2">
+        <button
+          (click)="onFilterApply()"
+          [disabled]="loading"
+          class="px-4 py-2.5 bg-primary text-white rounded-lg hover:opacity-90 transition-colors disabled:opacity-60"
+        >
+          <i class="fas fa-filter mr-2"></i>Apply
+        </button>
+        <button
+          (click)="clearFilters()"
+          [disabled]="loading"
+          class="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-60"
+        >
+          Clear
+        </button>
+      </div>
+    </div>
+  </div>
+
+  @if (error) {
+    <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+      <i class="fas fa-exclamation-circle mr-2"></i>{{ error }}
+    </div>
+  }
+
+  @if (successMessage) {
+    <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-6">
+      <i class="fas fa-check-circle mr-2"></i>{{ successMessage }}
+    </div>
+  }
+
+  @if (loading) {
+    <div class="bg-white rounded-lg shadow-sm p-12 text-center">
+      <i class="fas fa-spinner fa-spin text-4xl text-primary mb-4"></i>
+      <p class="text-gray-600">Loading financial report...</p>
+    </div>
+  } @else if (report) {
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+      <div class="bg-white rounded-lg shadow-sm p-6">
+        <p class="text-sm font-medium text-gray-600">Total Revenue</p>
+        <p class="text-2xl font-bold text-gray-900 mt-2">{{ formatCurrency(report.totalRevenue) }}</p>
+      </div>
+      <div class="bg-white rounded-lg shadow-sm p-6">
+        <p class="text-sm font-medium text-gray-600">Total Refunded</p>
+        <p class="text-2xl font-bold text-red-600 mt-2">{{ formatCurrency(report.totalRefunded) }}</p>
+      </div>
+      <div class="bg-white rounded-lg shadow-sm p-6">
+        <p class="text-sm font-medium text-gray-600">Net Revenue</p>
+        <p class="text-2xl font-bold text-green-700 mt-2">{{ formatCurrency(report.netRevenue) }}</p>
+      </div>
+      <div class="bg-white rounded-lg shadow-sm p-6">
+        <p class="text-sm font-medium text-gray-600">Total Payments</p>
+        <p class="text-2xl font-bold text-gray-900 mt-2">{{ report.totalPayments }}</p>
+      </div>
+      <div class="bg-white rounded-lg shadow-sm p-6">
+        <p class="text-sm font-medium text-gray-600">Total Jobs</p>
+        <p class="text-2xl font-bold text-gray-900 mt-2">{{ report.totalJobs }}</p>
+      </div>
+      <div class="bg-white rounded-lg shadow-sm p-6">
+        <p class="text-sm font-medium text-gray-600">Average Job Cost</p>
+        <p class="text-2xl font-bold text-gray-900 mt-2">{{ formatCurrency(report.averageJobCost) }}</p>
+      </div>
+      <div class="bg-white rounded-lg shadow-sm p-6">
+        <p class="text-sm font-medium text-gray-600">Cancellation Fee Revenue</p>
+        <p class="text-2xl font-bold text-gray-900 mt-2">{{ formatCurrency(report.cancellationFeeRevenue) }}</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+      <div class="bg-white rounded-lg shadow-sm p-6">
+        <p class="text-sm font-medium text-gray-600">Refund Rate</p>
+        <p class="text-2xl font-bold text-red-600 mt-2">{{ getRefundRate() }}</p>
+        <p class="text-xs text-gray-500 mt-1">Refunded amount vs gross revenue</p>
+      </div>
+      <div class="bg-white rounded-lg shadow-sm p-6">
+        <p class="text-sm font-medium text-gray-600">Collection Rate</p>
+        <p class="text-2xl font-bold text-green-700 mt-2">{{ getCollectionRate() }}</p>
+        <p class="text-xs text-gray-500 mt-1">Paid + partially refunded over all payments</p>
+      </div>
+      <div class="bg-white rounded-lg shadow-sm p-6">
+        <p class="text-sm font-medium text-gray-600">Avg Net Revenue / Payment</p>
+        <p class="text-2xl font-bold text-gray-900 mt-2">{{ getAvgRevenuePerPayment() }}</p>
+        <p class="text-xs text-gray-500 mt-1">Net revenue divided by payment count</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div class="bg-white rounded-lg shadow-sm p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-1">Revenue Mix</h2>
+        <p class="text-sm text-gray-500 mb-4">Distribution by payment method</p>
+        <div class="h-72">
+          <canvas
+            baseChart
+            [data]="revenueMethodChartData"
+            [options]="revenueMethodChartOptions"
+            [type]="revenueMethodChartType"
+          ></canvas>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-1">Payment Status Distribution</h2>
+        <p class="text-sm text-gray-500 mb-4">Count of payments per status</p>
+        <div class="h-72">
+          <canvas
+            baseChart
+            [data]="statusChartData"
+            [options]="statusChartOptions"
+            [type]="statusChartType"
+          ></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="bg-white rounded-lg shadow-sm p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Revenue By Method</h2>
+        <div class="space-y-3">
+          <div class="flex items-center justify-between border-b border-gray-200 pb-2">
+            <div>  
+              <i class="fas fa-credit-card text-gray-400"></i>
+              <span class="text-gray-600 ml-2">Card</span>
+            </div>
+            <span class="font-semibold text-gray-900">{{ formatCurrency(report.revenueByMethod.card) }}</span>
+          </div>
+          <div class="flex items-center justify-between border-b border-gray-200 pb-2">
+            <div>
+              <i class="fas fa-link text-gray-400"></i>
+              <span class="text-gray-600 ml-2">Payment Link</span>
+            </div>
+            <span class="font-semibold text-gray-900">{{ formatCurrency(report.revenueByMethod.paymentLink) }}</span>
+          </div>
+          <div class="flex items-center justify-between border-b border-gray-200 pb-2">
+            <div>
+              <i class="fas fa-money-bill text-gray-400"></i> 
+              <span class="text-gray-600 ml-2">Cash</span>
+            </div>
+            <span class="font-semibold text-gray-900">{{ formatCurrency(report.revenueByMethod.cash) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Payment Status Counts</h2>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="rounded-md bg-gray-50 p-3">
+            <p class="text-xs text-gray-500">Pending</p>
+            <p class="text-xl font-semibold text-gray-900">{{ report.statusCounts.pending }}</p>
+          </div>
+          <div class="rounded-md bg-gray-50 p-3">
+            <p class="text-xs text-gray-500">Paid</p>
+            <p class="text-xl font-semibold text-gray-900">{{ report.statusCounts.paid }}</p>
+          </div>
+          <div class="rounded-md bg-gray-50 p-3">
+            <p class="text-xs text-gray-500">Failed</p>
+            <p class="text-xl font-semibold text-gray-900">{{ report.statusCounts.failed }}</p>
+          </div>
+          <div class="rounded-md bg-gray-50 p-3">
+            <p class="text-xs text-gray-500">Under Review</p>
+            <p class="text-xl font-semibold text-gray-900">{{ report.statusCounts.underReview }}</p>
+          </div>
+          <div class="rounded-md bg-gray-50 p-3">
+            <p class="text-xs text-gray-500">Authorized</p>
+            <p class="text-xl font-semibold text-gray-900">{{ report.statusCounts.authorized }}</p>
+          </div>
+          <div class="rounded-md bg-gray-50 p-3">
+            <p class="text-xs text-gray-500">Refunded</p>
+            <p class="text-xl font-semibold text-gray-900">{{ report.statusCounts.refunded }}</p>
+          </div>
+          <div class="rounded-md bg-gray-50 p-3 col-span-2">
+            <p class="text-xs text-gray-500">Partially Refunded</p>
+            <p class="text-xl font-semibold text-gray-900">{{ report.statusCounts.partiallyRefunded }}</p>
+          </div>
+          <div class="rounded-md bg-gray-50 p-3 col-span-2">
+            <p class="text-xs text-gray-500">Cancelled</p>
+            <p class="text-xl font-semibold text-gray-900">{{ report.statusCounts.cancelled }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  } @else {
+    <div class="bg-white rounded-lg shadow-sm p-12 text-center">
+      <i class="fas fa-chart-line text-4xl text-gray-300 mb-4"></i>
+      <p class="text-gray-600">No report data available for the selected period.</p>
+    </div>
+  }
+</div>

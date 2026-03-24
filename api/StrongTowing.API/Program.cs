@@ -7,9 +7,15 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using StrongTowing.Infrastructure.Data;
 using StrongTowing.Core.Entities;
+using StrongTowing.API.Options;
 using StrongTowing.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.Configure<GoogleMapsOptions>(builder.Configuration.GetSection(GoogleMapsOptions.SectionName));
+builder.Services.Configure<OfficeLocationOptions>(builder.Configuration.GetSection(OfficeLocationOptions.SectionName));
+builder.Services.AddHttpClient<IGoogleRoutesService, GoogleRoutesService>();
+builder.Services.AddScoped<IOfficeLocationResolver, OfficeLocationResolver>();
 
 // IIS Integration
 builder.Services.Configure<IISServerOptions>(options =>

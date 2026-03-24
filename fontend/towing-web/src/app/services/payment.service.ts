@@ -33,7 +33,21 @@ export interface Payment {
   jobId: number;
   amount: number;
   paymentMethod: 'Card' | 'PaymentLink' | 'Cash';
-  paymentStatus: 'Pending' | 'Paid' | 'Failed' | 'Refunded' | 'PartiallyRefunded';
+  paymentStatus: 'Unpaid' | 'Pending' | 'PendingCash' | 'UnderReview' | 'Authorized' | 'CapturePending' | 'Paid' | 'Failed' | 'Cancelled' | 'Refunded' | 'PartiallyRefunded';
+  captureStatus?: 'NotApplicable' | 'PendingAuthorization' | 'Authorized' | 'Captured' | 'PartiallyCaptured' | 'Released';
+  isPreAuthorization?: boolean;
+  authorizedAmount?: number;
+  capturedAmount?: number;
+  authorizationExpiresAt?: string;
+  capturedAt?: string;
+  releasedAt?: string;
+  fraudStatus?: 'Clear' | 'UnderReview' | 'Approved' | 'Rejected';
+  fraudScore?: number;
+  fraudReasons?: string;
+  fraudReviewedBy?: string;
+  fraudReviewedAt?: string;
+  isCancellationFeePayment?: boolean;
+  cancellationFeeAmount?: number;
   stripePaymentIntentId?: string;
   stripeChargeId?: string;
   cardLast4?: string;
@@ -61,7 +75,12 @@ export interface PaymentListItem {
   clientEmail: string;
   amount: number;
   paymentMethod: 'Card' | 'PaymentLink' | 'Cash';
-  paymentStatus: 'Pending' | 'Paid' | 'Failed';
+  paymentStatus: 'Unpaid' | 'Pending' | 'PendingCash' | 'UnderReview' | 'Authorized' | 'CapturePending' | 'Paid' | 'Failed' | 'Cancelled' | 'Refunded' | 'PartiallyRefunded';
+  captureStatus?: 'NotApplicable' | 'PendingAuthorization' | 'Authorized' | 'Captured' | 'PartiallyCaptured' | 'Released';
+  isPreAuthorization?: boolean;
+  authorizedAmount?: number;
+  capturedAmount?: number;
+  authorizationExpiresAt?: string;
   processedAt: string;
   processedByName: string;
   driverId?: string;
@@ -74,6 +93,10 @@ export interface PaymentListItem {
   cardLast4?: string;
   cardBrand?: string;
   paymentErrorMessage?: string;
+  fraudStatus?: 'Clear' | 'UnderReview' | 'Approved' | 'Rejected';
+  fraudScore?: number;
+  isCancellationFeePayment?: boolean;
+  cancellationFeeAmount?: number;
 }
 
 export interface PaymentStatistics {
@@ -91,7 +114,7 @@ export interface PaymentStatistics {
 
 export interface PaymentFilters {
   paymentMethod?: 'Card' | 'PaymentLink' | 'Cash';
-  paymentStatus?: 'Pending' | 'Paid' | 'Failed';
+  paymentStatus?: 'Unpaid' | 'Pending' | 'PendingCash' | 'UnderReview' | 'Authorized' | 'CapturePending' | 'Paid' | 'Failed' | 'Cancelled' | 'Refunded' | 'PartiallyRefunded';
   startDate?: string;
   endDate?: string;
   driverId?: string;
@@ -106,6 +129,7 @@ export interface CreatePaymentIntentRequest {
   jobId: number;
   amount: number;
   currency?: string;
+  manualCapture?: boolean;
 }
 
 export interface CreatePaymentIntentResponse {
@@ -114,6 +138,10 @@ export interface CreatePaymentIntentResponse {
   publishableKey: string;
   amount: number;
   currency: string;
+  manualCapture: boolean;
+  capturableAmount: number;
+  authorizationExpiresAt?: string;
+  riskLevel?: string;
 }
 
 export interface CreateStripePaymentLinkRequest {
@@ -140,6 +168,15 @@ export interface RefundPaymentResponse {
   status: string;
   paymentId: number;
   reason?: string;
+}
+
+export interface ReviewPaymentRequest {
+  decision: 'approve' | 'reject';
+  notes?: string;
+}
+
+export interface CaptureAuthorizationRequest {
+  amount?: number;
 }
 
 @Injectable({
@@ -206,6 +243,69 @@ export class PaymentService {
     return this.apiService.post<RefundPaymentResponse>(`payments/${paymentId}/refund`, request).pipe(
       catchError(error => {
         console.error('Refund payment error:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  markCashPending(paymentId: number): Observable<Payment> {
+    return this.apiService.post<Payment>(`payments/${paymentId}/mark-cash-pending`, {}).pipe(
+      catchError(error => {
+        console.error('Mark cash pending error:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  markCashCollected(paymentId: number): Observable<Payment> {
+    return this.apiService.post<Payment>(`payments/${paymentId}/mark-cash-collected`, {}).pipe(
+      catchError(error => {
+        console.error('Mark cash collected error:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  cancelPayment(paymentId: number): Observable<Payment> {
+    return this.apiService.post<Payment>(`payments/${paymentId}/cancel`, {}).pipe(
+      catchError(error => {
+        console.error('Cancel payment error:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  getFraudReviewQueue(): Observable<PaymentListItem[]> {
+    return this.apiService.get<PaymentListItem[]>('payments/fraud-review-queue').pipe(
+      catchError(error => {
+        console.error('Get fraud review queue error:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  reviewPayment(paymentId: number, request: ReviewPaymentRequest): Observable<Payment> {
+    return this.apiService.post<Payment>(`payments/${paymentId}/review-decision`, request).pipe(
+      catchError(error => {
+        console.error('Review payment error:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  captureAuthorization(paymentId: number, request: CaptureAuthorizationRequest = {}): Observable<Payment> {
+    return this.apiService.post<Payment>(`payments/${paymentId}/capture-authorization`, request).pipe(
+      catchError(error => {
+        console.error('Capture authorization error:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  releaseAuthorization(paymentId: number): Observable<Payment> {
+    return this.apiService.post<Payment>(`payments/${paymentId}/release-authorization`, {}).pipe(
+      catchError(error => {
+        console.error('Release authorization error:', error);
         return throwError(() => error);
       })
     );

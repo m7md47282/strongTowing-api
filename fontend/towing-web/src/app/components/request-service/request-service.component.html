@@ -217,27 +217,54 @@
           <div class="form-row">
             <div class="form-group">
               <label for="pickupZipCode">ZIP Code *</label>
-              <input 
-                type="text" 
-                id="pickupZipCode" 
-                formControlName="pickupZipCode" 
+              <input
+                type="text"
+                id="pickupZipCode"
+                formControlName="pickupZipCode"
                 class="form-control"
                 placeholder="12345">
               <div class="error-message" *ngIf="getFieldError('pickupZipCode')">
                 {{ getFieldError('pickupZipCode') }}
               </div>
             </div>
-            
+
+            <div class="form-group">
+              <label for="contactName">Full Name *</label>
+              <input
+                type="text"
+                id="contactName"
+                formControlName="contactName"
+                class="form-control"
+                placeholder="Your full name">
+              <div class="error-message" *ngIf="getFieldError('contactName')">
+                {{ getFieldError('contactName') }}
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row">
             <div class="form-group">
               <label for="contactPhone">Phone Number *</label>
-              <input 
-                type="tel" 
-                id="contactPhone" 
-                formControlName="contactPhone" 
+              <input
+                type="tel"
+                id="contactPhone"
+                formControlName="contactPhone"
                 class="form-control"
                 placeholder="(703) 123-4567">
               <div class="error-message" *ngIf="getFieldError('contactPhone')">
                 {{ getFieldError('contactPhone') }}
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="contactEmail">Email Address</label>
+              <input
+                type="email"
+                id="contactEmail"
+                formControlName="contactEmail"
+                class="form-control"
+                placeholder="your.email@example.com">
+              <div class="error-message" *ngIf="getFieldError('contactEmail')">
+                {{ getFieldError('contactEmail') }}
               </div>
             </div>
           </div>
@@ -253,6 +280,52 @@
                 placeholder="Please describe the issue or service needed..."></textarea>
               <div class="error-message" *ngIf="getFieldError('description')">
                 {{ getFieldError('description') }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Payment Details -->
+        <div class="form-section required-section">
+          <h3>Payment Details</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Estimated Price</label>
+              <div class="form-control" style="display: flex; align-items: center; font-weight: 700;">
+                ${{ getEstimatedAmount() }}
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="paymentDueMode">When to Pay? *</label>
+              <select id="paymentDueMode" formControlName="paymentDueMode" class="form-control" (change)="onPaymentDueModeChange()">
+                <option value="PayLater">Pay Later</option>
+                <option value="PayNow">Pay Now (Card)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="paymentMethod">Preferred Payment Method *</label>
+              <select
+                id="paymentMethod"
+                formControlName="paymentMethod"
+                class="form-control"
+                [disabled]="serviceRequestForm.get('paymentDueMode')?.value === 'PayNow'">
+                <option value="PaymentLink">Payment Link</option>
+                <option value="Card">Card</option>
+                <option value="Cash">Cash</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Payment Note</label>
+              <div class="form-control" style="display: flex; align-items: center;">
+                <span *ngIf="serviceRequestForm.get('paymentDueMode')?.value === 'PayNow'">
+                  Stripe will place a pre-authorization hold of approximately ${{ getPreAuthorizationDisplayAmount() }} (typically $150-$300) and finalize on completion.
+                </span>
+                <span *ngIf="serviceRequestForm.get('paymentDueMode')?.value === 'PayLater'">
+                  Job will be created with Payment Pending status.
+                </span>
               </div>
             </div>
           </div>
@@ -311,19 +384,6 @@
           
           <div class="form-row">
             <div class="form-group">
-              <label for="contactEmail">Email Address</label>
-              <input 
-                type="email" 
-                id="contactEmail" 
-                formControlName="contactEmail" 
-                class="form-control"
-                placeholder="your.email@example.com">
-              <div class="error-message" *ngIf="getFieldError('contactEmail')">
-                {{ getFieldError('contactEmail') }}
-              </div>
-            </div>
-            
-            <div class="form-group">
               <label for="priority">Priority Level</label>
               <select id="priority" formControlName="priority" class="form-control">
                 <option *ngFor="let priority of priorities" [value]="priority.value">
@@ -373,10 +433,10 @@
           <button 
             type="submit" 
             class="btn btn-primary"
-            [disabled]="isSubmitting">
+            [disabled]="isSubmitting || isProcessingPayment">
             <i class="fas fa-paper-plane" *ngIf="!isSubmitting"></i>
-            <i class="fas fa-spinner fa-spin" *ngIf="isSubmitting"></i>
-            {{ isSubmitting ? 'Submitting Request...' : 'Submit Service Request' }}
+            <i class="fas fa-spinner fa-spin" *ngIf="isSubmitting || isProcessingPayment"></i>
+            {{ (isSubmitting || isProcessingPayment) ? 'Submitting Request...' : 'Submit Service Request' }}
           </button>
         </div>
       </form>

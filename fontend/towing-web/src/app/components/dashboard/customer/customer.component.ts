@@ -97,7 +97,9 @@ export class CustomerComponent implements OnInit {
   }
 
   cancelOrder(orderId: number): void {
-    if (confirm('Are you sure you want to cancel this order?')) {
+    const order = this.recentOrders.find(o => o.id === orderId);
+    const feeNotice = this.getCancellationFeeNotice(order?.status);
+    if (confirm(`Are you sure you want to cancel this order?\n\n${feeNotice}`)) {
       this.orderService.cancelOrder(orderId, 'Cancelled by customer').subscribe({
         next: (response) => {
           // Reload dashboard data
@@ -108,6 +110,21 @@ export class CustomerComponent implements OnInit {
           alert('Failed to cancel order. Please try again.');
         }
       });
+    }
+  }
+
+  getCancellationFeeNotice(status?: string): string {
+    switch ((status || '').toLowerCase()) {
+      case 'pending':
+      case 'assigned':
+        return 'No cancellation fee before dispatch.';
+      case 'onroute':
+        return 'A cancellation fee may apply after dispatch (default policy: 30%).';
+      case 'inprogress':
+      case 'readytorelease':
+        return 'A cancellation fee likely applies after arrival (default policy: 50%).';
+      default:
+        return 'Cancellation fee depends on dispatch stage and policy.';
     }
   }
 }

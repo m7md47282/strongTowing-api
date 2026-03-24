@@ -52,6 +52,12 @@ namespace StrongTowing.Core.Entities
         public decimal CancelFeeAfterDispatchPercent { get; set; } = 30.00m;
         [Column(TypeName = "decimal(5,2)")]
         public decimal CancelFeeAfterArrivalPercent { get; set; } = 50.00m;
+
+        /// <summary>Dispatch office latitude (WGS84). When set with OfficeLongitude, overrides appsettings office for maps/routes.</summary>
+        public double? OfficeLatitude { get; set; }
+
+        /// <summary>Dispatch office longitude (WGS84).</summary>
+        public double? OfficeLongitude { get; set; }
         
         // Metadata
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

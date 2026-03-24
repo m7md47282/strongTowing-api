@@ -1,12 +1,16 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormControl } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormControl, AbstractControl } from '@angular/forms';
 import { HttpParams } from '@angular/common/http';
 import { catchError, finalize } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { JobService, Job, CreateJobRequest, AssignDriverRequest, VehicleData, ClientData, UpdateJobStatusRequest } from '../../../../services/job.service';
 import { VehicleService, Vehicle } from '../../../../services/vehicle.service';
 import { ApiService } from '../../../../services/api.service';
+import { AccountsService } from '../../../../services/accounts.service';
+import { AuthService } from '../../../../services/auth.service';
+import { PaymentService } from '../../../../services/payment.service';
+import { InsuranceAccount } from '../../../../models/insurance-account.model';
 import { User } from '../../../../models/user.model';
 import { RoleId } from '../../../../constants/user-roles.constants';
 
@@ -32,13 +36,22 @@ export class JobsComponent implements OnInit {
   filteredJobs: Job[] = [];
   loading = false;
   error: string | null = null;
+  createJobError: string | null = null;
   
   // Modals
   showCreateJobModal = false;
   showAssignDriverModal = false;
   showJobDetailsModal = false;
   showUpdateStatusModal = false;
+  showPaymentLinkModal = false;
   selectedJob: Job | null = null;
+
+  /** Stripe payment link for a job (dispatcher / admin / super admin) */
+  paymentLinkJob: Job | null = null;
+  paymentLinkUrl: string | null = null;
+  paymentLinkError: string | null = null;
+  paymentLinkSubmitting = false;
+  paymentLinkCopied = false;
   
   // Forms
   createJobForm: FormGroup;
@@ -62,21 +75,12 @@ export class JobsComponent implements OnInit {
   
   // Validation error list
   validationErrorList: string[] = [];
-  
-  // Form validity tracking
-  formValid: boolean = false;
-  
-  // Step navigation
-  currentStep: number = 1;
-  totalSteps: number = 6;
-  steps = [
-    { number: 1, title: 'Call Type & Basic Info', icon: 'fa-info-circle' },
-    { number: 2, title: 'Location & Service', icon: 'fa-map-marker-alt' },
-    { number: 3, title: 'Vehicle Information', icon: 'fa-car' },
-    { number: 4, title: 'Client Information', icon: 'fa-user' },
-    { number: 5, title: 'Assignment & Notes', icon: 'fa-clipboard-list' },
-    { number: 6, title: 'Invoice & Charges', icon: 'fa-dollar-sign' }
-  ];
+
+  /** After user clicks Create Job once, show inline errors even if fields were not touched */
+  createJobValidationAttempted = false;
+
+  // Create job modal tabs
+  activeCreateJobTab: 'details' | 'payment' = 'details';
   
   // Status options
   statusOptions = [
@@ -135,10 +139,17 @@ export class JobsComponent implements OnInit {
   // Invoice charges form arrays
   invoiceServiceItems: any[] = [];
 
+  /** Insurance accounts for job Account dropdown (active only) */
+  insuranceAccounts: InsuranceAccount[] = [];
+  insuranceAccountsLoading = false;
+
   constructor(
     private jobService: JobService,
     private vehicleService: VehicleService,
     private apiService: ApiService,
+    private accountsService: AccountsService,
+    private authService: AuthService,
+    private paymentService: PaymentService,
     private fb: FormBuilder
   ) {
     // Client section
@@ -199,9 +210,7 @@ export class JobsComponent implements OnInit {
       pickupLocation: ['', [Validators.required]],
       destinationAddress: [''],
       // Job Details
-      reason: [''],
       priority: ['Normal'],
-      invoiceNumber: [''],
       eta: [''],
       // Assignment
       driverId: [''],
@@ -230,10 +239,9 @@ export class JobsComponent implements OnInit {
     // Client validation: either clientId OR client data
     this.createJobForm.get('client')?.valueChanges.subscribe(() => {
       this.validateClientGroup();
-      this.updateFormValidity();
       // Clear error when user starts fixing fields
-      if (this.error && this.validationErrorList.length > 0) {
-        this.error = null;
+      if (this.createJobError && this.validationErrorList.length > 0) {
+        this.createJobError = null;
         this.validationErrorList = [];
       }
     });
@@ -241,46 +249,34 @@ export class JobsComponent implements OnInit {
     // Vehicle validation: either vehicleId OR vehicle data
     this.createJobForm.get('vehicle')?.valueChanges.subscribe(() => {
       this.validateVehicleGroup();
-      this.updateFormValidity();
       // Clear error when user starts fixing fields
-      if (this.error && this.validationErrorList.length > 0) {
-        this.error = null;
+      if (this.createJobError && this.validationErrorList.length > 0) {
+        this.createJobError = null;
         this.validationErrorList = [];
       }
     });
     
-    // Subscribe to form status changes to update validity
-    this.createJobForm.statusChanges.subscribe(() => {
-      this.updateFormValidity();
-    });
-    
     // Subscribe to individual field changes
     this.createJobForm.get('serviceType')?.valueChanges.subscribe(() => {
-      this.updateFormValidity();
-      if (this.error && this.validationErrorList.length > 0) {
-        this.error = null;
+      if (this.createJobError && this.validationErrorList.length > 0) {
+        this.createJobError = null;
         this.validationErrorList = [];
       }
     });
     
     this.createJobForm.get('pickupLocation')?.valueChanges.subscribe(() => {
-      this.updateFormValidity();
-      if (this.error && this.validationErrorList.length > 0) {
-        this.error = null;
+      if (this.createJobError && this.validationErrorList.length > 0) {
+        this.createJobError = null;
         this.validationErrorList = [];
       }
     });
     
     this.createJobForm.get('cost')?.valueChanges.subscribe(() => {
-      this.updateFormValidity();
-      if (this.error && this.validationErrorList.length > 0) {
-        this.error = null;
+      if (this.createJobError && this.validationErrorList.length > 0) {
+        this.createJobError = null;
         this.validationErrorList = [];
       }
     });
-    
-    // Initial validation
-    this.updateFormValidity();
   }
   
   validateClientGroup(): void {
@@ -309,7 +305,6 @@ export class JobsComponent implements OnInit {
     // Update parent form group validity
     clientGroup.updateValueAndValidity({ emitEvent: false });
     this.createJobForm.updateValueAndValidity({ emitEvent: false });
-    this.updateFormValidity();
   }
   
   validateVehicleGroup(): void {
@@ -344,70 +339,14 @@ export class JobsComponent implements OnInit {
     // Update parent form group validity
     vehicleGroup.updateValueAndValidity({ emitEvent: false });
     this.createJobForm.updateValueAndValidity({ emitEvent: false });
-    this.updateFormValidity();
   }
 
-  updateFormValidity(): void {
-    // Check basic form validity first
-    if (this.createJobForm.get('serviceType')?.invalid ||
-        this.createJobForm.get('pickupLocation')?.invalid ||
-        this.createJobForm.get('cost')?.invalid) {
-      this.formValid = false;
-      return;
+  /** Show red border / message when the control is invalid and (touched or user tried to submit). */
+  showCreateJobFieldError(control: AbstractControl | null): boolean {
+    if (!control) {
+      return false;
     }
-    
-    const clientGroup = this.createJobForm.get('client');
-    const vehicleGroup = this.createJobForm.get('vehicle');
-    
-    // Check client validation based on mode
-    if (this.useExistingClient) {
-      if (!clientGroup?.get('clientId')?.value) {
-        this.formValid = false;
-        return;
-      }
-    } else {
-      const phoneNumber = clientGroup?.get('clientPhoneNumber');
-      const fullName = clientGroup?.get('clientFullName');
-      if (!phoneNumber?.value || !fullName?.value) {
-        this.formValid = false;
-        return;
-      }
-      // Check if fields are valid (not just filled)
-      if (phoneNumber.invalid || fullName.invalid) {
-        this.formValid = false;
-        return;
-      }
-    }
-    
-    // Check vehicle validation based on mode
-    if (this.useExistingVehicle) {
-      if (!vehicleGroup?.get('vehicleId')?.value) {
-        this.formValid = false;
-        return;
-      }
-    } else {
-      const vin = vehicleGroup?.get('vehicleVin');
-      const make = vehicleGroup?.get('vehicleMake');
-      const model = vehicleGroup?.get('vehicleModel');
-      const year = vehicleGroup?.get('vehicleYear');
-      
-      if (!vin?.value || !make?.value || !model?.value || !year?.value) {
-        this.formValid = false;
-        return;
-      }
-      // Check if fields are valid
-      if (vin.invalid || make.invalid || model.invalid || year.invalid) {
-        this.formValid = false;
-        return;
-      }
-    }
-    
-    this.formValid = true;
-  }
-
-  // Getter for template
-  get isFormValid(): boolean {
-    return this.formValid;
+    return (control.touched || this.createJobValidationAttempted) && control.invalid;
   }
 
   ngOnInit(): void {
@@ -513,10 +452,11 @@ export class JobsComponent implements OnInit {
 
   openCreateJobModal(): void {
     this.showCreateJobModal = true;
-    this.currentStep = 1;
+    this.activeCreateJobTab = 'details';
     this.useExistingClient = true;
     this.useExistingVehicle = true;
     this.invoiceServiceItems = [];
+    this.createJobValidationAttempted = false;
     this.createJobForm.reset();
     this.createJobForm.patchValue({
       callType: 'New Call',
@@ -527,7 +467,28 @@ export class JobsComponent implements OnInit {
     this.createJobForm.get('companyName')?.disable();
     this.validateClientGroup();
     this.validateVehicleGroup();
-    this.updateFormValidity();
+    this.createJobError = null;
+    this.loadInsuranceAccountsForJob();
+  }
+
+  loadInsuranceAccountsForJob(): void {
+    this.insuranceAccountsLoading = true;
+    this.accountsService
+      .getAll(false)
+      .pipe(
+        catchError(() => of([] as InsuranceAccount[])),
+        finalize(() => (this.insuranceAccountsLoading = false))
+      )
+      .subscribe((rows) => {
+        this.insuranceAccounts = rows;
+      });
+  }
+
+  insuranceAccountOptionLabel(account: InsuranceAccount): string {
+    if (account.accountNumber) {
+      return `${account.name} (${account.accountNumber})`;
+    }
+    return account.name;
   }
   
   onClientModeChange(): void {
@@ -544,7 +505,6 @@ export class JobsComponent implements OnInit {
       }
     }
     this.validateClientGroup();
-    this.updateFormValidity();
   }
   
   onVehicleModeChange(): void {
@@ -563,116 +523,23 @@ export class JobsComponent implements OnInit {
       }
     }
     this.validateVehicleGroup();
-    this.updateFormValidity();
   }
 
   closeCreateJobModal(): void {
     this.showCreateJobModal = false;
-    this.currentStep = 1;
+    this.activeCreateJobTab = 'details';
     this.createJobForm.reset();
     this.invoiceServiceItems = [];
-    this.error = null;
+    this.createJobValidationAttempted = false;
+    this.createJobError = null;
     this.validationErrorList = [];
   }
 
-  // Step navigation methods
-  getProgressPercentage(): number {
-    return (this.currentStep / this.totalSteps) * 100;
-  }
-
-  isStepValid(step: number): boolean {
-    switch (step) {
-      case 1:
-        // Call Type & Basic Info - no required fields, all optional
-        return true;
-      case 2:
-        // Location & Service - pickup location and service type required
-        return (this.createJobForm.get('pickupLocation')?.valid ?? false) && 
-               (this.createJobForm.get('serviceType')?.valid ?? false);
-      case 3:
-        // Vehicle Information - validate based on mode
-        const vehicleGroup = this.createJobForm.get('vehicle');
-        if (this.useExistingVehicle) {
-          return (vehicleGroup?.get('vehicleId')?.valid ?? false);
-        } else {
-          return (vehicleGroup?.get('vehicleVin')?.valid ?? false) &&
-                 (vehicleGroup?.get('vehicleMake')?.valid ?? false) &&
-                 (vehicleGroup?.get('vehicleModel')?.valid ?? false) &&
-                 (vehicleGroup?.get('vehicleYear')?.valid ?? false);
-        }
-      case 4:
-        // Client Information - validate based on mode
-        const clientGroup = this.createJobForm.get('client');
-        if (this.useExistingClient) {
-          return (clientGroup?.get('clientId')?.valid ?? false);
-        } else {
-          return (clientGroup?.get('clientPhoneNumber')?.valid ?? false) &&
-                 (clientGroup?.get('clientFullName')?.valid ?? false);
-        }
-      case 5:
-        // Assignment & Notes - all optional
-        return true;
-      case 6:
-        // Invoice & Charges - cost is required
-        return (this.createJobForm.get('cost')?.valid ?? false);
-      default:
-        return false;
+  setCreateJobTab(tab: 'details' | 'payment'): void {
+    this.activeCreateJobTab = tab;
+    if (tab === 'payment') {
+      this.calculateInvoiceTotals();
     }
-  }
-
-  canGoToNextStep(): boolean {
-    return this.isStepValid(this.currentStep);
-  }
-
-  nextStep(): void {
-    if (this.currentStep < this.totalSteps && this.canGoToNextStep()) {
-      this.currentStep++;
-      this.error = null;
-      this.validationErrorList = [];
-      // Scroll to top of content area
-      this.scrollContentToTop();
-    }
-  }
-
-  previousStep(): void {
-    if (this.currentStep > 1) {
-      this.currentStep--;
-      this.error = null;
-      this.validationErrorList = [];
-      // Scroll to top of content area
-      this.scrollContentToTop();
-    }
-  }
-
-  goToStep(step: number): void {
-    if (step >= 1 && step <= this.totalSteps) {
-      // Allow going back to previous steps, but validate if going forward
-      if (step > this.currentStep) {
-        // Validate all previous steps before allowing forward navigation
-        for (let i = 1; i < step; i++) {
-          if (!this.isStepValid(i)) {
-            this.currentStep = i;
-            this.error = `Please complete step ${i} before proceeding.`;
-            return;
-          }
-        }
-      }
-      this.currentStep = step;
-      this.error = null;
-      this.validationErrorList = [];
-      // Scroll to top of content area
-      this.scrollContentToTop();
-    }
-  }
-
-  private scrollContentToTop(): void {
-    // Scroll the content area to top
-    setTimeout(() => {
-      const contentArea = document.querySelector('.overflow-y-auto');
-      if (contentArea) {
-        contentArea.scrollTop = 0;
-      }
-    }, 100);
   }
 
   getValidationErrors(): string[] {
@@ -810,6 +677,7 @@ export class JobsComponent implements OnInit {
   }
 
   onCreateJob(): void {
+    this.createJobValidationAttempted = true;
     // Mark all fields as touched to show validation errors
     this.markAllFieldsAsTouched();
     
@@ -819,22 +687,25 @@ export class JobsComponent implements OnInit {
     if (validationErrors.length > 0) {
       // Store errors as array for better display
       this.validationErrorList = validationErrors;
-      this.error = `Please fix ${validationErrors.length} error${validationErrors.length > 1 ? 's' : ''} below`;
+      this.createJobError = `Please fix ${validationErrors.length} error${validationErrors.length > 1 ? 's' : ''} below`;
       
-      // Scroll to error summary after a brief delay to ensure DOM is updated
+      // Scroll to footer or top summary after a brief delay to ensure DOM is updated
       setTimeout(() => {
-        const errorElement = document.getElementById('validation-errors');
+        const errorElement =
+          document.getElementById('create-job-validation-footer') ||
+          document.getElementById('validation-errors');
         if (errorElement) {
-          errorElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          errorElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
       }, 100);
       return;
     }
     
     this.validationErrorList = [];
+    this.createJobError = null;
 
     this.submitting = true;
-    this.error = null;
+    this.createJobError = null;
 
     // Build request payload
     const formValue = this.createJobForm.value;
@@ -874,9 +745,7 @@ export class JobsComponent implements OnInit {
       // Location
       destinationAddress: formValue.destinationAddress || formValue.dropoffLocation || undefined,
       // Job Details
-      reason: formValue.reason || undefined,
       priority: formValue.priority,
-      invoiceNumber: formValue.invoiceNumber || undefined,
       eta: formValue.eta || undefined,
       // Assignment
       driverId: formValue.driverId || undefined,
@@ -947,7 +816,7 @@ export class JobsComponent implements OnInit {
       .pipe(
         finalize(() => this.submitting = false),
         catchError(error => {
-          this.error = error.error?.message || 'Failed to create job';
+          this.createJobError = error.error?.message || 'Failed to create job';
           return of(null);
         })
       )
@@ -1131,6 +1000,130 @@ export class JobsComponent implements OnInit {
     const discount = parseFloat(this.createJobForm.get('invoiceCharges.discount')?.value || '0');
     const taxes = this.getTaxes();
     return subtotal - discount + taxes;
+  }
+
+  /** SuperAdmin, Administrator, Dispatcher — matches API `payments/create-payment-link`. */
+  canCreatePaymentLink(): boolean {
+    const u = this.authService.getCurrentUser();
+    if (!u) {
+      return false;
+    }
+    // localStorage user may deserialize roleId as string — use Number() for strict checks
+    const rid = Number(u.roleId);
+    return (
+      rid === RoleId.SuperAdmin ||
+      rid === RoleId.Admin ||
+      rid === RoleId.Dispatcher
+    );
+  }
+
+  isJobEligibleForPaymentLink(job: Job): boolean {
+    if (!this.canCreatePaymentLink()) {
+      return false;
+    }
+    const cost = Number(job.cost);
+    if (!Number.isFinite(cost) || cost <= 0) {
+      return false;
+    }
+    const s = String(job.status ?? '');
+    if (s === 'Completed' || s === 'Cancelled') {
+      return false;
+    }
+    const ps = String(job.paymentStatus ?? 'Unpaid');
+    if (['Paid', 'Refunded', 'PartiallyRefunded'].includes(ps)) {
+      return false;
+    }
+    return true;
+  }
+
+  /** Display label for job payment state (API Job.PaymentStatus). */
+  jobPaymentStatusLabel(job: Job): string {
+    return job.paymentStatus?.trim() || 'Unpaid';
+  }
+
+  getPaymentStatusBadgeClass(paymentStatus: string | undefined): string {
+    const s = (paymentStatus || 'Unpaid').toLowerCase();
+    if (s === 'paid') {
+      return 'bg-emerald-100 text-emerald-800';
+    }
+    if (s === 'pending' || s === 'pendingcash') {
+      return 'bg-amber-100 text-amber-800';
+    }
+    if (s === 'failed' || s === 'cancelled') {
+      return 'bg-red-100 text-red-800';
+    }
+    if (s === 'authorized' || s === 'capturepending' || s === 'underreview') {
+      return 'bg-sky-100 text-sky-800';
+    }
+    if (s === 'refunded' || s === 'partiallyrefunded') {
+      return 'bg-violet-100 text-violet-800';
+    }
+    return 'bg-gray-100 text-gray-700';
+  }
+
+  paymentLinkSuccessUrl(): string {
+    const origin = window.location.origin;
+    if (window.location.pathname.startsWith('/admin')) {
+      return `${origin}/admin/payments`;
+    }
+    return `${origin}/dispatcher/payments`;
+  }
+
+  openPaymentLinkModal(job: Job): void {
+    this.paymentLinkJob = job;
+    this.paymentLinkUrl = null;
+    this.paymentLinkError = null;
+    this.paymentLinkCopied = false;
+    this.showPaymentLinkModal = true;
+  }
+
+  closePaymentLinkModal(): void {
+    this.showPaymentLinkModal = false;
+    this.paymentLinkJob = null;
+    this.paymentLinkUrl = null;
+    this.paymentLinkError = null;
+    this.paymentLinkCopied = false;
+  }
+
+  createPaymentLinkForJob(): void {
+    if (!this.paymentLinkJob) {
+      return;
+    }
+    this.paymentLinkSubmitting = true;
+    this.paymentLinkError = null;
+    this.paymentLinkUrl = null;
+    this.paymentLinkCopied = false;
+
+    this.paymentService
+      .createStripePaymentLink({
+        jobId: this.paymentLinkJob.id,
+        amount: this.paymentLinkJob.cost,
+        successUrl: this.paymentLinkSuccessUrl()
+      })
+      .pipe(
+        finalize(() => (this.paymentLinkSubmitting = false)),
+        catchError((error) => {
+          this.paymentLinkError =
+            error.error?.message || error.error?.error || 'Failed to create payment link. Is Stripe enabled in Settings?';
+          return of(null);
+        })
+      )
+      .subscribe((res) => {
+        if (res?.url) {
+          this.paymentLinkUrl = res.url;
+          this.loadJobs();
+        }
+      });
+  }
+
+  copyPaymentLinkToClipboard(): void {
+    if (!this.paymentLinkUrl) {
+      return;
+    }
+    navigator.clipboard.writeText(this.paymentLinkUrl).then(() => {
+      this.paymentLinkCopied = true;
+      setTimeout(() => (this.paymentLinkCopied = false), 2500);
+    });
   }
 }
 

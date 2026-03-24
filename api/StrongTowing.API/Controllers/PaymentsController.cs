@@ -539,6 +539,17 @@ public class PaymentsController : ControllerBase
             };
 
             _context.Payments.Add(payment);
+
+            // Surface payment state on the job for dispatch/admin UIs (webhook sets Paid when client completes checkout).
+            if (job.PaymentStatus != PaymentLifecycle.Statuses.Paid
+                && job.PaymentStatus != PaymentLifecycle.Statuses.Refunded
+                && job.PaymentStatus != PaymentLifecycle.Statuses.PartiallyRefunded)
+            {
+                job.PaymentStatus = PaymentLifecycle.Statuses.Pending;
+                job.PaymentMethod = PaymentLifecycle.Methods.PaymentLink;
+                job.PaymentId = payment.Id;
+            }
+
             await _context.SaveChangesAsync();
 
             return Ok(new CreateStripePaymentLinkResponse

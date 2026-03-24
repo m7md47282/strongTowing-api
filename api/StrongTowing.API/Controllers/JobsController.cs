@@ -78,11 +78,11 @@ public class JobsController : ControllerBase
     }
 
     /// <summary>
-    /// Create Job (Admin/Dispatcher only)
+    /// Create Job (SuperAdmin / Admin / Dispatcher)
     /// Supports creating job with new or existing vehicle and client
     /// </summary>
     [HttpPost]
-    [Authorize(Roles = $"{UserRoles.Administrator},{UserRoles.Dispatcher}")]
+    [Authorize(Roles = $"{UserRoles.SuperAdmin},{UserRoles.Administrator},{UserRoles.Dispatcher}")]
     public async Task<ActionResult<JobDto>> CreateJob([FromBody] CreateJobRequest request)
     {
         try
@@ -333,6 +333,12 @@ public class JobsController : ControllerBase
             _context.Jobs.Add(job);
             await _context.SaveChangesAsync();
 
+            if (string.IsNullOrWhiteSpace(job.InvoiceNumber))
+            {
+                job.InvoiceNumber = $"INV-{job.Id:D7}";
+                await _context.SaveChangesAsync();
+            }
+
             // Load related data for response
             await _context.Entry(job)
                 .Reference(j => j.Vehicle)
@@ -384,10 +390,10 @@ public class JobsController : ControllerBase
     }
 
     /// <summary>
-    /// Assign a driver to a pending job (Admin/Dispatcher only)
+    /// Assign a driver to a pending job (SuperAdmin / Admin / Dispatcher)
     /// </summary>
     [HttpPost("{id}/assign")]
-    [Authorize(Roles = $"{UserRoles.Administrator},{UserRoles.Dispatcher}")]
+    [Authorize(Roles = $"{UserRoles.SuperAdmin},{UserRoles.Administrator},{UserRoles.Dispatcher}")]
     public async Task<ActionResult<JobDto>> AssignDriver(int id, [FromBody] AssignDriverRequest request)
     {
         try
@@ -443,10 +449,10 @@ public class JobsController : ControllerBase
     }
 
     /// <summary>
-    /// Update job status (Admin/Dispatcher/Driver). Tracks who updated.
+    /// Update job status (SuperAdmin / Admin / Dispatcher / Driver). Tracks who updated.
     /// </summary>
     [HttpPut("{id}/status")]
-    [Authorize(Roles = $"{UserRoles.Administrator},{UserRoles.Dispatcher},{UserRoles.Driver}")]
+    [Authorize(Roles = $"{UserRoles.SuperAdmin},{UserRoles.Administrator},{UserRoles.Dispatcher},{UserRoles.Driver}")]
     public async Task<ActionResult<JobDto>> UpdateJobStatus(int id, [FromBody] UpdateJobStatusRequest request)
     {
         try
@@ -478,8 +484,9 @@ public class JobsController : ControllerBase
                 }
             }
 
-            // Business rule: ReadyToRelease requires exactly 5 photos
-            if (status == JobStatus.ReadyToRelease && job.Photos.Count != 5)
+            // Business rule: drivers must upload exactly 5 photos before ReadyToRelease.
+            // SuperAdmin / Administrator / Dispatcher may set this status without photos (testing, support, corrections).
+            if (status == JobStatus.ReadyToRelease && job.Photos.Count != 5 && User.IsInRole(UserRoles.Driver))
             {
                 return BadRequest(new { error = "Bad Request", message = "Job must have exactly 5 photos before marking as ReadyToRelease." });
             }
@@ -775,6 +782,9 @@ public class JobsController : ControllerBase
             
             // Financials
             Cost = job.Cost,
+            PaymentStatus = string.IsNullOrWhiteSpace(job.PaymentStatus) ? "Unpaid" : job.PaymentStatus,
+            PaymentMethod = job.PaymentMethod,
+            PaidAt = job.PaidAt,
             Notes = job.Notes,
             BillingNotes = job.BillingNotes,
             IncludeBillingNotesOnReceipt = job.IncludeBillingNotesOnReceipt,

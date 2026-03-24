@@ -21,6 +21,8 @@ import { guestGuard } from './guards/guest.guard';
 import { RoleId } from './constants/user-roles.constants';
 import { DriverAssignmentsComponent } from './components/dashboard/shared/driver-assignments/driver-assignments.component';
 import { SettingsComponent } from './components/dashboard/admin/settings/settings.component';
+import { FinancialReportComponent } from './components/dashboard/admin/reports/financial-report/financial-report.component';
+import { AccountsComponent } from './components/dashboard/admin/accounts/accounts.component';
 
 export const routes: Routes = [
   { 
@@ -49,6 +51,12 @@ export const routes: Routes = [
         canActivate: [roleGuard, authGuard],
         data: { roles: [RoleId.SuperAdmin, RoleId.Admin] }
       },
+      {
+        path: 'accounts',
+        component: AccountsComponent,
+        canActivate: [roleGuard, authGuard],
+        data: { roles: [RoleId.SuperAdmin, RoleId.Admin] }
+      },
       { 
         path: 'drivers',
         component: DriverAssignmentsComponent,
@@ -70,6 +78,17 @@ export const routes: Routes = [
       { 
         path: 'payments',
         component: PaymentsComponent,
+        canActivate: [roleGuard, authGuard],
+        data: { roles: [RoleId.SuperAdmin, RoleId.Admin] }
+      },
+      {
+        path: 'reports',
+        redirectTo: 'reports/financial',
+        pathMatch: 'full'
+      },
+      {
+        path: 'reports/financial',
+        component: FinancialReportComponent,
         canActivate: [roleGuard, authGuard],
         data: { roles: [RoleId.SuperAdmin, RoleId.Admin] }
       },
@@ -107,10 +126,9 @@ export const routes: Routes = [
   },
   { path: 'services', component: ServicesComponent },
   { path: 'about', component: AboutComponent },
-  { 
-    path: 'request-service', 
-    component: RequestServiceComponent,
-    canActivate: [authGuard]
+  {
+    path: 'request-service',
+    component: RequestServiceComponent
   },
   { path: '**', redirectTo: '' }
 ];

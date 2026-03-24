@@ -24,6 +24,8 @@ namespace StrongTowing.Application.DTOs.Responses
         public decimal CancelFeeBeforeDispatchPercent { get; set; }
         public decimal CancelFeeAfterDispatchPercent { get; set; }
         public decimal CancelFeeAfterArrivalPercent { get; set; }
+        public double? OfficeLatitude { get; set; }
+        public double? OfficeLongitude { get; set; }
         public DateTime UpdatedAt { get; set; }
         public string UpdatedBy { get; set; } = string.Empty;
     }

@@ -94,6 +94,18 @@ public class SettingsController : ControllerBase
                 return BadRequest(new { error = "Bad Request", message = "Stripe mode must be either 'test' or 'live'." });
             }
 
+            var hasLat = request.OfficeLatitude.HasValue;
+            var hasLng = request.OfficeLongitude.HasValue;
+            if (hasLat != hasLng)
+            {
+                return BadRequest(new { error = "Bad Request", message = "Office latitude and longitude must both be set or both be cleared." });
+            }
+
+            if (hasLat && (request.OfficeLatitude is < -90 or > 90 || request.OfficeLongitude is < -180 or > 180))
+            {
+                return BadRequest(new { error = "Bad Request", message = "Invalid office coordinates." });
+            }
+
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "System";
             var settings = await _context.SystemSettings.FirstOrDefaultAsync();
 
@@ -120,6 +132,8 @@ public class SettingsController : ControllerBase
             settings.CancelFeeBeforeDispatchPercent = request.CancelFeeBeforeDispatchPercent;
             settings.CancelFeeAfterDispatchPercent = request.CancelFeeAfterDispatchPercent;
             settings.CancelFeeAfterArrivalPercent = request.CancelFeeAfterArrivalPercent;
+            settings.OfficeLatitude = request.OfficeLatitude;
+            settings.OfficeLongitude = request.OfficeLongitude;
             settings.UpdatedAt = DateTime.UtcNow;
             settings.UpdatedBy = userId;
 
@@ -203,6 +217,8 @@ public class SettingsController : ControllerBase
             CancelFeeBeforeDispatchPercent = settings.CancelFeeBeforeDispatchPercent,
             CancelFeeAfterDispatchPercent = settings.CancelFeeAfterDispatchPercent,
             CancelFeeAfterArrivalPercent = settings.CancelFeeAfterArrivalPercent,
+            OfficeLatitude = settings.OfficeLatitude,
+            OfficeLongitude = settings.OfficeLongitude,
             UpdatedAt = settings.UpdatedAt,
             UpdatedBy = settings.UpdatedBy
         };

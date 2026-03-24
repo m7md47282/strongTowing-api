@@ -37,6 +37,9 @@ export interface Order {
   driver?: Driver;
   notes?: string;
   images?: string[];
+  cancellationFeeAmount?: number;
+  cancellationReason?: string;
+  cancelledAt?: Date;
 }
 
 export enum OrderStatus {
@@ -75,6 +78,30 @@ export interface CreateOrderRequest {
   priority: OrderPriority;
   scheduledDate?: Date;
   notes?: string;
+  contactName?: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  amount?: number;
+  paymentDueMode?: 'PayNow' | 'PayLater';
+  paymentMethod?: 'Card' | 'PaymentLink' | 'Cash';
+  currency?: string;
+}
+
+export interface CreateOrderResponse {
+  jobId: number;
+  paymentStatus: string;
+  paymentDueMode: string;
+  amount: number;
+  currency: string;
+  paymentId?: number;
+  clientSecret?: string;
+  paymentIntentId?: string;
+  publishableKey?: string;
+  isPreAuthorization?: boolean;
+  authorizedAmount?: number;
+  fraudStatus?: 'Clear' | 'UnderReview' | 'Approved' | 'Rejected';
+  fraudScore?: number;
+  fraudReasons?: string;
 }
 
 export interface OrderTracking {
