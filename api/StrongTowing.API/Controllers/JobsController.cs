@@ -11,6 +11,7 @@ using StrongTowing.Core.Enums;
 using StrongTowing.Infrastructure.Data;
 using System.Text.Json;
 using StrongTowing.API.Services;
+using StrongTowing.Application.Abstractions;
 
 namespace StrongTowing.API.Controllers;
 
@@ -24,19 +25,22 @@ public class JobsController : ControllerBase
     private readonly RoleManager<IdentityRole> _roleManager;
     private readonly ILogger<JobsController> _logger;
     private readonly IPaymentProvider _paymentProvider;
+    private readonly IFcmNotificationService _fcmNotificationService;
 
     public JobsController(
         ApplicationDbContext context,
         UserManager<ApplicationUser> userManager,
         RoleManager<IdentityRole> roleManager,
         ILogger<JobsController> logger,
-        IPaymentProvider paymentProvider)
+        IPaymentProvider paymentProvider,
+        IFcmNotificationService fcmNotificationService)
     {
         _context = context;
         _userManager = userManager;
         _roleManager = roleManager;
         _logger = logger;
         _paymentProvider = paymentProvider;
+        _fcmNotificationService = fcmNotificationService;
     }
 
     /// <summary>
@@ -437,6 +441,25 @@ public class JobsController : ControllerBase
             job.Status = JobStatus.Assigned;
 
             await _context.SaveChangesAsync();
+
+            try
+            {
+                var pickup = string.IsNullOrWhiteSpace(job.PickupLocation) ? "Pickup TBD" : job.PickupLocation;
+                if (pickup.Length > 120)
+                {
+                    pickup = pickup[..117] + "...";
+                }
+
+                await _fcmNotificationService.SendToUserAsync(
+                    driver.Id,
+                    "New job assigned",
+                    $"Job #{job.Id} — {pickup}",
+                    new Dictionary<string, string> { ["jobId"] = job.Id.ToString() });
+            }
+            catch (Exception notifyEx)
+            {
+                _logger.LogWarning(notifyEx, "FCM notification failed after assigning job {JobId}", job.Id);
+            }
 
             var jobDto = MapToJobDto(job);
             return Ok(jobDto);

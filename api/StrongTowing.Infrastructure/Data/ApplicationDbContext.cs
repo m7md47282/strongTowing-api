@@ -20,6 +20,7 @@ namespace StrongTowing.Infrastructure.Data
         public DbSet<InsuranceAccount> InsuranceAccounts { get; set; }
         public DbSet<DriverPayroll> DriverPayrolls { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
+        public DbSet<UserFcmToken> UserFcmTokens { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -131,6 +132,16 @@ namespace StrongTowing.Infrastructure.Data
 
             builder.Entity<RefreshToken>()
                 .HasIndex(rt => rt.UserId);
+
+            builder.Entity<UserFcmToken>()
+                .HasIndex(t => t.Token)
+                .IsUnique();
+
+            builder.Entity<UserFcmToken>()
+                .HasOne(t => t.User)
+                .WithMany(u => u.FcmTokens)
+                .HasForeignKey(t => t.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
         
     }

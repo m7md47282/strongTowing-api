@@ -9,11 +9,13 @@ using StrongTowing.Infrastructure.Data;
 using StrongTowing.Core.Entities;
 using StrongTowing.API.Options;
 using StrongTowing.API.Services;
+using StrongTowing.Application.Abstractions;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.Configure<GoogleMapsOptions>(builder.Configuration.GetSection(GoogleMapsOptions.SectionName));
 builder.Services.Configure<OfficeLocationOptions>(builder.Configuration.GetSection(OfficeLocationOptions.SectionName));
+builder.Services.Configure<FirebaseOptions>(builder.Configuration.GetSection(FirebaseOptions.SectionName));
 builder.Services.AddHttpClient<IGoogleRoutesService, GoogleRoutesService>();
 builder.Services.AddScoped<IOfficeLocationResolver, OfficeLocationResolver>();
 
@@ -99,6 +101,7 @@ builder.Services.AddScoped<RoleSeederService>();
 // 6. Register Encryption service
 builder.Services.AddScoped<IEncryptionService, EncryptionService>();
 builder.Services.AddScoped<IPaymentProvider, StripePaymentProvider>();
+builder.Services.AddScoped<IFcmNotificationService, FcmNotificationService>();
 
 // 7. Add Controllers with validation
 builder.Services.AddControllers(options =>
@@ -150,6 +153,14 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+// Firebase Admin (server-side send only; optional until service account is configured)
+{
+    using var scope = app.Services.CreateScope();
+    var firebaseOpts = scope.ServiceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<FirebaseOptions>>().Value;
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    FcmNotificationService.TryInitializeFirebase(firebaseOpts.ServiceAccountKeyPath, logger);
+}
 
 // IIS Forwarded Headers (must be first)
 app.UseForwardedHeaders();

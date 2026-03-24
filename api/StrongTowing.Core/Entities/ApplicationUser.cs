@@ -20,6 +20,8 @@ namespace StrongTowing.Core.Entities
 
         // Navigation Property: One driver -> Many Jobs
         public ICollection<Job> AssignedJobs { get; set; } = new List<Job>();
+
+        public ICollection<UserFcmToken> FcmTokens { get; set; } = new List<UserFcmToken>();
     }
 }
 
