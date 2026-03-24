@@ -13,6 +13,9 @@ public class UserDto
     public DateTime? PasswordChangedAt { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
+
+    /// <summary>Drivers: whether dispatch may assign new jobs. Always true for non-drivers.</summary>
+    public bool IsAvailableForDispatch { get; set; } = true;
 }
 
 public class CreateUserResponse : UserDto

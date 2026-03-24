@@ -18,6 +18,14 @@ namespace StrongTowing.Core.Entities
         public string RoleId { get; set; } = string.Empty;
         public IdentityRole? Role { get; set; }
 
+        /// <summary>When false, dispatch should not assign new jobs (drivers only).</summary>
+        public bool IsAvailableForDispatch { get; set; } = true;
+
+        /// <summary>Optional last known GPS from driver app (WGS84).</summary>
+        public double? LastKnownLatitude { get; set; }
+        public double? LastKnownLongitude { get; set; }
+        public DateTime? LastLocationUtc { get; set; }
+
         // Navigation Property: One driver -> Many Jobs
         public ICollection<Job> AssignedJobs { get; set; } = new List<Job>();
 

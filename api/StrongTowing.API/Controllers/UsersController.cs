@@ -147,7 +147,8 @@ public class UsersController : ControllerBase
                     HasChangedPassword = user.HasChangedPassword,
                     PasswordChangedAt = user.PasswordChangedAt,
                     CreatedAt = user.CreatedAt,
-                    UpdatedAt = user.UpdatedAt
+                    UpdatedAt = user.UpdatedAt,
+                    IsAvailableForDispatch = user.IsAvailableForDispatch
                 });
             }
 
@@ -246,7 +247,8 @@ public class UsersController : ControllerBase
                     HasChangedPassword = user.HasChangedPassword,
                     PasswordChangedAt = user.PasswordChangedAt,
                     CreatedAt = user.CreatedAt,
-                    UpdatedAt = user.UpdatedAt
+                    UpdatedAt = user.UpdatedAt,
+                    IsAvailableForDispatch = user.IsAvailableForDispatch
                 });
             }
 
@@ -276,7 +278,8 @@ public class UsersController : ControllerBase
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10,
         [FromQuery] bool? isActive = null,
-        [FromQuery] string? search = null)
+        [FromQuery] string? search = null,
+        [FromQuery] bool? availableForDispatchOnly = null)
     {
         try
         {
@@ -319,6 +322,11 @@ public class UsersController : ControllerBase
                     (u.PhoneNumber != null && u.PhoneNumber.Contains(search)));
             }
 
+            if (availableForDispatchOnly == true)
+            {
+                query = query.Where(u => u.IsAvailableForDispatch);
+            }
+
             // Get total count before pagination
             var totalCount = await query.CountAsync();
 
@@ -345,7 +353,8 @@ public class UsersController : ControllerBase
                     HasChangedPassword = user.HasChangedPassword,
                     PasswordChangedAt = user.PasswordChangedAt,
                     CreatedAt = user.CreatedAt,
-                    UpdatedAt = user.UpdatedAt
+                    UpdatedAt = user.UpdatedAt,
+                    IsAvailableForDispatch = user.IsAvailableForDispatch
                 });
             }
 
@@ -410,8 +419,11 @@ public class UsersController : ControllerBase
                 Role = roleName,
                 RoleId = user.RoleId,
                 IsActive = user.IsActive,
+                HasChangedPassword = user.HasChangedPassword,
+                PasswordChangedAt = user.PasswordChangedAt,
                 CreatedAt = user.CreatedAt,
-                UpdatedAt = user.UpdatedAt
+                UpdatedAt = user.UpdatedAt,
+                IsAvailableForDispatch = user.IsAvailableForDispatch
             };
 
             return Ok(userDto);
@@ -735,7 +747,8 @@ public class UsersController : ControllerBase
                 HasChangedPassword = user.HasChangedPassword,
                 PasswordChangedAt = user.PasswordChangedAt,
                 CreatedAt = user.CreatedAt,
-                UpdatedAt = user.UpdatedAt
+                UpdatedAt = user.UpdatedAt,
+                IsAvailableForDispatch = user.IsAvailableForDispatch
             };
 
             return Ok(userDto);

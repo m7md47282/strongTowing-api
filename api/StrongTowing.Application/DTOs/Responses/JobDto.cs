@@ -65,6 +65,7 @@ public class JobDto
     public InvoiceChargesData? InvoiceCharges { get; set; }
     
     public int PhotoCount { get; set; }
+    public List<JobPhotoDto> Photos { get; set; } = new();
     public DateTime CreatedAt { get; set; }
     public DateTime? CompletedAt { get; set; }
     public string? StatusUpdatedById { get; set; }

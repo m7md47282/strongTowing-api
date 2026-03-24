@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,6 +13,7 @@ using StrongTowing.Infrastructure.Data;
 using System.Text.Json;
 using StrongTowing.API.Services;
 using StrongTowing.Application.Abstractions;
+using System.IO;
 
 namespace StrongTowing.API.Controllers;
 
@@ -26,6 +28,7 @@ public class JobsController : ControllerBase
     private readonly ILogger<JobsController> _logger;
     private readonly IPaymentProvider _paymentProvider;
     private readonly IFcmNotificationService _fcmNotificationService;
+    private readonly IWebHostEnvironment _environment;
 
     public JobsController(
         ApplicationDbContext context,
@@ -33,7 +36,8 @@ public class JobsController : ControllerBase
         RoleManager<IdentityRole> roleManager,
         ILogger<JobsController> logger,
         IPaymentProvider paymentProvider,
-        IFcmNotificationService fcmNotificationService)
+        IFcmNotificationService fcmNotificationService,
+        IWebHostEnvironment environment)
     {
         _context = context;
         _userManager = userManager;
@@ -41,6 +45,7 @@ public class JobsController : ControllerBase
         _logger = logger;
         _paymentProvider = paymentProvider;
         _fcmNotificationService = fcmNotificationService;
+        _environment = environment;
     }
 
     /// <summary>
@@ -364,6 +369,51 @@ public class JobsController : ControllerBase
     }
 
     /// <summary>
+    /// Get jobs assigned to the current driver
+    /// </summary>
+    [HttpGet("mine")]
+    [Authorize(Roles = UserRoles.Driver)]
+    public async Task<ActionResult<IEnumerable<JobDto>>> GetMyJobs([FromQuery] string? status = null)
+    {
+        try
+        {
+            var currentUserId = _userManager.GetUserId(User);
+            if (string.IsNullOrEmpty(currentUserId))
+            {
+                return Unauthorized(new { error = "Unauthorized", message = "User not authenticated." });
+            }
+
+            var query = _context.Jobs
+                .Include(j => j.Vehicle)
+                    .ThenInclude(v => v.Owner)
+                .Include(j => j.Driver)
+                .Include(j => j.Photos)
+                .Where(j => j.DriverId == currentUserId)
+                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(status))
+            {
+                if (Enum.TryParse<JobStatus>(status, out var statusEnum))
+                {
+                    query = query.Where(j => j.Status == statusEnum);
+                }
+            }
+
+            var jobs = await query
+                .OrderByDescending(j => j.CreatedAt)
+                .ToListAsync();
+
+            var jobDtos = jobs.Select(j => MapToJobDto(j)).ToList();
+            return Ok(jobDtos);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving driver jobs");
+            return StatusCode(500, new { error = "Internal Server Error", message = "An error occurred while retrieving jobs." });
+        }
+    }
+
+    /// <summary>
     /// Get Job by ID
     /// </summary>
     [HttpGet("{id}")]
@@ -383,6 +433,15 @@ public class JobsController : ControllerBase
                 return NotFound(new { error = "Not Found", message = $"Job with ID {id} was not found." });
             }
 
+            if (User.IsInRole(UserRoles.Driver))
+            {
+                var currentUserId = _userManager.GetUserId(User);
+                if (string.IsNullOrEmpty(currentUserId) || job.DriverId != currentUserId)
+                {
+                    return StatusCode(403, new { error = "Forbidden", message = "You do not have access to this job." });
+                }
+            }
+
             var jobDto = MapToJobDto(job);
             return Ok(jobDto);
         }
@@ -390,6 +449,119 @@ public class JobsController : ControllerBase
         {
             _logger.LogError(ex, "Error retrieving job with ID {JobId}", id);
             return StatusCode(500, new { error = "Internal Server Error", message = "An error occurred while retrieving the job." });
+        }
+    }
+
+    /// <summary>
+    /// Upload a photo for a job (assigned driver, or admin/dispatcher). Maximum 5 photos per job.
+    /// </summary>
+    [HttpPost("{id}/photos")]
+    [RequestSizeLimit(10 * 1024 * 1024)]
+    [Authorize(Roles = $"{UserRoles.SuperAdmin},{UserRoles.Administrator},{UserRoles.Dispatcher},{UserRoles.Driver}")]
+    public async Task<ActionResult<JobDto>> UploadJobPhoto(int id, IFormFile? file)
+    {
+        try
+        {
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest(new { error = "Bad Request", message = "No file was uploaded." });
+            }
+
+            const long maxBytes = 8 * 1024 * 1024;
+            if (file.Length > maxBytes)
+            {
+                return BadRequest(new { error = "Bad Request", message = "File is too large (max 8 MB)." });
+            }
+
+            var contentType = file.ContentType?.ToLowerInvariant() ?? string.Empty;
+            var ext = contentType switch
+            {
+                "image/jpeg" or "image/jpg" or "image/pjpeg" => ".jpg",
+                "image/png" => ".png",
+                "image/webp" => ".webp",
+                _ => string.Empty
+            };
+
+            if (string.IsNullOrEmpty(ext))
+            {
+                return BadRequest(new { error = "Bad Request", message = "Only JPEG, PNG, or WebP images are allowed." });
+            }
+
+            var job = await _context.Jobs
+                .Include(j => j.Vehicle)
+                    .ThenInclude(v => v.Owner)
+                .Include(j => j.Driver)
+                .Include(j => j.Photos)
+                .FirstOrDefaultAsync(j => j.Id == id);
+
+            if (job == null)
+            {
+                return NotFound(new { error = "Not Found", message = $"Job with ID {id} was not found." });
+            }
+
+            var currentUserId = _userManager.GetUserId(User);
+            if (string.IsNullOrEmpty(currentUserId))
+            {
+                return Unauthorized(new { error = "Unauthorized", message = "User not authenticated." });
+            }
+
+            if (User.IsInRole(UserRoles.Driver))
+            {
+                if (job.DriverId != currentUserId)
+                {
+                    return StatusCode(403, new { error = "Forbidden", message = "You can only add photos to jobs assigned to you." });
+                }
+            }
+
+            if (job.Photos.Count >= 5)
+            {
+                return BadRequest(new { error = "Bad Request", message = "This job already has the maximum of 5 photos." });
+            }
+
+            var webRoot = _environment.WebRootPath;
+            if (string.IsNullOrEmpty(webRoot))
+            {
+                webRoot = Path.Combine(_environment.ContentRootPath, "wwwroot");
+            }
+
+            var relativeDir = Path.Combine("uploads", "job-photos", id.ToString());
+            var physicalDir = Path.Combine(webRoot, relativeDir);
+            Directory.CreateDirectory(physicalDir);
+
+            var fileName = $"{Guid.NewGuid():N}{ext}";
+            var physicalPath = Path.Combine(physicalDir, fileName);
+
+            await using (var stream = new FileStream(physicalPath, FileMode.CreateNew))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            var publicPath = $"/uploads/job-photos/{id}/{fileName}";
+
+            var photo = new JobPhoto
+            {
+                JobId = job.Id,
+                PhotoUrl = publicPath,
+                UploadedAt = DateTime.UtcNow
+            };
+
+            _context.JobPhotos.Add(photo);
+            await _context.SaveChangesAsync();
+
+            var reloaded = await _context.Jobs
+                .Include(j => j.Vehicle)
+                    .ThenInclude(v => v.Owner)
+                .Include(j => j.Driver)
+                .Include(j => j.Photos)
+                .Include(j => j.StatusUpdatedBy)
+                .FirstAsync(j => j.Id == id);
+
+            return Ok(MapToJobDto(reloaded));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error uploading photo for job {JobId}", id);
+            return StatusCode(500, new { error = "Internal Server Error", message = "An error occurred while uploading the photo." });
         }
     }
 
@@ -434,6 +606,11 @@ public class JobsController : ControllerBase
             if (!driver.IsActive)
             {
                 return BadRequest(new { error = "Bad Request", message = "The driver is not active and cannot be assigned." });
+            }
+
+            if (!driver.IsAvailableForDispatch)
+            {
+                return BadRequest(new { error = "Bad Request", message = "That driver is off-duty and cannot receive new assignments." });
             }
 
             job.DriverId = driver.Id;
@@ -814,6 +991,14 @@ public class JobsController : ControllerBase
             InvoiceCharges = invoiceCharges,
             
             PhotoCount = job.Photos?.Count ?? 0,
+            Photos = job.Photos == null || job.Photos.Count == 0
+                ? new List<JobPhotoDto>()
+                : job.Photos.OrderBy(p => p.UploadedAt).Select(p => new JobPhotoDto
+                {
+                    Id = p.Id,
+                    Url = p.PhotoUrl,
+                    UploadedAt = p.UploadedAt
+                }).ToList(),
             CreatedAt = job.CreatedAt,
             CompletedAt = job.CompletedAt,
             StatusUpdatedById = job.StatusUpdatedById,

@@ -1,8 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using StrongTowing.API.Services;
 using StrongTowing.Application.DTOs.Requests;
 using StrongTowing.Application.DTOs.Responses;
+using StrongTowing.Core.Constants;
+using StrongTowing.Core.Entities;
 
 namespace StrongTowing.API.Controllers;
 
@@ -12,13 +15,16 @@ public class LocationController : ControllerBase
 {
     private readonly IGoogleRoutesService _googleRoutesService;
     private readonly IOfficeLocationResolver _officeLocationResolver;
+    private readonly UserManager<ApplicationUser> _userManager;
 
     public LocationController(
         IGoogleRoutesService googleRoutesService,
-        IOfficeLocationResolver officeLocationResolver)
+        IOfficeLocationResolver officeLocationResolver,
+        UserManager<ApplicationUser> userManager)
     {
         _googleRoutesService = googleRoutesService;
         _officeLocationResolver = officeLocationResolver;
+        _userManager = userManager;
     }
 
     /// <summary>
@@ -61,5 +67,38 @@ public class LocationController : ControllerBase
         }
 
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Driver: report current GPS (stored on your user for dispatch visibility).
+    /// </summary>
+    [HttpPost("driver/ping")]
+    [Authorize(Roles = UserRoles.Driver)]
+    public async Task<IActionResult> DriverPing([FromBody] DriverLocationPingRequest request)
+    {
+        if (request.Latitude is < -90 or > 90 || request.Longitude is < -180 or > 180)
+        {
+            return BadRequest(new { error = "Invalid coordinates", message = "Latitude must be between -90 and 90, longitude between -180 and 180." });
+        }
+
+        var userId = _userManager.GetUserId(User);
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized();
+        }
+
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user == null || !user.IsActive)
+        {
+            return Unauthorized(new { error = "Unauthorized", message = "User not found or inactive." });
+        }
+
+        user.LastKnownLatitude = request.Latitude;
+        user.LastKnownLongitude = request.Longitude;
+        user.LastLocationUtc = DateTime.UtcNow;
+        user.UpdatedAt = DateTime.UtcNow;
+        await _userManager.UpdateAsync(user);
+
+        return NoContent();
     }
 }

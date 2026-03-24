@@ -200,27 +200,11 @@ public class AuthController : ControllerBase
             _context.RefreshTokens.Add(refreshToken);
             await _context.SaveChangesAsync();
 
-            // Map user to DTO
-            var userDto = new UserDto
-            {
-                Id = user.Id,
-                Email = user.Email ?? string.Empty,
-                FullName = user.FullName,
-                PhoneNumber = user.PhoneNumber,
-                Role = roleName,
-                RoleId = user.RoleId,
-                IsActive = user.IsActive,
-                HasChangedPassword = user.HasChangedPassword,
-                PasswordChangedAt = user.PasswordChangedAt,
-                CreatedAt = user.CreatedAt,
-                UpdatedAt = user.UpdatedAt
-            };
-
             var response = new LoginResponse
             {
                 Token = token,
                 RefreshToken = refreshTokenValue,
-                User = userDto,
+                User = MapToUserDto(user, roleName),
                 ExpiresAt = expiresAt
             };
 
@@ -362,26 +346,10 @@ public class AuthController : ControllerBase
             var token = _jwtService.GenerateToken(newUser, roles);
             var expiresAt = _jwtService.GetExpirationTime();
 
-            // Map to DTO
-            var userDto = new UserDto
-            {
-                Id = newUser.Id,
-                Email = newUser.Email ?? string.Empty,
-                FullName = newUser.FullName,
-                PhoneNumber = newUser.PhoneNumber,
-                Role = roleName,
-                RoleId = newUser.RoleId,
-                IsActive = newUser.IsActive,
-                HasChangedPassword = newUser.HasChangedPassword,
-                PasswordChangedAt = newUser.PasswordChangedAt,
-                CreatedAt = newUser.CreatedAt,
-                UpdatedAt = null
-            };
-
             var response = new LoginResponse
             {
                 Token = token,
-                User = userDto,
+                User = MapToUserDto(newUser, roleName),
                 ExpiresAt = expiresAt
             };
 
@@ -513,23 +481,7 @@ public class AuthController : ControllerBase
                 finalRoleName = roleName; // Fallback to requested role
             }
 
-            // Map to DTO
-            var userDto = new UserDto
-            {
-                Id = newUser.Id,
-                Email = newUser.Email ?? string.Empty,
-                FullName = newUser.FullName,
-                PhoneNumber = newUser.PhoneNumber,
-                Role = finalRoleName,
-                RoleId = newUser.RoleId,
-                IsActive = newUser.IsActive,
-                HasChangedPassword = newUser.HasChangedPassword,
-                PasswordChangedAt = newUser.PasswordChangedAt,
-                CreatedAt = newUser.CreatedAt,
-                UpdatedAt = null
-            };
-
-            return CreatedAtAction(nameof(Login), new { id = newUser.Id }, userDto);
+            return CreatedAtAction(nameof(Login), new { id = newUser.Id }, MapToUserDto(newUser, finalRoleName));
         }
         catch (Exception ex)
         {
@@ -586,32 +538,48 @@ public class AuthController : ControllerBase
                 _logger.LogWarning("Password changed but failed to update tracking fields for user: {UserId}", user.Id);
             }
 
-            // Get role name
-            var roleName = await GetRoleNameFromRoleIdAsync(user.RoleId);
+            var roleName = await GetRoleNameFromRoleIdAsync(user.RoleId) ?? string.Empty;
 
-            // Return updated user DTO
-            var userDto = new UserDto
-            {
-                Id = user.Id,
-                Email = user.Email ?? string.Empty,
-                FullName = user.FullName,
-                PhoneNumber = user.PhoneNumber,
-                Role = roleName,
-                RoleId = user.RoleId,
-                IsActive = user.IsActive,
-                HasChangedPassword = user.HasChangedPassword,
-                PasswordChangedAt = user.PasswordChangedAt,
-                CreatedAt = user.CreatedAt,
-                UpdatedAt = user.UpdatedAt
-            };
-
-            return Ok(userDto);
+            return Ok(MapToUserDto(user, roleName));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error changing password");
             return StatusCode(500, new { error = "Internal Server Error", message = "An error occurred while changing password" });
         }
+    }
+
+    /// <summary>
+    /// Driver: mark yourself available or off-duty for new job assignments.
+    /// </summary>
+    [HttpPut("driver/availability")]
+    [Authorize(Roles = UserRoles.Driver)]
+    public async Task<ActionResult<UserDto>> UpdateDriverAvailability([FromBody] UpdateDriverAvailabilityRequest request)
+    {
+        var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized(new { error = "Unauthorized", message = "User not authenticated" });
+        }
+
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user == null || !user.IsActive)
+        {
+            return Unauthorized(new { error = "Unauthorized", message = "User not found or inactive" });
+        }
+
+        user.IsAvailableForDispatch = request.IsAvailableForDispatch;
+        user.UpdatedAt = DateTime.UtcNow;
+        var result = await _userManager.UpdateAsync(user);
+        if (!result.Succeeded)
+        {
+            var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+            return BadRequest(new { error = "Bad Request", message = $"Failed to update availability: {errors}" });
+        }
+
+        var roleName = await GetRoleNameFromRoleIdAsync(user.RoleId) ?? UserRoles.Driver;
+
+        return Ok(MapToUserDto(user, roleName));
     }
 
     /// <summary>
@@ -682,27 +650,11 @@ public class AuthController : ControllerBase
             _context.RefreshTokens.Add(newRefreshToken);
             await _context.SaveChangesAsync();
 
-            // Map user to DTO
-            var userDto = new UserDto
-            {
-                Id = refreshToken.User.Id,
-                Email = refreshToken.User.Email ?? string.Empty,
-                FullName = refreshToken.User.FullName,
-                PhoneNumber = refreshToken.User.PhoneNumber,
-                Role = roleName,
-                RoleId = refreshToken.User.RoleId,
-                IsActive = refreshToken.User.IsActive,
-                HasChangedPassword = refreshToken.User.HasChangedPassword,
-                PasswordChangedAt = refreshToken.User.PasswordChangedAt,
-                CreatedAt = refreshToken.User.CreatedAt,
-                UpdatedAt = refreshToken.User.UpdatedAt
-            };
-
             var response = new LoginResponse
             {
                 Token = newToken,
                 RefreshToken = newRefreshTokenValue, // Return new refresh token
-                User = userDto,
+                User = MapToUserDto(refreshToken.User, roleName),
                 ExpiresAt = expiresAt
             };
 
@@ -713,6 +665,25 @@ public class AuthController : ControllerBase
             _logger.LogError(ex, "Error refreshing token");
             return StatusCode(500, new { error = "Internal Server Error", message = "An error occurred while refreshing token" });
         }
+    }
+
+    private static UserDto MapToUserDto(ApplicationUser user, string roleName)
+    {
+        return new UserDto
+        {
+            Id = user.Id,
+            Email = user.Email ?? string.Empty,
+            FullName = user.FullName,
+            PhoneNumber = user.PhoneNumber,
+            Role = roleName,
+            RoleId = user.RoleId,
+            IsActive = user.IsActive,
+            HasChangedPassword = user.HasChangedPassword,
+            PasswordChangedAt = user.PasswordChangedAt,
+            CreatedAt = user.CreatedAt,
+            UpdatedAt = user.UpdatedAt,
+            IsAvailableForDispatch = user.IsAvailableForDispatch
+        };
     }
 }
 

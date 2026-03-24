@@ -1,12 +1,14 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using StrongTowing.Application.DTOs.Requests;
 using StrongTowing.Application.DTOs.Responses;
 using StrongTowing.Core.Constants;
 using StrongTowing.Core.Entities;
 using StrongTowing.Infrastructure.Data;
 using StrongTowing.API.Services;
+using StrongTowing.API.Options;
 using System.Security.Claims;
 
 namespace StrongTowing.API.Controllers;
@@ -28,6 +30,21 @@ public class SettingsController : ControllerBase
         _context = context;
         _encryptionService = encryptionService;
         _logger = logger;
+    }
+
+    /// <summary>
+    /// Dispatch phone number for driver apps (from appsettings DispatchContact).
+    /// </summary>
+    [HttpGet("dispatch-contact")]
+    [AllowAnonymous]
+    public ActionResult<DispatchContactDto> GetDispatchContact([FromServices] IOptions<DispatchContactOptions> options)
+    {
+        var o = options.Value;
+        return Ok(new DispatchContactDto
+        {
+            DisplayName = string.IsNullOrWhiteSpace(o.DisplayName) ? "Dispatch" : o.DisplayName,
+            Phone = o.Phone
+        });
     }
 
     /// <summary>
