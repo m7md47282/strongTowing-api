@@ -1,9 +1,13 @@
 using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using StrongTowing.Infrastructure.Data;
 
 #nullable disable
 
 namespace StrongTowing.Infrastructure.Migrations
 {
+    [DbContext(typeof(ApplicationDbContext))]
+    [Migration("20260401090000_AddPricingProfilesAndPolicies")]
     public partial class AddPricingProfilesAndPolicies : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)
