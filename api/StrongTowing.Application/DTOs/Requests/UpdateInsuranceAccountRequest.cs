@@ -40,4 +40,24 @@ public class UpdateInsuranceAccountRequest
     public string? Notes { get; set; }
 
     public bool IsActive { get; set; } = true;
+
+    [Range(0, 999999.99)]
+    public decimal HookupFee { get; set; } = 0m;
+
+    [Range(0, 999999.99)]
+    public decimal RateAB { get; set; } = 0m;
+
+    [Range(0, 999999.99)]
+    public decimal RateBC { get; set; } = 0m;
+
+    [Range(0, 999999.99)]
+    public decimal RateCA { get; set; } = 0m;
+
+    [Range(0, 100)]
+    public decimal ServiceChargePercent { get; set; } = 0m;
+
+    [Range(0, 100)]
+    public decimal TaxPercent { get; set; } = 0m;
+
+    public bool IsTaxExemptByDefault { get; set; }
 }

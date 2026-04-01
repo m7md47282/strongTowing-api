@@ -88,6 +88,13 @@ public class AccountsController : ControllerBase
             PostalCode = request.PostalCode?.Trim(),
             Notes = request.Notes?.Trim(),
             IsActive = request.IsActive,
+            HookupFee = request.HookupFee,
+            RateAB = request.RateAB,
+            RateBC = request.RateBC,
+            RateCA = request.RateCA,
+            ServiceChargePercent = request.ServiceChargePercent,
+            TaxPercent = request.TaxPercent,
+            IsTaxExemptByDefault = request.IsTaxExemptByDefault,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -132,6 +139,13 @@ public class AccountsController : ControllerBase
         account.PostalCode = request.PostalCode?.Trim();
         account.Notes = request.Notes?.Trim();
         account.IsActive = request.IsActive;
+        account.HookupFee = request.HookupFee;
+        account.RateAB = request.RateAB;
+        account.RateBC = request.RateBC;
+        account.RateCA = request.RateCA;
+        account.ServiceChargePercent = request.ServiceChargePercent;
+        account.TaxPercent = request.TaxPercent;
+        account.IsTaxExemptByDefault = request.IsTaxExemptByDefault;
         account.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
@@ -174,6 +188,13 @@ public class AccountsController : ControllerBase
             PostalCode = account.PostalCode,
             Notes = account.Notes,
             IsActive = account.IsActive,
+            HookupFee = account.HookupFee,
+            RateAB = account.RateAB,
+            RateBC = account.RateBC,
+            RateCA = account.RateCA,
+            ServiceChargePercent = account.ServiceChargePercent,
+            TaxPercent = account.TaxPercent,
+            IsTaxExemptByDefault = account.IsTaxExemptByDefault,
             CreatedAt = account.CreatedAt,
             UpdatedAt = account.UpdatedAt
         };

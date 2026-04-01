@@ -53,6 +53,23 @@ namespace StrongTowing.Core.Entities
         [Column(TypeName = "decimal(5,2)")]
         public decimal CancelFeeAfterArrivalPercent { get; set; } = 50.00m;
 
+        // Pricing policy defaults (used when account profile does not set a value)
+        [Column(TypeName = "decimal(5,2)")]
+        public decimal DefaultPricingTaxPercent { get; set; } = 10.00m;
+        [Column(TypeName = "decimal(5,2)")]
+        public decimal DefaultPricingServiceChargePercent { get; set; } = 0.00m;
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal DefaultPricingHookupFee { get; set; } = 75.00m;
+
+        // Pricing policy guardrails
+        [Column(TypeName = "decimal(5,2)")]
+        public decimal MaxDiscountPercent { get; set; } = 100.00m;
+        public bool AllowManualTotalOverride { get; set; } = false;
+        public bool ManualOverrideRequiresReason { get; set; } = true;
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal PricingMismatchTolerance { get; set; } = 1.00m;
+        public string PricingRoundingMode { get; set; } = "AwayFromZero";
+
         /// <summary>Dispatch office latitude (WGS84). When set with OfficeLongitude, overrides appsettings office for maps/routes.</summary>
         public double? OfficeLatitude { get; set; }
 

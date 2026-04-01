@@ -24,6 +24,14 @@ namespace StrongTowing.Application.DTOs.Responses
         public decimal CancelFeeBeforeDispatchPercent { get; set; }
         public decimal CancelFeeAfterDispatchPercent { get; set; }
         public decimal CancelFeeAfterArrivalPercent { get; set; }
+        public decimal DefaultPricingTaxPercent { get; set; }
+        public decimal DefaultPricingServiceChargePercent { get; set; }
+        public decimal DefaultPricingHookupFee { get; set; }
+        public decimal MaxDiscountPercent { get; set; }
+        public bool AllowManualTotalOverride { get; set; }
+        public bool ManualOverrideRequiresReason { get; set; }
+        public decimal PricingMismatchTolerance { get; set; }
+        public string PricingRoundingMode { get; set; } = "AwayFromZero";
         public double? OfficeLatitude { get; set; }
         public double? OfficeLongitude { get; set; }
         public DateTime UpdatedAt { get; set; }

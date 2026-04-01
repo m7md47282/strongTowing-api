@@ -74,6 +74,14 @@ public class SettingsController : ControllerBase
                     CancelFeeBeforeDispatchPercent = 0.00m,
                     CancelFeeAfterDispatchPercent = 30.00m,
                     CancelFeeAfterArrivalPercent = 50.00m,
+                    DefaultPricingTaxPercent = 10.00m,
+                    DefaultPricingServiceChargePercent = 0.00m,
+                    DefaultPricingHookupFee = 75.00m,
+                    MaxDiscountPercent = 100.00m,
+                    AllowManualTotalOverride = false,
+                    ManualOverrideRequiresReason = true,
+                    PricingMismatchTolerance = 1.00m,
+                    PricingRoundingMode = "AwayFromZero",
                     UpdatedAt = DateTime.UtcNow,
                     UpdatedBy = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "System"
                 };
@@ -102,6 +110,25 @@ public class SettingsController : ControllerBase
             if (request.DriverCommissionPercentage < 0 || request.DriverCommissionPercentage > 100)
             {
                 return BadRequest(new { error = "Bad Request", message = "Driver commission percentage must be between 0 and 100." });
+            }
+
+            if (request.DefaultPricingTaxPercent < 0 || request.DefaultPricingTaxPercent > 100 ||
+                request.DefaultPricingServiceChargePercent < 0 || request.DefaultPricingServiceChargePercent > 100 ||
+                request.MaxDiscountPercent < 0 || request.MaxDiscountPercent > 100)
+            {
+                return BadRequest(new { error = "Bad Request", message = "Pricing percentages must be between 0 and 100." });
+            }
+
+            if (request.DefaultPricingHookupFee < 0 || request.PricingMismatchTolerance < 0)
+            {
+                return BadRequest(new { error = "Bad Request", message = "Hookup fee and mismatch tolerance cannot be negative." });
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.PricingRoundingMode) &&
+                !string.Equals(request.PricingRoundingMode, "AwayFromZero", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(request.PricingRoundingMode, "ToEven", StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest(new { error = "Bad Request", message = "Pricing rounding mode must be AwayFromZero or ToEven." });
             }
 
             if (!string.IsNullOrWhiteSpace(request.StripeMode) &&
@@ -149,6 +176,16 @@ public class SettingsController : ControllerBase
             settings.CancelFeeBeforeDispatchPercent = request.CancelFeeBeforeDispatchPercent;
             settings.CancelFeeAfterDispatchPercent = request.CancelFeeAfterDispatchPercent;
             settings.CancelFeeAfterArrivalPercent = request.CancelFeeAfterArrivalPercent;
+            settings.DefaultPricingTaxPercent = request.DefaultPricingTaxPercent;
+            settings.DefaultPricingServiceChargePercent = request.DefaultPricingServiceChargePercent;
+            settings.DefaultPricingHookupFee = request.DefaultPricingHookupFee;
+            settings.MaxDiscountPercent = request.MaxDiscountPercent;
+            settings.AllowManualTotalOverride = request.AllowManualTotalOverride;
+            settings.ManualOverrideRequiresReason = request.ManualOverrideRequiresReason;
+            settings.PricingMismatchTolerance = request.PricingMismatchTolerance;
+            settings.PricingRoundingMode = string.IsNullOrWhiteSpace(request.PricingRoundingMode)
+                ? "AwayFromZero"
+                : request.PricingRoundingMode;
             settings.OfficeLatitude = request.OfficeLatitude;
             settings.OfficeLongitude = request.OfficeLongitude;
             settings.UpdatedAt = DateTime.UtcNow;
@@ -234,6 +271,14 @@ public class SettingsController : ControllerBase
             CancelFeeBeforeDispatchPercent = settings.CancelFeeBeforeDispatchPercent,
             CancelFeeAfterDispatchPercent = settings.CancelFeeAfterDispatchPercent,
             CancelFeeAfterArrivalPercent = settings.CancelFeeAfterArrivalPercent,
+            DefaultPricingTaxPercent = settings.DefaultPricingTaxPercent,
+            DefaultPricingServiceChargePercent = settings.DefaultPricingServiceChargePercent,
+            DefaultPricingHookupFee = settings.DefaultPricingHookupFee,
+            MaxDiscountPercent = settings.MaxDiscountPercent,
+            AllowManualTotalOverride = settings.AllowManualTotalOverride,
+            ManualOverrideRequiresReason = settings.ManualOverrideRequiresReason,
+            PricingMismatchTolerance = settings.PricingMismatchTolerance,
+            PricingRoundingMode = settings.PricingRoundingMode,
             OfficeLatitude = settings.OfficeLatitude,
             OfficeLongitude = settings.OfficeLongitude,
             UpdatedAt = settings.UpdatedAt,

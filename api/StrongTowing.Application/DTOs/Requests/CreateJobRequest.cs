@@ -109,12 +109,23 @@ public class InvoiceChargesData
 {
     public MileageChargeData? UnloadedEnrouteMileage { get; set; }
     public MileageChargeData? LoadedHookedMileage { get; set; }
+    public MileageChargeData? DeadHeadMileage { get; set; }
     public List<ServiceItemData>? ServiceItems { get; set; }
     public decimal? Discount { get; set; }
+    public decimal? DiscountPercent { get; set; }
     public bool TaxExempt { get; set; }
+    public decimal? HookupFee { get; set; }
+    public decimal? ServiceChargePercent { get; set; }
+    public decimal? ServiceChargeAmount { get; set; }
+    public decimal? TaxPercent { get; set; }
     public decimal? Subtotal { get; set; }
     public decimal? Taxes { get; set; }
     public decimal? GrandTotal { get; set; }
+    public decimal? ManualTotalOverride { get; set; }
+    public string? ManualOverrideReason { get; set; }
+    public string? AdjustedBy { get; set; }
+    public DateTime? AdjustedAt { get; set; }
+    public string? AdjustmentReason { get; set; }
 }
 
 public class MileageChargeData

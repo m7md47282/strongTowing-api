@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace StrongTowing.Core.Entities;
 
@@ -41,6 +42,26 @@ public class InsuranceAccount
     public string? Notes { get; set; }
 
     public bool IsActive { get; set; } = true;
+
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal HookupFee { get; set; } = 0m;
+
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal RateAB { get; set; } = 0m;
+
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal RateBC { get; set; } = 0m;
+
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal RateCA { get; set; } = 0m;
+
+    [Column(TypeName = "decimal(5,2)")]
+    public decimal ServiceChargePercent { get; set; } = 0m;
+
+    [Column(TypeName = "decimal(5,2)")]
+    public decimal TaxPercent { get; set; } = 0m;
+
+    public bool IsTaxExemptByDefault { get; set; } = false;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

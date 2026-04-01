@@ -114,6 +114,7 @@ builder.Services.AddScoped<RoleSeederService>();
 builder.Services.AddScoped<IEncryptionService, EncryptionService>();
 builder.Services.AddScoped<IPaymentProvider, StripePaymentProvider>();
 builder.Services.AddScoped<IFcmNotificationService, FcmNotificationService>();
+builder.Services.AddScoped<IPricingCalculatorService, PricingCalculatorService>();
 
 // 7. Add Controllers with validation
 builder.Services.AddControllers(options =>

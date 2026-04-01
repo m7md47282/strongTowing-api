@@ -14,6 +14,7 @@ using System.Text.Json;
 using StrongTowing.API.Services;
 using StrongTowing.Application.Abstractions;
 using System.IO;
+using System.Globalization;
 
 namespace StrongTowing.API.Controllers;
 
@@ -29,6 +30,7 @@ public class JobsController : ControllerBase
     private readonly IPaymentProvider _paymentProvider;
     private readonly IFcmNotificationService _fcmNotificationService;
     private readonly IWebHostEnvironment _environment;
+    private readonly IPricingCalculatorService _pricingCalculatorService;
 
     public JobsController(
         ApplicationDbContext context,
@@ -37,7 +39,8 @@ public class JobsController : ControllerBase
         ILogger<JobsController> logger,
         IPaymentProvider paymentProvider,
         IFcmNotificationService fcmNotificationService,
-        IWebHostEnvironment environment)
+        IWebHostEnvironment environment,
+        IPricingCalculatorService pricingCalculatorService)
     {
         _context = context;
         _userManager = userManager;
@@ -46,6 +49,7 @@ public class JobsController : ControllerBase
         _paymentProvider = paymentProvider;
         _fcmNotificationService = fcmNotificationService;
         _environment = environment;
+        _pricingCalculatorService = pricingCalculatorService;
     }
 
     /// <summary>
@@ -269,18 +273,66 @@ public class JobsController : ControllerBase
                 }
             }
 
-            // Step 4: Serialize Invoice Charges to JSON
-            string? invoiceChargesJson = null;
-            if (request.InvoiceCharges != null)
+            // Step 4: Calculate pricing server-side (authoritative).
+            var pricingRequest = BuildPricingQuoteRequest(request);
+            var pricingQuote = await _pricingCalculatorService.CalculateAsync(pricingRequest);
+
+            if (request.Cost > 0)
             {
-                invoiceChargesJson = JsonSerializer.Serialize(request.InvoiceCharges);
+                var mismatch = Math.Abs(request.Cost - pricingQuote.GrandTotal);
+                if (mismatch > pricingQuote.PricingMismatchTolerance)
+                {
+                    return BadRequest(new
+                    {
+                        error = "Bad Request",
+                        message = $"Submitted total does not match calculated total. Submitted={request.Cost:0.00}, Calculated={pricingQuote.GrandTotal:0.00}."
+                    });
+                }
             }
+
+            var invoiceCharges = request.InvoiceCharges ?? new InvoiceChargesData();
+            invoiceCharges.UnloadedEnrouteMileage ??= new MileageChargeData();
+            invoiceCharges.UnloadedEnrouteMileage.Quantity = pricingQuote.MilesAB;
+            invoiceCharges.UnloadedEnrouteMileage.Price = pricingQuote.RateAB;
+            invoiceCharges.UnloadedEnrouteMileage.Total = pricingQuote.ChargeAB;
+
+            invoiceCharges.LoadedHookedMileage ??= new MileageChargeData();
+            invoiceCharges.LoadedHookedMileage.Quantity = pricingQuote.MilesBC;
+            invoiceCharges.LoadedHookedMileage.Price = pricingQuote.RateBC;
+            invoiceCharges.LoadedHookedMileage.Total = pricingQuote.ChargeBC;
+
+            invoiceCharges.DeadHeadMileage ??= new MileageChargeData();
+            invoiceCharges.DeadHeadMileage.Quantity = pricingQuote.MilesCA;
+            invoiceCharges.DeadHeadMileage.Price = pricingQuote.RateCA;
+            invoiceCharges.DeadHeadMileage.Total = pricingQuote.ChargeCA;
+
+            invoiceCharges.HookupFee = pricingQuote.HookupFee;
+            invoiceCharges.Discount = pricingQuote.DiscountAmount;
+            invoiceCharges.ServiceChargePercent = pricingQuote.ServiceChargePercent;
+            invoiceCharges.ServiceChargeAmount = pricingQuote.ServiceChargeAmount;
+            invoiceCharges.TaxPercent = pricingQuote.TaxPercent;
+            invoiceCharges.Subtotal = pricingQuote.BaseSubtotal;
+            invoiceCharges.Taxes = pricingQuote.TaxAmount;
+            invoiceCharges.GrandTotal = pricingQuote.GrandTotal;
+            invoiceCharges.TaxExempt = pricingQuote.TaxExempt;
+
+            if (pricingQuote.ManualTotalOverrideApplied)
+            {
+                var adjustedBy = _userManager.GetUserId(User);
+                invoiceCharges.AdjustedBy = adjustedBy;
+                invoiceCharges.AdjustedAt = DateTime.UtcNow;
+                invoiceCharges.AdjustmentReason = pricingQuote.ManualOverrideReason;
+                invoiceCharges.ManualTotalOverride = pricingQuote.ManualTotalOverride;
+                invoiceCharges.ManualOverrideReason = pricingQuote.ManualOverrideReason;
+            }
+
+            var invoiceChargesJson = JsonSerializer.Serialize(invoiceCharges);
 
             // Step 5: Create Job
             var job = new Job
             {
                 VehicleId = vehicle.Id,
-                Cost = request.Cost,
+                Cost = pricingQuote.GrandTotal,
                 Notes = request.Notes,
                 Status = JobStatus.Pending,
                 CreatedAt = DateTime.UtcNow,
@@ -292,7 +344,7 @@ public class JobsController : ControllerBase
                 
                 // Company & Account
                 CompanyName = request.CompanyName,
-                Account = request.Account,
+                Account = pricingQuote.AccountName ?? request.Account,
                 CompanyOverride = request.CompanyOverride,
                 
                 // Contact Information
@@ -909,6 +961,48 @@ public class JobsController : ControllerBase
             JobStatus.InProgress => settings.CancelFeeAfterArrivalPercent,
             JobStatus.ReadyToRelease => settings.CancelFeeAfterArrivalPercent,
             _ => settings.CancelFeeBeforeDispatchPercent
+        };
+    }
+
+    private static PricingQuoteRequestDto BuildPricingQuoteRequest(CreateJobRequest request)
+    {
+        var charges = request.InvoiceCharges;
+        var serviceItemsTotal = charges?.ServiceItems?.Sum(x => x.Total) ?? 0m;
+
+        int? accountId = null;
+        string? accountName = null;
+        if (!string.IsNullOrWhiteSpace(request.Account))
+        {
+            var accountValue = request.Account.Trim();
+            if (int.TryParse(accountValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedAccountId))
+            {
+                accountId = parsedAccountId;
+            }
+            else
+            {
+                accountName = accountValue;
+            }
+        }
+
+        return new PricingQuoteRequestDto
+        {
+            AccountId = accountId,
+            AccountName = accountName,
+            MilesAB = charges?.UnloadedEnrouteMileage?.Quantity ?? 0m,
+            MilesBC = charges?.LoadedHookedMileage?.Quantity ?? 0m,
+            MilesCA = charges?.DeadHeadMileage?.Quantity ?? 0m,
+            RateAB = charges?.UnloadedEnrouteMileage?.Price,
+            RateBC = charges?.LoadedHookedMileage?.Price,
+            RateCA = charges?.DeadHeadMileage?.Price,
+            HookupFee = charges?.HookupFee,
+            ServiceChargePercent = charges?.ServiceChargePercent,
+            TaxPercent = charges?.TaxPercent,
+            DiscountAmount = charges?.Discount ?? 0m,
+            DiscountPercent = charges?.DiscountPercent,
+            TaxExempt = charges == null ? null : charges.TaxExempt,
+            ExtraItemsTotal = serviceItemsTotal,
+            ManualTotalOverride = charges?.ManualTotalOverride,
+            ManualOverrideReason = charges?.ManualOverrideReason
         };
     }
 
