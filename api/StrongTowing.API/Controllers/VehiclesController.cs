@@ -26,20 +26,30 @@ public class VehiclesController : ControllerBase
     /// <summary>
     /// Get All Vehicles
     /// </summary>
+    /// <param name="ownerId">Optional client owner id to filter vehicles</param>
     /// <returns>List of all vehicles</returns>
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<VehicleDto>>> GetAllVehicles()
+    public async Task<ActionResult<IEnumerable<VehicleDto>>> GetAllVehicles([FromQuery] string? ownerId = null)
     {
         try
         {
-            var vehicles = await _context.Vehicles
+            var query = _context.Vehicles
                 .Include(v => v.Owner)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(ownerId))
+            {
+                query = query.Where(v => v.OwnerId == ownerId);
+            }
+
+            var vehicles = await query
                 .OrderBy(v => v.Id)
                 .ToListAsync();
 
             var vehicleDtos = vehicles.Select(v => new VehicleDto
             {
                 Id = v.Id,
+                OwnerId = v.OwnerId,
                 VIN = v.VIN,
                 Make = v.Make,
                 Model = v.Model,
@@ -107,6 +117,7 @@ public class VehiclesController : ControllerBase
             var vehicleDto = new VehicleDto
             {
                 Id = vehicle.Id,
+                OwnerId = vehicle.OwnerId,
                 VIN = vehicle.VIN,
                 Make = vehicle.Make,
                 Model = vehicle.Model,
@@ -145,6 +156,7 @@ public class VehiclesController : ControllerBase
             var vehicleDto = new VehicleDto
             {
                 Id = vehicle.Id,
+                OwnerId = vehicle.OwnerId,
                 VIN = vehicle.VIN,
                 Make = vehicle.Make,
                 Model = vehicle.Model,
@@ -183,6 +195,7 @@ public class VehiclesController : ControllerBase
             var vehicleDto = new VehicleDto
             {
                 Id = vehicle.Id,
+                OwnerId = vehicle.OwnerId,
                 VIN = vehicle.VIN,
                 Make = vehicle.Make,
                 Model = vehicle.Model,

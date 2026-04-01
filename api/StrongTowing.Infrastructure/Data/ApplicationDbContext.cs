@@ -18,6 +18,7 @@ namespace StrongTowing.Infrastructure.Data
         public DbSet<CashCollection> CashCollections { get; set; }
         public DbSet<SystemSettings> SystemSettings { get; set; }
         public DbSet<InsuranceAccount> InsuranceAccounts { get; set; }
+        public DbSet<ServicePricingProfile> ServicePricingProfiles { get; set; }
         public DbSet<DriverPayroll> DriverPayrolls { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<UserFcmToken> UserFcmTokens { get; set; }
@@ -118,6 +119,15 @@ namespace StrongTowing.Infrastructure.Data
                 .Property(a => a.Name)
                 .IsRequired()
                 .HasMaxLength(200);
+
+            builder.Entity<ServicePricingProfile>()
+                .HasIndex(s => s.Name)
+                .IsUnique();
+
+            builder.Entity<ServicePricingProfile>()
+                .Property(s => s.Name)
+                .IsRequired()
+                .HasMaxLength(100);
             
             // RefreshToken configuration
             builder.Entity<RefreshToken>()
