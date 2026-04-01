@@ -22,6 +22,30 @@ export const SIDEBAR_MENU_ITEMS: MenuItem[] = [
     roles: [RoleId.Dispatcher]
   },
   {
+    label: 'Dashboard',
+    icon: 'fas fa-home',
+    route: '/driver',
+    roles: [RoleId.Driver]
+  },
+  {
+    label: 'My jobs',
+    icon: 'fas fa-tasks',
+    route: '/driver/jobs',
+    roles: [RoleId.Driver]
+  },
+  {
+    label: 'Profile',
+    icon: 'fas fa-user',
+    route: '/driver/profile',
+    roles: [RoleId.Driver]
+  },
+  {
+    label: 'Earnings',
+    icon: 'fas fa-dollar-sign',
+    route: '/driver/earnings',
+    roles: [RoleId.Driver]
+  },
+  {
     label: 'Jobs',
     icon: 'fas fa-tasks',
     route: '/admin/jobs',

@@ -21,28 +21,12 @@
   <!-- Main Content -->
   <div *ngIf="!loading">
     <!-- Top Header Bar -->
-    <div class="mb-8 flex items-start justify-between">
+    <div class="mb-8">
       <div>
         <h1 class="text-2xl font-bold text-gray-900 mb-1">Welcome Back {{ user?.fullName?.split(' ')?.[0] || 'Admin' }}!</h1>
         <p class="text-sm text-gray-600">You've handled {{ stats.completedToday }} service request{{ stats.completedToday !== 1 ? 's' : '' }} today - great work!</p>
       </div>
-    <div class="flex items-center gap-3">
-      <div class="relative">
-        <i class="fas fa-comment-dots text-gray-600 text-lg"></i>
-        <span class="absolute -top-1 -right-1 bg-primary text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">9</span>
-      </div>
-      <i class="fas fa-bell text-gray-600 text-lg"></i>
-      <div class="relative">
-        <input 
-          type="text" 
-          placeholder="Search for Service Requests, Customers, Drivers..." 
-          class="pl-10 pr-4 py-2.5 w-80 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white"
-        />
-        <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm"></i>
-      </div>
-      <i class="fas fa-ellipsis-v text-gray-600 cursor-pointer"></i>
     </div>
-  </div>
 
   <!-- Highlights Section - 4 Metric Cards -->
   <div class="mb-6">

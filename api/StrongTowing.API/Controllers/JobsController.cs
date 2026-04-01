@@ -570,7 +570,7 @@ public class JobsController : ControllerBase
     /// </summary>
     [HttpPost("{id}/assign")]
     [Authorize(Roles = $"{UserRoles.SuperAdmin},{UserRoles.Administrator},{UserRoles.Dispatcher}")]
-    public async Task<ActionResult<JobDto>> AssignDriver(int id, [FromBody] AssignDriverRequest request)
+    public async Task<ActionResult<AssignDriverResponseDto>> AssignDriver(int id, [FromBody] AssignDriverRequest request)
     {
         try
         {
@@ -619,27 +619,34 @@ public class JobsController : ControllerBase
 
             await _context.SaveChangesAsync();
 
-            try
+            var pickup = string.IsNullOrWhiteSpace(job.PickupLocation) ? "Pickup TBD" : job.PickupLocation;
+            if (pickup.Length > 120)
             {
-                var pickup = string.IsNullOrWhiteSpace(job.PickupLocation) ? "Pickup TBD" : job.PickupLocation;
-                if (pickup.Length > 120)
-                {
-                    pickup = pickup[..117] + "...";
-                }
-
-                await _fcmNotificationService.SendToUserAsync(
-                    driver.Id,
-                    "New job assigned",
-                    $"Job #{job.Id} — {pickup}",
-                    new Dictionary<string, string> { ["jobId"] = job.Id.ToString() });
+                pickup = pickup[..117] + "...";
             }
-            catch (Exception notifyEx)
+
+            var notifyResult = await _fcmNotificationService.SendToUserAsync(
+                driver.Id,
+                "New job assigned",
+                $"Job #{job.Id} — {pickup}",
+                new Dictionary<string, string> { ["jobId"] = job.Id.ToString() });
+
+            if (!notifyResult.Sent)
             {
-                _logger.LogWarning(notifyEx, "FCM notification failed after assigning job {JobId}", job.Id);
+                _logger.LogWarning(
+                    "Push notification was not sent after assigning job {JobId} to driver {DriverId}: {Message}",
+                    job.Id,
+                    driver.Id,
+                    notifyResult.Message);
             }
 
             var jobDto = MapToJobDto(job);
-            return Ok(jobDto);
+            return Ok(new AssignDriverResponseDto
+            {
+                Job = jobDto,
+                NotificationSent = notifyResult.Sent,
+                NotificationMessage = notifyResult.Sent ? null : notifyResult.Message
+            });
         }
         catch (Exception ex)
         {

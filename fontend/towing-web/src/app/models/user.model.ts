@@ -9,6 +9,8 @@ export interface User {
   isActive: boolean;
   createdAt: string;
   updatedAt: string | null;
+  /** Present for drivers: whether dispatch may assign new jobs. */
+  isAvailableForDispatch?: boolean;
 }
 
 export interface Driver extends User {

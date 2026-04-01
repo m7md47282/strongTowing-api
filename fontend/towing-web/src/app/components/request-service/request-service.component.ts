@@ -5,6 +5,8 @@ import { RouterModule } from '@angular/router';
 import { OrderService } from '../../services/order.service';
 import { CreateOrderRequest, CreateOrderResponse } from '../../models/order.model';
 import { PaymentService } from '../../services/payment.service';
+import { LocationPickerComponent } from '../shared/location-picker/location-picker.component';
+import { PlacesAutocompleteDirective } from '../../directives/places-autocomplete.directive';
 
 interface ServiceType {
   id: string;
@@ -28,7 +30,7 @@ interface Priority {
 
 @Component({
   selector: 'app-request-service',
-  imports: [CommonModule, ReactiveFormsModule, RouterModule],
+  imports: [CommonModule, ReactiveFormsModule, RouterModule, LocationPickerComponent, PlacesAutocompleteDirective],
   templateUrl: './request-service.component.html',
   styleUrls: ['./request-service.component.scss']
 })

@@ -10,22 +10,25 @@ import {
   CreateStripePaymentLinkResponse,
   PaymentService
 } from '../../../../services/payment.service';
+import { LocationPickerComponent } from '../../../shared/location-picker/location-picker.component';
 
 type SettingsTab = 'general' | 'payments';
 
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, LocationPickerComponent],
   templateUrl: './settings.component.html',
   styleUrls: ['./settings.component.scss']
 })
 export class SettingsComponent implements OnInit {
-  activeTab: SettingsTab = 'payments';
+  activeTab: SettingsTab = 'general';
   settingsForm: FormGroup;
+  generalForm: FormGroup;
   paymentTestForm: FormGroup;
   loading = false;
   saving = false;
+  savingOffice = false;
   error: string | null = null;
   successMessage: string | null = null;
   currentSettings: SystemSettings | null = null;
@@ -41,6 +44,11 @@ export class SettingsComponent implements OnInit {
     private authService: AuthService,
     private paymentService: PaymentService
   ) {
+    this.generalForm = this.fb.group({
+      officeLatitude: [null as number | null],
+      officeLongitude: [null as number | null]
+    });
+
     this.settingsForm = this.fb.group({
       driverCommissionPercentage: [30, [Validators.required, Validators.min(0), Validators.max(100)]],
       stripeEnabled: [false],
@@ -95,6 +103,45 @@ export class SettingsComponent implements OnInit {
     return this.settingsForm.get('stripeMode')?.value === mode;
   }
 
+  onOfficePositionChange(pos: { lat: number; lng: number }): void {
+    this.generalForm.patchValue({
+      officeLatitude: pos.lat,
+      officeLongitude: pos.lng
+    });
+  }
+
+  clearOfficeLocation(): void {
+    this.generalForm.patchValue({ officeLatitude: null, officeLongitude: null });
+  }
+
+  private buildUpdateFromCurrent(): UpdateSystemSettingsRequest {
+    const c = this.currentSettings!;
+    return {
+      driverCommissionPercentage: c.driverCommissionPercentage,
+      stripePublicKey: c.stripePublicKey ?? null,
+      stripeSecretKey: null,
+      stripeWebhookSecret: null,
+      stripeEnabled: c.stripeEnabled,
+      stripeTestPublicKey: c.stripeTestPublicKey ?? null,
+      stripeTestSecretKey: null,
+      stripeTestWebhookSecret: null,
+      stripeLivePublicKey: c.stripeLivePublicKey ?? null,
+      stripeLiveSecretKey: null,
+      stripeLiveWebhookSecret: null,
+      stripeMode: c.stripeMode,
+      preAuthorizationEnabled: c.preAuthorizationEnabled,
+      preAuthorizationMinAmount: c.preAuthorizationMinAmount,
+      preAuthorizationMaxAmount: c.preAuthorizationMaxAmount,
+      fraudReviewScoreThreshold: c.fraudReviewScoreThreshold,
+      duplicateRequestWindowMinutes: c.duplicateRequestWindowMinutes,
+      cancelFeeBeforeDispatchPercent: c.cancelFeeBeforeDispatchPercent,
+      cancelFeeAfterDispatchPercent: c.cancelFeeAfterDispatchPercent,
+      cancelFeeAfterArrivalPercent: c.cancelFeeAfterArrivalPercent,
+      officeLatitude: c.officeLatitude ?? null,
+      officeLongitude: c.officeLongitude ?? null
+    };
+  }
+
   loadSettings(): void {
     this.loading = true;
     this.error = null;
@@ -112,6 +159,10 @@ export class SettingsComponent implements OnInit {
             stripeTestPublicKey: settings.stripeTestPublicKey || '',
             stripeLivePublicKey: settings.stripeLivePublicKey || ''
           });
+          this.generalForm.patchValue({
+            officeLatitude: settings.officeLatitude ?? null,
+            officeLongitude: settings.officeLongitude ?? null
+          });
         },
         error: (err) => {
           this.error = err.error?.message || err.error?.error || 'Failed to load settings.';
@@ -119,9 +170,75 @@ export class SettingsComponent implements OnInit {
       });
   }
 
+  saveOfficeLocation(): void {
+    if (!this.isSuperAdmin()) {
+      this.error = 'Only Super Admin can update settings.';
+      return;
+    }
+
+    if (!this.currentSettings) {
+      return;
+    }
+
+    const gv = this.generalForm.value as { officeLatitude: unknown; officeLongitude: unknown };
+    const parseOpt = (v: unknown): number | null => {
+      if (v === null || v === undefined || v === '') {
+        return null;
+      }
+      const n = Number(v);
+      return Number.isNaN(n) ? null : n;
+    };
+    const officeLatitude = parseOpt(gv.officeLatitude);
+    const officeLongitude = parseOpt(gv.officeLongitude);
+    if ((officeLatitude === null) !== (officeLongitude === null)) {
+      this.error = 'Set both latitude and longitude, or clear both to use appsettings fallback.';
+      return;
+    }
+
+    this.savingOffice = true;
+    this.error = null;
+    this.successMessage = null;
+
+    if (
+      officeLatitude != null &&
+      officeLongitude != null &&
+      (officeLatitude < -90 || officeLatitude > 90 || officeLongitude < -180 || officeLongitude > 180)
+    ) {
+      this.error = 'Invalid coordinates.';
+      this.savingOffice = false;
+      return;
+    }
+
+    const payload: UpdateSystemSettingsRequest = {
+      ...this.buildUpdateFromCurrent(),
+      officeLatitude,
+      officeLongitude
+    };
+
+    this.settingsService.updateSettings(payload)
+      .pipe(finalize(() => { this.savingOffice = false; }))
+      .subscribe({
+        next: (settings) => {
+          this.currentSettings = settings;
+          this.generalForm.patchValue({
+            officeLatitude: settings.officeLatitude ?? null,
+            officeLongitude: settings.officeLongitude ?? null
+          });
+          this.successMessage = 'Office location saved.';
+        },
+        error: (err) => {
+          this.error = err.error?.message || err.error?.error || 'Failed to save office location.';
+        }
+      });
+  }
+
   saveSettings(): void {
     if (!this.isSuperAdmin()) {
       this.error = 'Only Super Admin can update settings.';
+      return;
+    }
+
+    if (!this.currentSettings) {
       return;
     }
 
@@ -136,6 +253,7 @@ export class SettingsComponent implements OnInit {
 
     const formValue = this.settingsForm.value;
     const payload: UpdateSystemSettingsRequest = {
+      ...this.buildUpdateFromCurrent(),
       driverCommissionPercentage: Number(formValue.driverCommissionPercentage ?? 30),
       stripeEnabled: !!formValue.stripeEnabled,
       stripeMode: formValue.stripeMode === 'live' ? 'live' : 'test',
@@ -155,9 +273,12 @@ export class SettingsComponent implements OnInit {
       .subscribe({
         next: (settings) => {
           this.currentSettings = settings;
+          this.generalForm.patchValue({
+            officeLatitude: settings.officeLatitude ?? null,
+            officeLongitude: settings.officeLongitude ?? null
+          });
           this.successMessage = 'Settings saved successfully.';
 
-          // Clear secret fields after successful save for better security UX.
           this.settingsForm.patchValue({
             stripeSecretKey: '',
             stripeWebhookSecret: '',

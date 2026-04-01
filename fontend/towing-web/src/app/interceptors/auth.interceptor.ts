@@ -16,7 +16,8 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       req.url.includes('/auth/verify-otp') ||
       req.url.includes('/auth/resend-otp') ||
       req.url.includes('/auth/refresh-token') ||
-      req.url.includes('/health')) {
+      req.url.includes('/health') ||
+      req.url.includes('/location/')) {
     return next(req);
   }
 

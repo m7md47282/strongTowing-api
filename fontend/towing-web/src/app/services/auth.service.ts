@@ -288,12 +288,69 @@ export class AuthService {
 
   // Change password
   changePassword(currentPassword: string, newPassword: string): Observable<any> {
-    return this.apiService.post('auth/change-password', {
+    return this.apiService.post<any>('auth/change-password', {
       currentPassword,
       newPassword
     }).pipe(
+      map((response) => {
+        if (response?.id) {
+          const stored = this.getCurrentUser();
+          const roleId =
+            typeof response.roleId === 'string'
+              ? parseInt(response.roleId, 10)
+              : Number(response.roleId);
+          const merged: User = {
+            ...(stored ?? ({} as User)),
+            id: response.id,
+            email: response.email,
+            fullName: response.fullName,
+            phoneNumber: response.phoneNumber ?? null,
+            roleId: Number.isFinite(roleId) ? roleId : (stored?.roleId ?? 0),
+            isActive: response.isActive ?? stored?.isActive ?? true,
+            createdAt: response.createdAt ?? stored?.createdAt ?? '',
+            updatedAt: response.updatedAt ?? null,
+            isAvailableForDispatch:
+              response.isAvailableForDispatch ?? stored?.isAvailableForDispatch ?? true
+          };
+          localStorage.setItem('stongTowing_user', JSON.stringify(merged));
+          this.currentUserSubject.next(merged);
+        }
+        return response;
+      }),
       catchError(error => {
         console.error('Change password error:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  /** Driver: set on-duty / off-duty for new assignments. */
+  updateDriverAvailability(isAvailableForDispatch: boolean): Observable<User> {
+    return this.apiService.put<User>('auth/driver/availability', { isAvailableForDispatch }).pipe(
+      map((response: User) => {
+        const stored = this.getCurrentUser();
+        const roleId =
+          typeof (response as any).roleId === 'string'
+            ? parseInt((response as any).roleId, 10)
+            : Number((response as any).roleId);
+        const merged: User = {
+          ...(stored ?? ({} as User)),
+          id: response.id,
+          email: response.email,
+          fullName: response.fullName,
+          phoneNumber: response.phoneNumber ?? null,
+          roleId: Number.isFinite(roleId) ? roleId : (stored?.roleId ?? 0),
+          isActive: response.isActive ?? stored?.isActive ?? true,
+          createdAt: response.createdAt ?? stored?.createdAt ?? '',
+          updatedAt: response.updatedAt ?? null,
+          isAvailableForDispatch: response.isAvailableForDispatch ?? isAvailableForDispatch
+        };
+        localStorage.setItem('stongTowing_user', JSON.stringify(merged));
+        this.currentUserSubject.next(merged);
+        return merged;
+      }),
+      catchError((error) => {
+        console.error('Update driver availability error:', error);
         return throwError(() => error);
       })
     );

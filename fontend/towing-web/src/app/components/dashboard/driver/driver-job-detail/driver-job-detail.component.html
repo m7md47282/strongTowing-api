@@ -1,0 +1,204 @@
+<div class="p-8 min-h-screen bg-white m-4 rounded-xl border border-gray-100 shadow-sm">
+  <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <a routerLink="/driver/jobs" class="text-sm text-primary hover:underline inline-flex items-center gap-1">
+      <i class="fas fa-arrow-left"></i> Back to my jobs
+    </a>
+    <div class="flex flex-wrap items-center gap-3 text-sm">
+      @if (dispatchContact; as dc) {
+        @if (dc.phone) {
+          <a
+            [href]="telHref(dc.phone)"
+            class="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-800 hover:bg-gray-50"
+          >
+            <i class="fas fa-headset text-primary"></i>
+            {{ dc.displayName }}: {{ dc.phone }}
+          </a>
+        }
+      }
+      <button
+        type="button"
+        class="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-800 hover:bg-gray-50 disabled:opacity-50"
+        [disabled]="locationPinging"
+        (click)="shareLocationWithDispatch()"
+      >
+        <i class="fas fa-location-arrow text-primary"></i>
+        {{ locationPinging ? 'Getting location…' : 'Share my location' }}
+      </button>
+    </div>
+  </div>
+  @if (locationPingMessage) {
+    <div
+      class="mb-4 rounded-lg border px-3 py-2 text-sm"
+      [class.border-green-200]="locationPingMessage.includes('sent')"
+      [class.bg-green-50]="locationPingMessage.includes('sent')"
+      [class.text-green-800]="locationPingMessage.includes('sent')"
+      [class.border-amber-200]="!locationPingMessage.includes('sent')"
+      [class.bg-amber-50]="!locationPingMessage.includes('sent')"
+      [class.text-amber-900]="!locationPingMessage.includes('sent')"
+    >
+      {{ locationPingMessage }}
+    </div>
+  }
+
+  @if (loading) {
+    <div class="flex justify-center py-16">
+      <div class="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+    </div>
+  } @else if (loadError && !job) {
+    <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+      <p class="text-red-800">{{ loadError }}</p>
+    </div>
+  } @else if (job) {
+    <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">Job #{{ job.id }}</h1>
+        <span class="inline-flex mt-2 rounded-full px-3 py-1 text-xs font-medium" [ngClass]="getStatusClass(job.status)">
+          {{ formatStatus(job.status) }}
+        </span>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      <div class="rounded-lg border border-gray-200 p-4">
+        <h2 class="text-sm font-semibold text-gray-700 mb-3">Locations</h2>
+        <p class="text-sm text-gray-600 mb-1">
+          <span class="font-medium text-gray-800">Pickup:</span> {{ job.pickupLocation || '—' }}
+        </p>
+        @if (job.pickupLocation && mapsUrl(job.pickupLocation)) {
+          <a
+            [href]="mapsUrl(job.pickupLocation)"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-sm text-primary hover:underline inline-flex items-center gap-1 mb-3"
+          >
+            <i class="fas fa-map-marker-alt"></i> Open pickup in Maps
+          </a>
+        }
+        <p class="text-sm text-gray-600 mb-1 mt-2">
+          <span class="font-medium text-gray-800">Destination:</span>
+          {{ job.destinationAddress || job.dropoffLocation || '—' }}
+        </p>
+        @if ((job.destinationAddress || job.dropoffLocation) && mapsUrl(job.destinationAddress || job.dropoffLocation)) {
+          <a
+            [href]="mapsUrl(job.destinationAddress || job.dropoffLocation)"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-sm text-primary hover:underline inline-flex items-center gap-1"
+          >
+            <i class="fas fa-map-marker-alt"></i> Open destination in Maps
+          </a>
+        }
+      </div>
+      <div class="rounded-lg border border-gray-200 p-4">
+        <h2 class="text-sm font-semibold text-gray-700 mb-3">Contact</h2>
+        <p class="text-sm text-gray-600 mb-1">{{ job.contactName || job.clientName || '—' }}</p>
+        @if (job.contactPhoneNumber || job.clientPhoneNumber) {
+          <p class="text-sm">
+            <a
+              [href]="telHref(job.contactPhoneNumber || job.clientPhoneNumber)"
+              class="text-primary font-medium hover:underline inline-flex items-center gap-1"
+            >
+              <i class="fas fa-phone"></i> {{ job.contactPhoneNumber || job.clientPhoneNumber }}
+            </a>
+          </p>
+        } @else {
+          <p class="text-sm text-gray-600">—</p>
+        }
+      </div>
+      <div class="rounded-lg border border-gray-200 p-4">
+        <h2 class="text-sm font-semibold text-gray-700 mb-3">Vehicle</h2>
+        <p class="text-sm text-gray-600">{{ vehicleLabel(job) }}</p>
+        <p class="text-sm text-gray-600 mt-1">Plate: {{ job.licensePlate || '—' }} {{ job.licenseState || '' }}</p>
+      </div>
+      <div class="rounded-lg border border-gray-200 p-4">
+        <h2 class="text-sm font-semibold text-gray-700 mb-3">Details</h2>
+        <p class="text-sm text-gray-600">Service: {{ job.serviceType || '—' }}</p>
+        <p class="text-sm text-gray-600 mt-1">
+          Photos: {{ job.photoCount ?? job.photos?.length ?? 0 }} / 5 required before ready to release
+        </p>
+        @if (job.eta) {
+          <p class="text-sm text-gray-600 mt-1">ETA: {{ job.eta | date: 'short' }}</p>
+        }
+      </div>
+    </div>
+
+    <div class="rounded-lg border border-gray-200 p-4 mb-8">
+      <h2 class="text-sm font-semibold text-gray-700 mb-3">Job photos</h2>
+      <p class="text-xs text-gray-500 mb-3">
+        Add up to 5 photos (JPEG, PNG, or WebP, max 8 MB each). You need 5 photos before you can mark the job as ready to release.
+      </p>
+      @if (uploadError) {
+        <p class="text-sm text-red-600 mb-2">{{ uploadError }}</p>
+      }
+      @if (job.photos?.length) {
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 mb-4">
+          @for (p of job.photos; track p.id) {
+            <a
+              [href]="resolvePhotoUrl(p.url)"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="block aspect-square rounded-lg overflow-hidden border border-gray-200 bg-gray-50"
+            >
+              <img
+                [src]="resolvePhotoUrl(p.url)"
+                [alt]="'Job photo ' + p.id"
+                class="w-full h-full object-cover"
+              />
+            </a>
+          }
+        </div>
+      }
+      @if (canUploadPhoto(job)) {
+        <label
+          class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 cursor-pointer hover:bg-gray-50 disabled:opacity-50"
+          [class.pointer-events-none]="uploading"
+        >
+          <i class="fas fa-camera"></i>
+          {{ uploading ? 'Uploading…' : 'Add photo' }}
+          <input type="file" accept="image/jpeg,image/png,image/webp" class="hidden" [disabled]="uploading" (change)="onPhotoSelected($event)" />
+        </label>
+      } @else {
+        <p class="text-sm text-gray-600">Maximum of 5 photos reached.</p>
+      }
+    </div>
+
+    @if (getNextStatuses(job).length) {
+      <div class="rounded-lg border border-gray-200 p-4 max-w-xl">
+        <h2 class="text-sm font-semibold text-gray-700 mb-3">Update status</h2>
+        @if (statusError) {
+          <div class="text-sm text-red-600 mb-3 rounded-md bg-red-50 border border-red-100 px-3 py-2 whitespace-pre-wrap">
+            {{ statusError }}
+          </div>
+        }
+        <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
+          <div class="flex-1">
+            <label class="block text-xs text-gray-600 mb-1" for="next-status">Next status</label>
+            <select
+              id="next-status"
+              class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              [formControl]="updateStatusControl"
+            >
+              @for (s of getNextStatuses(job); track s) {
+                <option [value]="s">{{ formatStatus(s) }}</option>
+              }
+            </select>
+          </div>
+          <button
+            type="button"
+            class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+            [disabled]="submitting"
+            (click)="onUpdateStatus()"
+          >
+            @if (submitting) {
+              <span>Saving…</span>
+            } @else {
+              <span>Save</span>
+            }
+          </button>
+        </div>
+      </div>
+    } @else {
+      <p class="text-sm text-gray-600">This job is closed (final status).</p>
+    }
+  }
+</div>

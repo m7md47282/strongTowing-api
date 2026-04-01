@@ -596,6 +596,16 @@
       &:last-child {
         margin-bottom: 0;
       }
+
+      &.form-row--full {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .field-hint {
+      font-size: 0.875rem;
+      color: #64748b;
+      margin: 0 0 0.75rem;
     }
 
     .form-group {

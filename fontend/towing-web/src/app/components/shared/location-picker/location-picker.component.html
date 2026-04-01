@@ -1,0 +1,81 @@
+<!-- pick: admin / single point -->
+<ng-container *ngIf="mode === 'pick'">
+  <div class="location-picker location-picker--pick">
+    <p class="location-picker__hint" *ngIf="pickHint">{{ pickHint }}</p>
+    <p class="location-picker__error" *ngIf="loadError">{{ loadError }}</p>
+
+    <div class="location-picker__search" *ngIf="mapsReady">
+      <label for="location-picker-pick-search">
+        <span class="location-picker__search-label">Quick search</span>
+      </label>
+      <input
+        #pickSearchInput
+        id="location-picker-pick-search"
+        type="text"
+        class="location-picker__input"
+        placeholder="Type an address or place name"
+        autocomplete="off"
+        spellcheck="false"
+      />
+    </div>
+
+    <div class="location-picker__map" *ngIf="mapsReady">
+      <google-map
+        [height]="pickMapHeight"
+        width="100%"
+        [center]="center"
+        [zoom]="zoom"
+        (mapClick)="onPickMapClick($event)"
+      >
+        <map-marker [position]="pickMarkerPosition" [title]="markerTitle"></map-marker>
+      </google-map>
+    </div>
+  </div>
+</ng-container>
+
+<!-- route: public estimate / distance -->
+<ng-container *ngIf="mode === 'route'">
+  <div class="location-picker location-picker--route" [class.location-picker--compact]="compact">
+    <p class="location-picker__error" *ngIf="loadError">{{ loadError }}</p>
+
+    <ng-container *ngIf="mapsReady">
+      <div class="location-picker__search">
+        <label for="location-picker-address-input">
+          <span class="location-picker__search-label">Quick search</span>
+          <span class="location-picker__search-sublabel"> — pickup address</span>
+        </label>
+        <input
+          #addressInput
+          id="location-picker-address-input"
+          type="text"
+          class="location-picker__input"
+          placeholder="Start typing an address"
+          autocomplete="off"
+        />
+      </div>
+
+      <google-map [height]="mapHeight" [width]="mapWidth" [center]="center" [zoom]="zoom">
+        <map-marker *ngIf="officePosition" [position]="officePosition" title="Office"></map-marker>
+        <map-marker *ngIf="clientPosition" [position]="clientPosition" title="Destination"></map-marker>
+        <map-directions-renderer
+          *ngIf="directions"
+          [directions]="directions"
+          [options]="directionsRendererOptions"
+        ></map-directions-renderer>
+      </google-map>
+    </ng-container>
+
+    <div class="location-picker__results" *ngIf="calcDistanceMiles !== null">
+      <p>
+        <span class="location-picker__label">Distance</span>
+        <span class="location-picker__value">{{ calcDistanceMiles | number : '1.2-2' }} mi</span>
+      </p>
+      <p *ngIf="durationMinutes !== null">
+        <span class="location-picker__label">Est. drive time</span>
+        <span class="location-picker__value">{{ durationMinutes }} min</span>
+      </p>
+    </div>
+
+    <p class="location-picker__error" *ngIf="routeError">{{ routeError }}</p>
+  </div>
+</ng-container>

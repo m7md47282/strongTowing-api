@@ -25,11 +25,16 @@ export class ApiService {
   }
 
   // Generic HTTP methods
-  get<T>(endpoint: string, params?: HttpParams): Observable<T> {
+  get<T>(endpoint: string, params?: HttpParams, includeAuth = true): Observable<T> {
     return this.http.get<T>(`${this.baseUrl}/${endpoint}`, {
-      headers: this.getHeaders(),
+      headers: this.getHeaders(includeAuth),
       params
     });
+  }
+
+  /** GET without Authorization (public endpoints). */
+  getPublic<T>(endpoint: string, params?: HttpParams): Observable<T> {
+    return this.get<T>(endpoint, params, false);
   }
 
   post<T>(endpoint: string, data: any, includeAuth: boolean = true): Observable<T> {

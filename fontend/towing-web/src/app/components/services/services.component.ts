@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { OrderService } from '../../services/order.service';
+import { PlacesAutocompleteDirective } from '../../directives/places-autocomplete.directive';
 import { CreateOrderRequest } from '../../models/order.model';
 
 interface Service {
@@ -39,7 +40,7 @@ interface PhotoGallery {
 
 @Component({
   selector: 'app-services',
-  imports: [CommonModule, ReactiveFormsModule, RouterModule],
+  imports: [CommonModule, ReactiveFormsModule, RouterModule, PlacesAutocompleteDirective],
   templateUrl: './services.component.html',
   styleUrls: ['./services.component.scss']
 })

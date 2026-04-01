@@ -1,10 +1,18 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, NgZone, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormControl, AbstractControl } from '@angular/forms';
 import { HttpParams } from '@angular/common/http';
-import { catchError, finalize } from 'rxjs/operators';
-import { of } from 'rxjs';
-import { JobService, Job, CreateJobRequest, AssignDriverRequest, VehicleData, ClientData, UpdateJobStatusRequest } from '../../../../services/job.service';
+import {
+  catchError,
+  debounceTime,
+  distinctUntilChanged,
+  finalize,
+  startWith,
+  switchMap
+} from 'rxjs/operators';
+import { combineLatest, EMPTY, from, of, Subscription } from 'rxjs';
+import { Loader } from '@googlemaps/js-api-loader';
+import { JobService, Job, CreateJobRequest, AssignDriverRequest, AssignDriverResponse, VehicleData, ClientData, UpdateJobStatusRequest } from '../../../../services/job.service';
 import { VehicleService, Vehicle } from '../../../../services/vehicle.service';
 import { ApiService } from '../../../../services/api.service';
 import { AccountsService } from '../../../../services/accounts.service';
@@ -13,6 +21,10 @@ import { PaymentService } from '../../../../services/payment.service';
 import { InsuranceAccount } from '../../../../models/insurance-account.model';
 import { User } from '../../../../models/user.model';
 import { RoleId } from '../../../../constants/user-roles.constants';
+import { PlacesAutocompleteDirective } from '../../../../directives/places-autocomplete.directive';
+import { LocationPickerComponent } from '../../../shared/location-picker/location-picker.component';
+import { LocationService } from '../../../../services/location.service';
+import { environment } from '../../../../../environments/environment';
 
 interface PagedResponse<T> {
   data: T[];
@@ -27,15 +39,23 @@ interface PagedResponse<T> {
 @Component({
   selector: 'app-jobs',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    ReactiveFormsModule,
+    PlacesAutocompleteDirective,
+    LocationPickerComponent
+  ],
   templateUrl: './jobs.component.html',
   styleUrls: ['./jobs.component.scss']
 })
-export class JobsComponent implements OnInit {
+export class JobsComponent implements OnInit, OnDestroy {
   jobs: Job[] = [];
   filteredJobs: Job[] = [];
   loading = false;
   error: string | null = null;
+  /** Shown after assign succeeds but FCM push was not delivered (no token, Firebase off, etc.) */
+  pushNotificationWarning: string | null = null;
   createJobError: string | null = null;
   
   // Modals
@@ -143,6 +163,20 @@ export class JobsComponent implements OnInit {
   insuranceAccounts: InsuranceAccount[] = [];
   insuranceAccountsLoading = false;
 
+  /** Map picker sub-modal for pickup / destination (above create-job modal) */
+  showLocationMapModal = false;
+  locationMapTarget: 'pickup' | 'destination' | null = null;
+  mapPickerLat: number | null = null;
+  mapPickerLng: number | null = null;
+
+  /** Driving distance & time pickup → destination, when both addresses are set */
+  pickupToDestinationMiles: number | null = null;
+  pickupToDestinationDurationText: string | null = null;
+  pickupToDestinationMilesLoading = false;
+  pickupToDestinationMilesError: string | null = null;
+  private routeDistanceGeneration = 0;
+  private pickupDestinationDistanceSub?: Subscription;
+
   constructor(
     private jobService: JobService,
     private vehicleService: VehicleService,
@@ -150,6 +184,9 @@ export class JobsComponent implements OnInit {
     private accountsService: AccountsService,
     private authService: AuthService,
     private paymentService: PaymentService,
+    private locationService: LocationService,
+    private ngZone: NgZone,
+    private cdr: ChangeDetectorRef,
     private fb: FormBuilder
   ) {
     // Client section
@@ -354,6 +391,140 @@ export class JobsComponent implements OnInit {
     this.loadVehicles();
     this.loadClients();
     this.loadDrivers();
+
+    const pickupCtrl = this.createJobForm.get('pickupLocation')!;
+    const destCtrl = this.createJobForm.get('destinationAddress')!;
+    this.pickupDestinationDistanceSub = combineLatest([
+      pickupCtrl.valueChanges.pipe(startWith(pickupCtrl.value)),
+      destCtrl.valueChanges.pipe(startWith(destCtrl.value))
+    ])
+      .pipe(
+        debounceTime(500),
+        distinctUntilChanged(
+          (a, b) =>
+            (a[0] ?? '').trim() === (b[0] ?? '').trim() &&
+            (a[1] ?? '').trim() === (b[1] ?? '').trim()
+        ),
+        switchMap(([p, d]) => {
+          const pu = (p ?? '').trim();
+          const de = (d ?? '').trim();
+          if (!pu || !de) {
+            this.ngZone.run(() => {
+              this.pickupToDestinationMiles = null;
+              this.pickupToDestinationDurationText = null;
+              this.pickupToDestinationMilesError = null;
+              this.pickupToDestinationMilesLoading = false;
+              this.routeDistanceGeneration += 1;
+              this.cdr.markForCheck();
+            });
+            return EMPTY;
+          }
+          return from(this.loadPickupToDestinationMiles(pu, de));
+        })
+      )
+      .subscribe();
+  }
+
+  ngOnDestroy(): void {
+    this.pickupDestinationDistanceSub?.unsubscribe();
+  }
+
+  private async loadPickupToDestinationMiles(pickup: string, dest: string): Promise<void> {
+    const gen = ++this.routeDistanceGeneration;
+    this.ngZone.run(() => {
+      this.pickupToDestinationMilesLoading = true;
+      this.pickupToDestinationMilesError = null;
+      this.cdr.markForCheck();
+    });
+
+    const apiKey = environment.mapsApiKey?.trim();
+    if (!apiKey) {
+      if (gen !== this.routeDistanceGeneration) {
+        return;
+      }
+      this.ngZone.run(() => {
+        this.pickupToDestinationMiles = null;
+        this.pickupToDestinationDurationText = null;
+        this.pickupToDestinationMilesError = 'Maps API key is not configured.';
+        this.pickupToDestinationMilesLoading = false;
+        this.cdr.markForCheck();
+      });
+      return;
+    }
+
+    try {
+      const loader = new Loader({ apiKey, version: 'weekly', libraries: ['places'] });
+      await loader.load();
+    } catch {
+      if (gen !== this.routeDistanceGeneration) {
+        return;
+      }
+      this.ngZone.run(() => {
+        this.pickupToDestinationMiles = null;
+        this.pickupToDestinationDurationText = null;
+        this.pickupToDestinationMilesError = 'Could not load Google Maps.';
+        this.pickupToDestinationMilesLoading = false;
+        this.cdr.markForCheck();
+      });
+      return;
+    }
+
+    if (gen !== this.routeDistanceGeneration) {
+      return;
+    }
+
+    const ds = new google.maps.DirectionsService();
+    await new Promise<void>((resolve) => {
+      ds.route(
+        {
+          origin: pickup,
+          destination: dest,
+          travelMode: google.maps.TravelMode.DRIVING,
+          unitSystem: google.maps.UnitSystem.IMPERIAL
+        },
+        (result, status) => {
+          this.ngZone.run(() => {
+            if (gen !== this.routeDistanceGeneration) {
+              resolve();
+              return;
+            }
+            this.pickupToDestinationMilesLoading = false;
+            if (status === google.maps.DirectionsStatus.OK && result?.routes?.[0]) {
+              let meters = 0;
+              let seconds = 0;
+              for (const leg of result.routes[0].legs) {
+                meters += leg.distance?.value ?? 0;
+                seconds += leg.duration?.value ?? 0;
+              }
+              const miles = meters * 0.000621371;
+              this.pickupToDestinationMiles = Math.round(miles * 100) / 100;
+              this.pickupToDestinationDurationText = this.formatDrivingDurationSeconds(seconds);
+              this.pickupToDestinationMilesError = null;
+            } else {
+              this.pickupToDestinationMiles = null;
+              this.pickupToDestinationDurationText = null;
+              this.pickupToDestinationMilesError = 'Could not compute driving distance.';
+            }
+            this.cdr.markForCheck();
+            resolve();
+          });
+        }
+      );
+    });
+  }
+
+  /** Sum of Directions leg durations → human-readable drive time */
+  private formatDrivingDurationSeconds(totalSeconds: number): string {
+    const totalMins = Math.max(1, Math.ceil(totalSeconds / 60));
+    if (totalMins < 60) {
+      return `${totalMins} min`;
+    }
+    const h = Math.floor(totalMins / 60);
+    const m = totalMins % 60;
+    if (m === 0) {
+      return `${h} h`;
+    }
+    return `${h} h ${m} min`;
   }
 
   loadJobs(): void {
@@ -413,7 +584,8 @@ export class JobsComponent implements OnInit {
     const params = new HttpParams()
       .set('pageNumber', '1')
       .set('pageSize', '100')
-      .set('isActive', 'true');
+      .set('isActive', 'true')
+      .set('availableForDispatchOnly', 'true');
     
     this.apiService.get<PagedResponse<User>>('users/drivers', params)
       .pipe(
@@ -525,7 +697,59 @@ export class JobsComponent implements OnInit {
     this.validateVehicleGroup();
   }
 
+  openLocationMapPicker(target: 'pickup' | 'destination'): void {
+    this.locationMapTarget = target;
+    this.mapPickerLat = null;
+    this.mapPickerLng = null;
+    this.locationService.getOfficeLocation().subscribe({
+      next: (o) => {
+        this.mapPickerLat = o.lat;
+        this.mapPickerLng = o.lng;
+        this.showLocationMapModal = true;
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.showLocationMapModal = true;
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  closeLocationMapModal(): void {
+    this.showLocationMapModal = false;
+    this.locationMapTarget = null;
+    this.mapPickerLat = null;
+    this.mapPickerLng = null;
+  }
+
+  onLocationMapPositionChange(pos: { lat: number; lng: number }): void {
+    const target = this.locationMapTarget;
+    if (typeof google === 'undefined' || !google.maps?.Geocoder) {
+      this.ngZone.run(() => {
+        this.closeLocationMapModal();
+        this.cdr.markForCheck();
+      });
+      return;
+    }
+    const geocoder = new google.maps.Geocoder();
+    geocoder.geocode({ location: pos }, (results, status) => {
+      this.ngZone.run(() => {
+        if (status === 'OK' && results?.[0]?.formatted_address) {
+          const addr = results[0].formatted_address;
+          if (target === 'pickup') {
+            this.createJobForm.patchValue({ pickupLocation: addr });
+          } else if (target === 'destination') {
+            this.createJobForm.patchValue({ destinationAddress: addr });
+          }
+        }
+        this.closeLocationMapModal();
+        this.cdr.markForCheck();
+      });
+    });
+  }
+
   closeCreateJobModal(): void {
+    this.closeLocationMapModal();
     this.showCreateJobModal = false;
     this.activeCreateJobTab = 'details';
     this.createJobForm.reset();
@@ -922,12 +1146,20 @@ export class JobsComponent implements OnInit {
           return of(null);
         })
       )
-      .subscribe(result => {
+      .subscribe((result: AssignDriverResponse | null) => {
         if (result) {
+          this.pushNotificationWarning =
+            result.notificationSent || !result.notificationMessage
+              ? null
+              : result.notificationMessage;
           this.closeAssignDriverModal();
           this.loadJobs();
         }
       });
+  }
+
+  clearPushNotificationWarning(): void {
+    this.pushNotificationWarning = null;
   }
 
   openJobDetails(job: Job): void {

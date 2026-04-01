@@ -17,8 +17,23 @@ export interface SystemSettings {
   stripeLiveSecretKeyConfigured: boolean;
   stripeLiveWebhookConfigured: boolean;
   stripeMode: 'test' | 'live';
+  preAuthorizationEnabled: boolean;
+  preAuthorizationMinAmount: number;
+  preAuthorizationMaxAmount: number;
+  fraudReviewScoreThreshold: number;
+  duplicateRequestWindowMinutes: number;
+  cancelFeeBeforeDispatchPercent: number;
+  cancelFeeAfterDispatchPercent: number;
+  cancelFeeAfterArrivalPercent: number;
+  officeLatitude: number | null;
+  officeLongitude: number | null;
   updatedAt: string;
   updatedBy: string;
+}
+
+export interface DispatchContact {
+  displayName: string;
+  phone: string | null;
 }
 
 export interface UpdateSystemSettingsRequest {
@@ -34,6 +49,16 @@ export interface UpdateSystemSettingsRequest {
   stripeLiveSecretKey?: string | null;
   stripeLiveWebhookSecret?: string | null;
   stripeMode: 'test' | 'live';
+  preAuthorizationEnabled: boolean;
+  preAuthorizationMinAmount: number;
+  preAuthorizationMaxAmount: number;
+  fraudReviewScoreThreshold: number;
+  duplicateRequestWindowMinutes: number;
+  cancelFeeBeforeDispatchPercent: number;
+  cancelFeeAfterDispatchPercent: number;
+  cancelFeeAfterArrivalPercent: number;
+  officeLatitude: number | null;
+  officeLongitude: number | null;
 }
 
 @Injectable({
@@ -48,5 +73,10 @@ export class SettingsService {
 
   updateSettings(payload: UpdateSystemSettingsRequest): Observable<SystemSettings> {
     return this.apiService.put<SystemSettings>('settings', payload);
+  }
+
+  /** Public: dispatch phone from appsettings (for driver app). */
+  getDispatchContact(): Observable<DispatchContact> {
+    return this.apiService.getPublic<DispatchContact>('settings/dispatch-contact');
   }
 }

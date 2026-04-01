@@ -9,7 +9,7 @@ public interface IFcmNotificationService
 
     Task UnregisterTokenAsync(string userId, string token, CancellationToken cancellationToken = default);
 
-    Task SendToUserAsync(
+    Task<FcmSendResult> SendToUserAsync(
         string userId,
         string title,
         string body,

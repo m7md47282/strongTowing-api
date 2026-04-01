@@ -1,0 +1,66 @@
+<div class="p-8 min-h-screen bg-white m-4 rounded-xl border border-gray-100 shadow-sm">
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">My jobs</h1>
+      <p class="text-sm text-gray-600">Jobs assigned to you</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <label class="text-sm text-gray-600" for="driver-status-filter">Status</label>
+      <select
+        id="driver-status-filter"
+        class="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+        [(ngModel)]="statusFilter"
+        (ngModelChange)="onFilterChange()"
+      >
+        @for (opt of statusOptions; track opt.value) {
+          <option [value]="opt.value">{{ opt.label }}</option>
+        }
+      </select>
+    </div>
+  </div>
+
+  @if (loading) {
+    <div class="flex justify-center py-16">
+      <div class="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+    </div>
+  } @else if (error) {
+    <div class="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-2">
+      <i class="fas fa-exclamation-circle text-red-600"></i>
+      <p class="text-red-800">{{ error }}</p>
+      <button type="button" (click)="loadJobs()" class="ml-auto text-sm underline text-red-700">Retry</button>
+    </div>
+  } @else if (!jobs.length) {
+    <p class="text-gray-600">No jobs match this filter.</p>
+  } @else {
+    <div class="overflow-x-auto rounded-lg border border-gray-200">
+      <table class="min-w-full divide-y divide-gray-200 text-sm">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-4 py-3 text-left font-semibold text-gray-700">Job</th>
+            <th class="px-4 py-3 text-left font-semibold text-gray-700">Status</th>
+            <th class="px-4 py-3 text-left font-semibold text-gray-700">Pickup</th>
+            <th class="px-4 py-3 text-left font-semibold text-gray-700">Vehicle</th>
+            <th class="px-4 py-3 text-right font-semibold text-gray-700"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100 bg-white">
+          @for (job of jobs; track job.id) {
+            <tr class="hover:bg-gray-50">
+              <td class="px-4 py-3 font-medium text-gray-900">#{{ job.id }}</td>
+              <td class="px-4 py-3">
+                <span class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium" [ngClass]="getStatusClass(job.status)">
+                  {{ formatStatus(job.status) }}
+                </span>
+              </td>
+              <td class="px-4 py-3 text-gray-700 max-w-xs truncate">{{ job.pickupLocation || '—' }}</td>
+              <td class="px-4 py-3 text-gray-700">{{ vehicleLabel(job) }}</td>
+              <td class="px-4 py-3 text-right">
+                <a routerLink="/driver/jobs/{{ job.id }}" class="text-primary font-medium hover:underline">Open</a>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

@@ -54,10 +54,78 @@
 
   @if (!loading) {
     @if (activeTab === 'general') {
-      <div class="bg-gray-50 border border-gray-200 rounded-xl p-6">
-        <h2 class="text-lg font-semibold text-gray-900 mb-2">General Settings</h2>
-        <p class="text-sm text-gray-600">This section is ready for future system-level configurations.</p>
-      </div>
+      <form [formGroup]="generalForm" (ngSubmit)="saveOfficeLocation()" class="space-y-6">
+        <div class="bg-white border border-gray-200 rounded-xl p-6">
+          <h2 class="text-lg font-semibold text-gray-900 mb-1">Dispatch office location</h2>
+          <p class="text-sm text-gray-600 mb-4">
+            Set where routes and distance estimates originate. This is used on the public map and for pricing calculations.
+            Leave both fields empty to use the fallback coordinates from server configuration (<code class="text-xs bg-gray-100 px-1 rounded">OfficeLocation</code> in appsettings).
+          </p>
+
+          <app-location-picker
+            mode="pick"
+            [latitude]="generalForm.get('officeLatitude')?.value ?? null"
+            [longitude]="generalForm.get('officeLongitude')?.value ?? null"
+            pickHint="Search for an address or click the map to set the dispatch office. Coordinates update below."
+            markerTitle="Office"
+            pickMapHeight="280px"
+            (positionChange)="onOfficePositionChange($event)"
+          ></app-location-picker>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Latitude</label>
+              <input
+                type="number"
+                step="any"
+                formControlName="officeLatitude"
+                class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="e.g. 38.9072"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Longitude</label>
+              <input
+                type="number"
+                step="any"
+                formControlName="officeLongitude"
+                class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="e.g. -77.0369"
+              />
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-3 mt-6">
+            @if (!isSuperAdmin()) {
+              <span class="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg">
+                Only Super Admin can save office location.
+              </span>
+            }
+            <button
+              type="button"
+              (click)="clearOfficeLocation()"
+              class="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
+              [disabled]="savingOffice || !isSuperAdmin()"
+            >
+              Clear (use appsettings)
+            </button>
+            <button
+              type="submit"
+              class="px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              [disabled]="savingOffice || !isSuperAdmin()"
+            >
+              @if (savingOffice) {
+                <span class="flex items-center gap-2">
+                  <i class="fas fa-spinner fa-spin"></i>
+                  Saving...
+                </span>
+              } @else {
+                <span>Save office location</span>
+              }
+            </button>
+          </div>
+        </div>
+      </form>
     }
 
     @if (activeTab === 'payments') {

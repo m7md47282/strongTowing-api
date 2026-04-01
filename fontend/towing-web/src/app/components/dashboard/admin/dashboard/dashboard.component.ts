@@ -237,6 +237,7 @@ export class DashboardComponent implements OnInit {
         .set('pageNumber', '1')
         .set('pageSize', '100')
         .set('isActive', 'true')
+        .set('availableForDispatchOnly', 'true')
       ).pipe(
         catchError(error => {
           console.error('Error loading drivers:', error);

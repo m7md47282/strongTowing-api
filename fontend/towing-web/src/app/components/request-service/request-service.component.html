@@ -176,10 +176,20 @@
                 id="pickupAddress" 
                 formControlName="pickupAddress" 
                 class="form-control"
-                placeholder="Street address where vehicle is located">
+                appPlacesAutocomplete
+                placeholder="Start typing — address autocomplete"
+                autocomplete="off">
               <div class="error-message" *ngIf="getFieldError('pickupAddress')">
                 {{ getFieldError('pickupAddress') }}
               </div>
+            </div>
+          </div>
+
+          <div class="form-row form-row--full" *ngIf="selectedService">
+            <div class="form-group form-group--full">
+              <label>Distance from our office</label>
+              <p class="field-hint">Search for your pickup address to see driving distance and estimated time (from our dispatch location).</p>
+              <app-location-picker mode="route" [compact]="true"></app-location-picker>
             </div>
           </div>
           
@@ -401,7 +411,9 @@
                 id="destinationAddress" 
                 formControlName="destinationAddress" 
                 class="form-control"
-                placeholder="Destination street address">
+                appPlacesAutocomplete
+                placeholder="Start typing — address autocomplete"
+                autocomplete="off">
             </div>
           </div>
           

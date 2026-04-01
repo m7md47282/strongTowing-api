@@ -1,0 +1,151 @@
+<div class="p-8 min-h-screen bg-white m-4 rounded-xl border border-gray-100 shadow-sm max-w-2xl">
+  <h1 class="text-2xl font-bold text-gray-900 mb-1">Profile</h1>
+  <p class="text-sm text-gray-600 mb-8">Your account details</p>
+
+  <div class="rounded-lg border border-gray-200 p-6 mb-8">
+    <h2 class="text-sm font-semibold text-gray-700 mb-4">Account</h2>
+    <dl class="space-y-3 text-sm">
+      <div>
+        <dt class="text-gray-500">Name</dt>
+        <dd class="text-gray-900 font-medium">{{ user?.fullName || '—' }}</dd>
+      </div>
+      <div>
+        <dt class="text-gray-500">Email</dt>
+        <dd class="text-gray-900 font-medium">{{ user?.email || '—' }}</dd>
+      </div>
+      <div>
+        <dt class="text-gray-500">Phone</dt>
+        <dd class="text-gray-900 font-medium">{{ user?.phoneNumber || '—' }}</dd>
+      </div>
+    </dl>
+  </div>
+
+  <div class="rounded-lg border border-gray-200 p-6 mb-8">
+    <h2 class="text-sm font-semibold text-gray-700 mb-2">Dispatch contact</h2>
+    <p class="text-xs text-gray-500 mb-3">Call the office when you need dispatch (configure phone in API appsettings DispatchContact).</p>
+    @if (dispatchContact; as dc) {
+      @if (dc.phone) {
+        <a
+          [href]="telHref(dc.phone)"
+          class="inline-flex items-center gap-2 text-primary font-medium hover:underline"
+        >
+          <i class="fas fa-phone"></i>
+          {{ dc.displayName }}: {{ dc.phone }}
+        </a>
+      } @else {
+        <p class="text-sm text-gray-600">No phone number set for dispatch.</p>
+      }
+    } @else {
+      <p class="text-sm text-gray-600">No dispatch phone configured.</p>
+    }
+  </div>
+
+  <div class="rounded-lg border border-gray-200 p-6 mb-8">
+    <h2 class="text-sm font-semibold text-gray-700 mb-2">Availability</h2>
+    <p class="text-xs text-gray-500 mb-3">
+      When you are <strong>off duty</strong>, dispatch cannot assign new jobs to you. Current jobs are unaffected.
+    </p>
+    @if (availabilityError) {
+      <div class="mb-3 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-800">
+        {{ availabilityError }}
+      </div>
+    }
+    <div class="flex flex-wrap items-center gap-3">
+      <button
+        type="button"
+        class="rounded-lg px-4 py-2 text-sm font-medium border transition-colors"
+        [class.bg-green-600]="onDuty"
+        [class.text-white]="onDuty"
+        [class.border-green-600]="onDuty"
+        [class.bg-white]="!onDuty"
+        [class.text-gray-700]="!onDuty"
+        [class.border-gray-300]="!onDuty"
+        [disabled]="availabilitySubmitting || onDuty"
+        (click)="setAvailability(true)"
+      >
+        On duty
+      </button>
+      <button
+        type="button"
+        class="rounded-lg px-4 py-2 text-sm font-medium border transition-colors"
+        [class.bg-amber-600]="!onDuty"
+        [class.text-white]="!onDuty"
+        [class.border-amber-600]="!onDuty"
+        [class.bg-white]="onDuty"
+        [class.text-gray-700]="onDuty"
+        [class.border-gray-300]="onDuty"
+        [disabled]="availabilitySubmitting || !onDuty"
+        (click)="setAvailability(false)"
+      >
+        Off duty
+      </button>
+      @if (availabilitySubmitting) {
+        <span class="text-sm text-gray-500">Saving…</span>
+      }
+    </div>
+  </div>
+
+  <div class="rounded-lg border border-gray-200 p-6">
+    <h2 class="text-sm font-semibold text-gray-700 mb-4">Change password</h2>
+
+    @if (passwordMessage) {
+      <div class="mb-4 rounded-lg bg-green-50 border border-green-200 px-3 py-2 text-sm text-green-800">
+        {{ passwordMessage }}
+      </div>
+    }
+    @if (passwordError) {
+      <div class="mb-4 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-800 whitespace-pre-wrap">
+        {{ passwordError }}
+      </div>
+    }
+
+    <form [formGroup]="passwordForm" (ngSubmit)="onChangePassword()" class="space-y-4">
+      <div>
+        <label class="block text-xs text-gray-600 mb-1" for="cur-pw">Current password</label>
+        <input
+          id="cur-pw"
+          type="password"
+          formControlName="currentPassword"
+          class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          autocomplete="current-password"
+        />
+        @if (isFieldInvalid('currentPassword')) {
+          <p class="text-xs text-red-600 mt-1">Required</p>
+        }
+      </div>
+      <div>
+        <label class="block text-xs text-gray-600 mb-1" for="new-pw">New password</label>
+        <input
+          id="new-pw"
+          type="password"
+          formControlName="newPassword"
+          class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          autocomplete="new-password"
+        />
+        @if (isFieldInvalid('newPassword')) {
+          <p class="text-xs text-red-600 mt-1">At least 6 characters</p>
+        }
+      </div>
+      <div>
+        <label class="block text-xs text-gray-600 mb-1" for="conf-pw">Confirm new password</label>
+        <input
+          id="conf-pw"
+          type="password"
+          formControlName="confirmPassword"
+          class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          autocomplete="new-password"
+        />
+        @if (isFieldInvalid('confirmPassword')) {
+          <p class="text-xs text-red-600 mt-1">Required</p>
+        }
+      </div>
+      <button
+        type="submit"
+        class="rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+        [disabled]="passwordSubmitting"
+      >
+        <span>{{ passwordSubmitting ? 'Saving…' : 'Update password' }}</span>
+      </button>
+    </form>
+  </div>
+</div>

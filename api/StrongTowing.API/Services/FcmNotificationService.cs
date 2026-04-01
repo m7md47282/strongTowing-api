@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using StrongTowing.Application.Abstractions;
 using StrongTowing.Core.Entities;
 using StrongTowing.Infrastructure.Data;
+using System.Text;
 
 namespace StrongTowing.API.Services;
 
@@ -57,7 +58,7 @@ public class FcmNotificationService : IFcmNotificationService
             .ExecuteDeleteAsync(cancellationToken);
     }
 
-    public async Task SendToUserAsync(
+    public async Task<FcmSendResult> SendToUserAsync(
         string userId,
         string title,
         string body,
@@ -66,8 +67,10 @@ public class FcmNotificationService : IFcmNotificationService
     {
         if (FirebaseApp.DefaultInstance == null)
         {
+            const string msg =
+                "Firebase push is not configured on the server. Set Firebase:ServiceAccountKeyPath in appsettings to a valid service account JSON file and restart the API.";
             _logger.LogWarning("Firebase Admin is not initialized; cannot send push notifications.");
-            return;
+            return FcmSendResult.Failed(msg);
         }
 
         var tokens = await _db.UserFcmTokens
@@ -78,35 +81,102 @@ public class FcmNotificationService : IFcmNotificationService
 
         if (tokens.Count == 0)
         {
-            return;
+            _logger.LogWarning("No FCM tokens registered for user {UserId}; push cannot be sent.", userId);
+            return FcmSendResult.Failed(
+                "This driver has no registered push devices. They must open the driver app in the browser, sign in, and allow notifications so a device token can be saved.");
         }
 
-        const int batchSize = 500;
-        for (var i = 0; i < tokens.Count; i += batchSize)
+        try
         {
-            var batch = tokens.Skip(i).Take(batchSize).ToList();
-            var message = new MulticastMessage
-            {
-                Tokens = batch,
-                Notification = new Notification
-                {
-                    Title = title,
-                    Body = body
-                }
-            };
+            var totalSuccess = 0;
+            string? lastError = null;
 
-            if (data is { Count: > 0 })
+            const int batchSize = 500;
+            for (var i = 0; i < tokens.Count; i += batchSize)
             {
-                message.Data = data.ToDictionary(kv => kv.Key, kv => kv.Value);
+                var batch = tokens.Skip(i).Take(batchSize).ToList();
+                var message = new MulticastMessage
+                {
+                    Tokens = batch,
+                    Notification = new Notification
+                    {
+                        Title = title,
+                        Body = body
+                    }
+                };
+
+                if (data is { Count: > 0 })
+                {
+                    message.Data = data.ToDictionary(kv => kv.Key, kv => kv.Value);
+                }
+
+                var response = await FirebaseMessaging.DefaultInstance.SendEachForMulticastAsync(message, cancellationToken);
+                totalSuccess += response.SuccessCount;
+
+                if (response.FailureCount > 0)
+                {
+                    await PruneInvalidTokensAsync(response, batch, cancellationToken);
+                    lastError = DescribeMulticastFailures(response, batch);
+                    if (response.SuccessCount == 0 && !string.IsNullOrEmpty(lastError))
+                    {
+                        _logger.LogWarning(
+                            "FCM multicast had failures for user {UserId}: {Detail}",
+                            userId,
+                            lastError);
+                    }
+                }
             }
 
-            var response = await FirebaseMessaging.DefaultInstance.SendEachForMulticastAsync(message, cancellationToken);
-
-            if (response.FailureCount > 0)
+            if (totalSuccess == 0)
             {
-                await PruneInvalidTokensAsync(response, batch, cancellationToken);
+                var detail = string.IsNullOrWhiteSpace(lastError)
+                    ? "Firebase rejected all delivery attempts for this user's tokens."
+                    : lastError;
+                return FcmSendResult.Failed($"Push notification could not be delivered: {detail}");
+            }
+
+            return FcmSendResult.Ok();
+        }
+        catch (FirebaseMessagingException ex)
+        {
+            _logger.LogError(ex, "FCM FirebaseMessagingException for user {UserId}", userId);
+            return FcmSendResult.Failed($"Firebase messaging error: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "FCM send failed for user {UserId}", userId);
+            return FcmSendResult.Failed($"Push notification failed: {ex.Message}");
+        }
+    }
+
+    private static string DescribeMulticastFailures(BatchResponse response, IReadOnlyList<string> batchTokens)
+    {
+        var sb = new StringBuilder();
+        for (var i = 0; i < response.Responses.Count; i++)
+        {
+            var r = response.Responses[i];
+            if (r.IsSuccess)
+            {
+                continue;
+            }
+
+            var tokenPreview = batchTokens.Count > i && batchTokens[i].Length > 12
+                ? batchTokens[i][..8] + "…"
+                : "(token)";
+            var err = r.Exception?.Message ?? r.Exception?.MessagingErrorCode?.ToString() ?? "unknown error";
+            if (sb.Length > 0)
+            {
+                sb.Append(' ');
+            }
+
+            sb.Append(tokenPreview).Append(": ").Append(err);
+            if (sb.Length > 500)
+            {
+                break;
             }
         }
+
+        return sb.Length > 0 ? sb.ToString() : string.Empty;
     }
 
     private async Task PruneInvalidTokensAsync(

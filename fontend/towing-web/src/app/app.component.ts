@@ -4,6 +4,8 @@ import { filter, Subscription } from 'rxjs';
 import { HeaderComponent } from './components/header/header.component';
 import { FooterComponent } from './components/footer/footer.component';
 import { AuthService } from './services/auth.service';
+import { PushNotificationsService } from './services/push-notifications.service';
+import { InAppNotificationsService } from './services/in-app-notifications.service';
 
 declare let gtag: Function;
 
@@ -26,10 +28,15 @@ export class AppComponent implements OnInit, OnDestroy {
 
   constructor(
     private router: Router,
-    private authService: AuthService
+    private authService: AuthService,
+    private pushNotifications: PushNotificationsService,
+    private inAppNotifications: InAppNotificationsService
   ) {}
 
   ngOnInit() {
+    this.inAppNotifications.start();
+    this.pushNotifications.start();
+
     // Check initial route
     this.currentRoute = this.router.url;
     this.updateHeaderFooterVisibility();

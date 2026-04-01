@@ -1,8 +1,25 @@
 import { Injectable } from '@angular/core';
 import { Observable, throwError } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { catchError, map } from 'rxjs/operators';
 import { ApiService } from './api.service';
+import { AuthService } from './auth.service';
+import { RoleId } from '../constants/user-roles.constants';
 import { HttpParams } from '@angular/common/http';
+import { environment } from '../../environments/environment';
+
+/** Full URL for a path served from the API host (e.g. job photo under wwwroot). */
+export function resolvePublicAssetUrl(path: string): string {
+  if (!path) return '';
+  if (path.startsWith('http://') || path.startsWith('https://')) return path;
+  const origin = environment.apiUrl.replace(/\/api\/?$/, '').replace(/\/$/, '');
+  return `${origin}${path.startsWith('/') ? '' : '/'}${path}`;
+}
+
+export interface JobPhotoItem {
+  id: number;
+  url: string;
+  uploadedAt: string;
+}
 
 export interface Job {
   id: number;
@@ -74,6 +91,7 @@ export interface Job {
   invoiceCharges?: InvoiceCharges;
   
   photoCount?: number;
+  photos?: JobPhotoItem[];
   createdAt: string;
   completedAt?: string | null;
   statusUpdatedById?: string | null;
@@ -185,6 +203,13 @@ export interface AssignDriverRequest {
   driverId: string;
 }
 
+/** Response from POST jobs/{id}/assign — assignment always succeeds when 200; push may be skipped. */
+export interface AssignDriverResponse {
+  job: Job;
+  notificationSent: boolean;
+  notificationMessage?: string | null;
+}
+
 export interface UpdateJobStatusRequest {
   status: 'Pending' | 'Assigned' | 'OnRoute' | 'InProgress' | 'ReadyToRelease' | 'Completed';
 }
@@ -193,9 +218,18 @@ export interface UpdateJobStatusRequest {
   providedIn: 'root'
 })
 export class JobService {
-  constructor(private apiService: ApiService) {}
+  constructor(
+    private apiService: ApiService,
+    private authService: AuthService
+  ) {}
 
+  /** Full job list (dispatch/admin only). Drivers are routed to {@link getMyJobs} so they never see other drivers' jobs. */
   getAllJobs(status?: string): Observable<Job[]> {
+    const user = this.authService.getCurrentUser();
+    if (user && Number(user.roleId) === RoleId.Driver) {
+      return this.getMyJobs(status);
+    }
+
     let params = new HttpParams();
     if (status) {
       params = params.set('status', status);
@@ -203,6 +237,20 @@ export class JobService {
     return this.apiService.get<Job[]>('jobs', params).pipe(
       catchError(error => {
         console.error('Get jobs error:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  /** Jobs assigned to the current driver (Driver role only). */
+  getMyJobs(status?: string): Observable<Job[]> {
+    let params = new HttpParams();
+    if (status) {
+      params = params.set('status', status);
+    }
+    return this.apiService.get<Job[]>('jobs/mine', params).pipe(
+      catchError(error => {
+        console.error('Get my jobs error:', error);
         return throwError(() => error);
       })
     );
@@ -226,8 +274,8 @@ export class JobService {
     );
   }
 
-  assignDriver(jobId: number, driverId: string): Observable<Job> {
-    return this.apiService.post<Job>(`jobs/${jobId}/assign`, { driverId }).pipe(
+  assignDriver(jobId: number, driverId: string): Observable<AssignDriverResponse> {
+    return this.apiService.post<AssignDriverResponse>(`jobs/${jobId}/assign`, { driverId }).pipe(
       catchError(error => {
         console.error('Assign driver error:', error);
         return throwError(() => error);
@@ -239,6 +287,18 @@ export class JobService {
     return this.apiService.put(`jobs/${jobId}/status`, status).pipe(
       catchError(error => {
         console.error('Update job status error:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  uploadJobPhoto(jobId: number, file: File): Observable<Job> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.apiService.uploadFile(`jobs/${jobId}/photos`, formData).pipe(
+      map((response) => response as Job),
+      catchError((error) => {
+        console.error('Upload job photo error:', error);
         return throwError(() => error);
       })
     );

@@ -69,7 +69,8 @@ export class DriverAssignmentsComponent implements OnInit {
     const params = new HttpParams()
       .set('pageNumber', '1')
       .set('pageSize', '100')
-      .set('isActive', 'true');
+      .set('isActive', 'true')
+      .set('availableForDispatchOnly', 'true');
 
     forkJoin({
       drivers: this.apiService.get<PagedResponse<User>>('users/drivers', params).pipe(

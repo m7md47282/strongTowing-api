@@ -11,6 +11,11 @@ import { JobsComponent } from './components/dashboard/dispatcher/jobs/jobs.compo
 import { VehiclesComponent } from './components/dashboard/dispatcher/vehicles/vehicles.component';
 import { PaymentsComponent } from './components/dashboard/dispatcher/payments/payments.component';
 import { DriverComponent } from './components/dashboard/driver/driver.component';
+import { DriverHomeComponent } from './components/dashboard/driver/driver-home/driver-home.component';
+import { DriverJobsComponent } from './components/dashboard/driver/driver-jobs/driver-jobs.component';
+import { DriverJobDetailComponent } from './components/dashboard/driver/driver-job-detail/driver-job-detail.component';
+import { DriverProfileComponent } from './components/dashboard/driver/driver-profile/driver-profile.component';
+import { DriverEarningsComponent } from './components/dashboard/driver/driver-earnings/driver-earnings.component';
 import { CustomerComponent } from './components/dashboard/customer/customer.component';
 import { ServicesComponent } from './components/services/services.component';
 import { AboutComponent } from './components/about/about.component';
@@ -23,6 +28,7 @@ import { DriverAssignmentsComponent } from './components/dashboard/shared/driver
 import { SettingsComponent } from './components/dashboard/admin/settings/settings.component';
 import { FinancialReportComponent } from './components/dashboard/admin/reports/financial-report/financial-report.component';
 import { AccountsComponent } from './components/dashboard/admin/accounts/accounts.component';
+import { LocationPickerComponent } from './components/shared/location-picker/location-picker.component';
 
 export const routes: Routes = [
   { 
@@ -113,11 +119,18 @@ export const routes: Routes = [
       { path: 'payments', component: PaymentsComponent }
     ]
   },
-  { 
-    path: 'driver', 
+  {
+    path: 'driver',
     component: DriverComponent,
-    canActivate: [roleGuard],
-    data: { roles: [RoleId.Driver, RoleId.SuperAdmin, RoleId.Admin] }
+    canActivate: [roleGuard, authGuard],
+    data: { roles: [RoleId.Driver, RoleId.SuperAdmin, RoleId.Admin] },
+    children: [
+      { path: '', component: DriverHomeComponent },
+      { path: 'jobs', component: DriverJobsComponent },
+      { path: 'jobs/:id', component: DriverJobDetailComponent },
+      { path: 'profile', component: DriverProfileComponent },
+      { path: 'earnings', component: DriverEarningsComponent }
+    ]
   },
   { 
     path: 'customer', 
@@ -130,5 +143,6 @@ export const routes: Routes = [
     path: 'request-service',
     component: RequestServiceComponent
   },
+  { path: 'map-calculator', component: LocationPickerComponent },
   { path: '**', redirectTo: '' }
 ];
