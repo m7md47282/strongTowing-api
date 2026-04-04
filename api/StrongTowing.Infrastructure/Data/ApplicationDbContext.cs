@@ -108,6 +108,10 @@ namespace StrongTowing.Infrastructure.Data
                 .WithMany()
                 .HasForeignKey(dp => dp.DriverId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<DriverPayroll>()
+                .HasIndex(dp => new { dp.DriverId, dp.PayPeriodStart, dp.PayPeriodEnd })
+                .IsUnique();
             
             // SystemSettings - single row table
             builder.Entity<SystemSettings>()

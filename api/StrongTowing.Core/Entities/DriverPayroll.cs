@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations.Schema;
+using StrongTowing.Core.Constants;
 
 namespace StrongTowing.Core.Entities
 {
@@ -26,9 +27,12 @@ namespace StrongTowing.Core.Entities
         public decimal CashCollections { get; set; } = 0;
         [Column(TypeName = "decimal(18,2)")]
         public decimal NetPay { get; set; } = 0;
+
+        /// <summary>Sum of per-job (CompletedAt − CreatedAt) minutes in period; operational estimate only (see PayrollBusinessRules.JobTimeDisclaimer).</summary>
+        public int TotalJobMinutes { get; set; }
         
         // Status
-        public string Status { get; set; } = "Draft"; // 'Draft', 'Finalized', 'Paid'
+        public string Status { get; set; } = DriverPayrollStatuses.Draft;
         
         // Metadata
         public DateTime? FinalizedAt { get; set; }

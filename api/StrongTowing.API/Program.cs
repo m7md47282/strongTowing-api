@@ -116,6 +116,7 @@ builder.Services.AddScoped<IEncryptionService, EncryptionService>();
 builder.Services.AddScoped<IPaymentProvider, StripePaymentProvider>();
 builder.Services.AddScoped<IFcmNotificationService, FcmNotificationService>();
 builder.Services.AddScoped<IPricingCalculatorService, PricingCalculatorService>();
+builder.Services.AddScoped<IDriverPayrollService, DriverPayrollService>();
 builder.Services.AddSingleton<INhtsaVehicleCatalogSyncService, NhtsaVehicleCatalogSyncService>();
 
 // 7. Add Controllers with validation
