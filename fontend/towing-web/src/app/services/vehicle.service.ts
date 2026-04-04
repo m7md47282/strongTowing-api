@@ -1,10 +1,12 @@
 import { Injectable } from '@angular/core';
+import { HttpParams } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { ApiService } from './api.service';
 
 export interface Vehicle {
   id: number;
+  ownerId?: string;
   vin: string;
   make: string;
   model: string;
@@ -26,8 +28,9 @@ export interface CreateVehicleRequest {
 export class VehicleService {
   constructor(private apiService: ApiService) {}
 
-  getAllVehicles(): Observable<Vehicle[]> {
-    return this.apiService.get<Vehicle[]>('vehicles').pipe(
+  getAllVehicles(ownerId?: string): Observable<Vehicle[]> {
+    const params = ownerId ? new HttpParams().set('ownerId', ownerId) : undefined;
+    return this.apiService.get<Vehicle[]>('vehicles', params).pipe(
       catchError(error => {
         console.error('Get vehicles error:', error);
         return throwError(() => error);

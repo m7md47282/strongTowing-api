@@ -205,6 +205,20 @@
                   @if (isJobEligibleForPaymentLink(job)) {
                     <button
                       type="button"
+                      (click)="openCardGatewayForJob(job)"
+                      [disabled]="quickPaySubmittingJobId === job.id"
+                      class="inline-flex items-center gap-1 rounded-md border border-indigo-200 bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-800 hover:bg-indigo-100 disabled:opacity-60 disabled:cursor-not-allowed flex-shrink-0"
+                      title="Open Stripe card payment gateway"
+                    >
+                      @if (quickPaySubmittingJobId === job.id) {
+                        <i class="fas fa-spinner fa-spin"></i>
+                      } @else {
+                        <i class="fas fa-credit-card"></i>
+                      }
+                      <span class="hidden sm:inline">Pay card</span>
+                    </button>
+                    <button
+                      type="button"
                       (click)="openPaymentLinkModal(job)"
                       class="inline-flex items-center gap-1 rounded-md border border-teal-200 bg-teal-50 px-2 py-1 text-xs font-medium text-teal-800 hover:bg-teal-100 flex-shrink-0"
                       title="Create Stripe payment link for the client"
@@ -404,7 +418,7 @@
             <div class="border-b border-gray-200 pb-4 ">
               <h3 class="text-lg font-semibold text-gray-900 mb-4">Company & Account</h3>
               <div class="space-y-4 flex items-end gap-2">
-                <div class="w-1/3">
+                <div class="w-1/3 h-[120px]">
                   <label class="block text-sm font-medium text-gray-700 mb-2">Company Name</label>
                   <input
                     type="text"
@@ -415,7 +429,7 @@
                     [readonly]="true"
                   />
                 </div>
-                <div class="w-1/3">
+                <div class="w-1/3 h-[120px]">
                   <label class="block text-sm font-medium text-gray-700 mb-2">Account</label>
                   <select
                     formControlName="account"
@@ -424,7 +438,7 @@
                   >
                     <option value="">Select an account</option>
                     @for (acc of insuranceAccounts; track acc.id) {
-                      <option [value]="acc.name">{{ insuranceAccountOptionLabel(acc) }}</option>
+                      <option [value]="acc.id">{{ insuranceAccountOptionLabel(acc) }}</option>
                     }
                   </select>
                   @if (insuranceAccountsLoading) {
@@ -436,7 +450,7 @@
                     </p>
                   }
                 </div>
-                <div class="w-1/3">
+                <div class="w-1/3 h-[120px]">
                   <label class="block text-sm font-medium text-gray-700 mb-2">Company Override</label>
                   <select
                     formControlName="companyOverride"
@@ -576,7 +590,7 @@
                   } @else if (pickupToDestinationMiles !== null) {
                     <span class="text-gray-800">
                       <i class="fas fa-road mr-1 text-gray-500"></i>
-                      Pickup → destination:
+                      Pickup → drop-off:
                       <strong class="ml-1">{{ pickupToDestinationMiles | number: '1.2-2' }} mi</strong>
                       @if (pickupToDestinationDurationText) {
                         <span class="text-gray-600 mx-1">·</span>
@@ -601,9 +615,16 @@
                   <select 
                     formControlName="serviceType" 
                     [class.border-red-500]="showCreateJobFieldError(createJobForm.get('serviceType'))"
+                    [disabled]="servicePricingProfilesLoading || serviceTypes.length === 0"
                     class="w-full px-4 h-[42px] py-2 border rounded-lg focus:ring-2 focus:ring-primary"
                   >
-                    <option value="">Select service type</option>
+                    @if (servicePricingProfilesLoading) {
+                      <option value="">Loading services...</option>
+                    } @else if (serviceTypes.length === 0) {
+                      <option value="">No services configured</option>
+                    } @else {
+                      <option value="">Select service type</option>
+                    }
                     @for (type of serviceTypes; track type) {
                       <option [value]="type">{{ type }}</option>
                     }
@@ -613,21 +634,151 @@
                       <i class="fas fa-exclamation-circle mr-1"></i>Service type is required
                     </p>
                   }
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">ETA</label>
-                  <input
-                    type="datetime-local"
-                    formControlName="eta"
-                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary"
-                  />
+                  @if (getSelectedServicePricingProfile(); as pricingProfile) {
+                    <p class="mt-1 text-xs text-gray-600">
+                      Service defaults applied: Loaded {{ pricingProfile.loadedPrice | number:'1.2-2' }}, Deadhead {{ pricingProfile.deadHeadPrice | number:'1.2-2' }}.
+                    </p>
+                  }
                 </div>
               </div>
             </div>
             </div>
           }
 
-          <!-- Step 3: Vehicle Information -->
+          <!-- Step 3: Client Information -->
+          @if (activeCreateJobTab === 'details') {
+            <div class="space-y-6 animate-fadeIn">
+              <div class="mb-6">
+                <h3 class="text-xl font-bold text-gray-900">Client Information</h3>
+                <p class="text-sm text-gray-600">Select or create client details</p>
+              </div>
+
+            <!-- Client Section -->
+            <div class="border-b border-gray-200 pb-4 " formGroupName="client">
+              <h3 class="text-lg font-semibold text-gray-900 mb-4">Client Information</h3>
+              
+              <!-- Client Mode Toggle -->
+              <div class="mb-4">
+                <div class="flex gap-4">
+                  <label class="flex items-center cursor-pointer">
+                    <input
+                      type="radio"
+                      [checked]="useExistingClient"
+                      (change)="useExistingClient = true; onClientModeChange()"
+                      class="mr-2"
+                    />
+                    <span class="text-sm font-medium text-gray-700">Use Existing Client</span>
+                  </label>
+                  <label class="flex items-center cursor-pointer">
+                    <input
+                      type="radio"
+                      [checked]="!useExistingClient"
+                      (change)="useExistingClient = false; onClientModeChange()"
+                      class="mr-2"
+                    />
+                    <span class="text-sm font-medium text-gray-700">Create New Client</span>
+                  </label>
+                </div>
+              </div>
+
+              @if (useExistingClient) {
+                <!-- Existing Client Selection -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Select Client <span class="text-red-500">*</span>
+                  </label>
+                  <select 
+                    formControlName="clientId" 
+                    [class.border-red-500]="showCreateJobFieldError(createJobForm.get('client.clientId'))"
+                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary"
+                  >
+                    <option value="">Select a client</option>
+                    @for (client of clients; track client.id) {
+                      <option [value]="client.id">
+                        {{ client.fullName }} - {{ client.phoneNumber || client.email || 'N/A' }}
+                      </option>
+                    }
+                  </select>
+                  @if (showCreateJobFieldError(createJobForm.get('client.clientId'))) {
+                    <p class="mt-1 text-sm text-red-600">
+                      <i class="fas fa-exclamation-circle mr-1"></i>Client selection is required
+                    </p>
+                  }
+                </div>
+              } @else {
+                <!-- New Client Form -->
+                <div class="space-y-4">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                      Phone Number <span class="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      formControlName="clientPhoneNumber"
+                      placeholder="+1234567890"
+                      [class.border-red-500]="showCreateJobFieldError(createJobForm.get('client.clientPhoneNumber'))"
+                      class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary"
+                    />
+                    @if (showCreateJobFieldError(createJobForm.get('client.clientPhoneNumber'))) {
+                      <p class="mt-1 text-sm text-red-600">
+                        <i class="fas fa-exclamation-circle mr-1"></i>
+                        @if (createJobForm.get('client.clientPhoneNumber')?.hasError('required')) {
+                          Phone number is required
+                        } @else {
+                          Please enter a valid phone number
+                        }
+                      </p>
+                    }
+                    <p class="mt-1 text-xs text-gray-500">
+                      <i class="fas fa-info-circle mr-1"></i>
+                      Phone number is used as the unique identifier for this client
+                    </p>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                      Full Name <span class="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      formControlName="clientFullName"
+                      placeholder="John Doe"
+                      [class.border-red-500]="showCreateJobFieldError(createJobForm.get('client.clientFullName'))"
+                      class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary"
+                    />
+                    @if (showCreateJobFieldError(createJobForm.get('client.clientFullName'))) {
+                      <p class="mt-1 text-sm text-red-600">
+                        <i class="fas fa-exclamation-circle mr-1"></i>
+                        @if (createJobForm.get('client.clientFullName')?.hasError('required')) {
+                          Full name is required
+                        } @else if (createJobForm.get('client.clientFullName')?.hasError('minlength')) {
+                          Full name must be at least 2 characters
+                        }
+                      </p>
+                    }
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                    <input
+                      type="email"
+                      formControlName="clientEmail"
+                      placeholder="client@example.com (optional)"
+                      [class.border-red-500]="showCreateJobFieldError(createJobForm.get('client.clientEmail'))"
+                      class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary"
+                    />
+                    @if (showCreateJobFieldError(createJobForm.get('client.clientEmail'))) {
+                      <p class="mt-1 text-sm text-red-600">
+                        <i class="fas fa-exclamation-circle mr-1"></i>
+                        Please enter a valid email address
+                      </p>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+            </div>
+          }
+
+          <!-- Step 4: Vehicle Information -->
           @if (activeCreateJobTab === 'details') {
             <div class="space-y-6 animate-fadeIn ">
               <div class="mb-6">
@@ -672,15 +823,25 @@
                   <select 
                     formControlName="vehicleId" 
                     [class.border-red-500]="showCreateJobFieldError(createJobForm.get('vehicle.vehicleId'))"
+                    [disabled]="useExistingClient && !createJobForm.get('client.clientId')?.value"
                     class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary"
                   >
-                    <option value="">Select a vehicle</option>
-                    @for (vehicle of vehicles; track vehicle.id) {
+                    @if (useExistingClient && !createJobForm.get('client.clientId')?.value) {
+                      <option value="">Select a client first</option>
+                    } @else {
+                      <option value="">Select a vehicle</option>
+                    }
+                    @for (vehicle of filteredVehicles; track vehicle.id) {
                       <option [value]="vehicle.id">
                         {{ vehicle.year }} {{ vehicle.make }} {{ vehicle.model }} - {{ vehicle.vin }}
                       </option>
                     }
                   </select>
+                  @if (useExistingClient && !createJobForm.get('client.clientId')?.value) {
+                    <p class="mt-1 text-sm text-gray-500">
+                      Select a client first to load that client's vehicles.
+                    </p>
+                  }
                   @if (showCreateJobFieldError(createJobForm.get('vehicle.vehicleId'))) {
                     <p class="mt-1 text-sm text-red-600">
                       <i class="fas fa-exclamation-circle mr-1"></i>Vehicle selection is required
@@ -692,33 +853,47 @@
                 <div class="space-y-4">
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
-                      VIN <span class="text-red-500">*</span>
+                      VIN <span class="text-gray-500 font-normal">(optional)</span>
                     </label>
                     <input
                       type="text"
                       formControlName="vehicleVin"
                       placeholder="1HGBH41JXMN109186"
-                      [class.border-red-500]="showCreateJobFieldError(createJobForm.get('vehicle.vehicleVin'))"
                       class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary"
                     />
-                    @if (showCreateJobFieldError(createJobForm.get('vehicle.vehicleVin'))) {
-                      <p class="mt-1 text-sm text-red-600">
-                        <i class="fas fa-exclamation-circle mr-1"></i>VIN is required
-                      </p>
-                    }
                   </div>
                   <div class="grid grid-cols-2 gap-4">
                     <div>
                       <label class="block text-sm font-medium text-gray-700 mb-2">
                         Make <span class="text-red-500">*</span>
                       </label>
-                      <input
-                        type="text"
+                      <select
                         formControlName="vehicleMake"
-                        placeholder="Honda"
                         [class.border-red-500]="showCreateJobFieldError(createJobForm.get('vehicle.vehicleMake'))"
-                        class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary"
-                      />
+                        [class.pointer-events-none]="vehicleMakesLoading"
+                        [class.opacity-60]="vehicleMakesLoading"
+                        class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary bg-white"
+                      >
+                        <option value="">
+                          {{ vehicleMakesLoading ? 'Loading makes…' : 'Select make' }}
+                        </option>
+                        @for (m of vehicleMakes; track m) {
+                          <option [value]="m">{{ m }}</option>
+                        }
+                      </select>
+                      @if (vehicleMakesError) {
+                        <p class="mt-1 text-sm text-amber-700">
+                          {{ vehicleMakesError }}
+                          <button
+                            type="button"
+                            class="ml-1 underline text-primary"
+                            (click)="retryVehicleMakes()"
+                          >
+                            Retry
+                          </button>
+                        </p>
+                      }
+                      <p class="mt-1 text-xs text-gray-500">US-market list (NHTSA).</p>
                       @if (showCreateJobFieldError(createJobForm.get('vehicle.vehicleMake'))) {
                         <p class="mt-1 text-sm text-red-600">
                           <i class="fas fa-exclamation-circle mr-1"></i>Make is required
@@ -729,13 +904,44 @@
                       <label class="block text-sm font-medium text-gray-700 mb-2">
                         Model <span class="text-red-500">*</span>
                       </label>
-                      <input
-                        type="text"
+                      <select
                         formControlName="vehicleModel"
-                        placeholder="Civic"
                         [class.border-red-500]="showCreateJobFieldError(createJobForm.get('vehicle.vehicleModel'))"
-                        class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary"
-                      />
+                        [class.pointer-events-none]="!createJobForm.get('vehicle.vehicleMake')?.value || (vehicleModelsLoading && vehicleModels.length === 0)"
+                        [class.opacity-60]="!createJobForm.get('vehicle.vehicleMake')?.value || (vehicleModelsLoading && vehicleModels.length === 0)"
+                        class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary bg-white"
+                      >
+                        <option value="">
+                          @if (!createJobForm.get('vehicle.vehicleMake')?.value) {
+                            Select a make first
+                          } @else if (vehicleModelsLoading && vehicleModels.length === 0) {
+                            Loading models…
+                          } @else {
+                            Select model
+                          }
+                        </option>
+                        @for (md of vehicleModels; track md) {
+                          <option [value]="md">{{ md }}</option>
+                        }
+                      </select>
+                      @if (createJobForm.get('vehicle.vehicleMake')?.value && vehicleModelsTotalCount > 0) {
+                        <p class="mt-1 text-xs text-gray-500">
+                          Showing {{ vehicleModels.length }} of {{ vehicleModelsTotalCount }} models
+                          @if (vehicleModelsHasMore) {
+                            <span class="text-gray-400"> — load more if yours is not listed</span>
+                          }
+                        </p>
+                      }
+                      @if (vehicleModelsHasMore && createJobForm.get('vehicle.vehicleMake')?.value) {
+                        <button
+                          type="button"
+                          (click)="loadMoreVehicleModels()"
+                          [disabled]="vehicleModelsLoadingMore"
+                          class="mt-2 text-sm text-primary hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {{ vehicleModelsLoadingMore ? 'Loading more…' : 'Load more models' }}
+                        </button>
+                      }
                       @if (showCreateJobFieldError(createJobForm.get('vehicle.vehicleModel'))) {
                         <p class="mt-1 text-sm text-red-600">
                           <i class="fas fa-exclamation-circle mr-1"></i>Model is required
@@ -880,139 +1086,6 @@
             </div>
           }
 
-          <!-- Step 4: Client Information -->
-          @if (activeCreateJobTab === 'details') {
-            <div class="space-y-6 animate-fadeIn">
-              <div class="mb-6">
-                <h3 class="text-xl font-bold text-gray-900">Client Information</h3>
-                <p class="text-sm text-gray-600">Select or create client details</p>
-              </div>
-
-            <!-- Client Section -->
-            <div class="border-b border-gray-200 pb-4 " formGroupName="client">
-              <h3 class="text-lg font-semibold text-gray-900 mb-4">Client Information</h3>
-              
-              <!-- Client Mode Toggle -->
-              <div class="mb-4">
-                <div class="flex gap-4">
-                  <label class="flex items-center cursor-pointer">
-                    <input
-                      type="radio"
-                      [checked]="useExistingClient"
-                      (change)="useExistingClient = true; onClientModeChange()"
-                      class="mr-2"
-                    />
-                    <span class="text-sm font-medium text-gray-700">Use Existing Client</span>
-                  </label>
-                  <label class="flex items-center cursor-pointer">
-                    <input
-                      type="radio"
-                      [checked]="!useExistingClient"
-                      (change)="useExistingClient = false; onClientModeChange()"
-                      class="mr-2"
-                    />
-                    <span class="text-sm font-medium text-gray-700">Create New Client</span>
-                  </label>
-                </div>
-              </div>
-
-              @if (useExistingClient) {
-                <!-- Existing Client Selection -->
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">
-                    Select Client <span class="text-red-500">*</span>
-                  </label>
-                  <select 
-                    formControlName="clientId" 
-                    [class.border-red-500]="showCreateJobFieldError(createJobForm.get('client.clientId'))"
-                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary"
-                  >
-                    <option value="">Select a client</option>
-                    @for (client of clients; track client.id) {
-                      <option [value]="client.id">
-                        {{ client.fullName }} - {{ client.phoneNumber || client.email || 'N/A' }}
-                      </option>
-                    }
-                  </select>
-                  @if (showCreateJobFieldError(createJobForm.get('client.clientId'))) {
-                    <p class="mt-1 text-sm text-red-600">
-                      <i class="fas fa-exclamation-circle mr-1"></i>Client selection is required
-                    </p>
-                  }
-                </div>
-              } @else {
-                <!-- New Client Form -->
-                <div class="space-y-4">
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                      Phone Number <span class="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="tel"
-                      formControlName="clientPhoneNumber"
-                      placeholder="+1234567890"
-                      [class.border-red-500]="showCreateJobFieldError(createJobForm.get('client.clientPhoneNumber'))"
-                      class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary"
-                    />
-                    @if (showCreateJobFieldError(createJobForm.get('client.clientPhoneNumber'))) {
-                      <p class="mt-1 text-sm text-red-600">
-                        <i class="fas fa-exclamation-circle mr-1"></i>
-                        @if (createJobForm.get('client.clientPhoneNumber')?.hasError('required')) {
-                          Phone number is required
-                        } @else {
-                          Please enter a valid phone number
-                        }
-                      </p>
-                    }
-                    <p class="mt-1 text-xs text-gray-500">
-                      <i class="fas fa-info-circle mr-1"></i>
-                      Phone number is used as the unique identifier for this client
-                    </p>
-                  </div>
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                      Full Name <span class="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      formControlName="clientFullName"
-                      placeholder="John Doe"
-                      [class.border-red-500]="showCreateJobFieldError(createJobForm.get('client.clientFullName'))"
-                      class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary"
-                    />
-                    @if (showCreateJobFieldError(createJobForm.get('client.clientFullName'))) {
-                      <p class="mt-1 text-sm text-red-600">
-                        <i class="fas fa-exclamation-circle mr-1"></i>
-                        @if (createJobForm.get('client.clientFullName')?.hasError('required')) {
-                          Full name is required
-                        } @else if (createJobForm.get('client.clientFullName')?.hasError('minlength')) {
-                          Full name must be at least 2 characters
-                        }
-                      </p>
-                    }
-                  </div>
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                    <input
-                      type="email"
-                      formControlName="clientEmail"
-                      placeholder="client@example.com (optional)"
-                      [class.border-red-500]="showCreateJobFieldError(createJobForm.get('client.clientEmail'))"
-                      class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary"
-                    />
-                    @if (showCreateJobFieldError(createJobForm.get('client.clientEmail'))) {
-                      <p class="mt-1 text-sm text-red-600">
-                        <i class="fas fa-exclamation-circle mr-1"></i>
-                        Please enter a valid email address
-                      </p>
-                    }
-                  </div>
-                </div>
-              }
-            </div>
-            </div>
-          }
-
           <!-- Step 5: Assignment & Notes -->
           @if (activeCreateJobTab === 'details') {
             <div class="space-y-6 animate-fadeIn ">
@@ -1105,13 +1178,27 @@
             <!-- Invoice Charges Section -->
             <div class="border-b border-gray-200 pb-4" formGroupName="invoiceCharges">
               <h3 class="text-lg font-semibold text-gray-900 mb-4">Invoice Charges</h3>
+
+              <div class="mb-4 rounded-lg border border-gray-200 bg-slate-50 px-4 py-3 text-sm text-gray-700">
+                <p class="font-medium text-gray-900 mb-1">Dispatch office (point A)</p>
+                @if (dispatchOfficeLoadError) {
+                  <p class="text-amber-800">{{ dispatchOfficeLoadError }}</p>
+                } @else if (dispatchOfficeCoords) {
+                  <p>
+                    <span class="font-mono text-gray-800">{{ dispatchOfficeCoords.lat | number:'1.4-4' }}, {{ dispatchOfficeCoords.lng | number:'1.4-4' }}</span>
+                    <span class="text-gray-600"> — Used for office → pickup and drop-off → office when you calculate price.</span>
+                  </p>
+                }
+                <p class="text-xs text-gray-500 mt-1">Set in Admin → Settings → Dispatch office location.</p>
+              </div>
               
-              <!-- Unloaded/Enroute Mileage -->
+              <!-- Office → pickup (unloaded / enroute) -->
               <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Unloaded/Enroute Mileage</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Office → pickup (unloaded / enroute)</label>
+                <p class="text-xs text-gray-500 mb-2">Truck not hooked; from dispatch office to the pickup location.</p>
                 <div class="grid grid-cols-3 gap-4">
                   <div>
-                    <label class="block text-xs text-gray-500 mb-1">Quantity</label>
+                    <label class="block text-xs text-gray-500 mb-1">Miles</label>
                     <input
                       type="number"
                       formControlName="unloadedEnrouteMileageQuantity"
@@ -1143,12 +1230,13 @@
                 </div>
               </div>
 
-              <!-- Loaded/Hooked Mileage -->
+              <!-- Pickup → drop-off (loaded / hooked) -->
               <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Loaded/Hooked Mileage</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Pickup → drop-off (loaded / hooked)</label>
+                <p class="text-xs text-gray-500 mb-2">Vehicle hooked; from pickup address to drop-off address.</p>
                 <div class="grid grid-cols-3 gap-4">
                   <div>
-                    <label class="block text-xs text-gray-500 mb-1">Quantity</label>
+                    <label class="block text-xs text-gray-500 mb-1">Miles</label>
                     <input
                       type="number"
                       formControlName="loadedHookedMileageQuantity"
@@ -1178,6 +1266,57 @@
                     />
                   </div>
                 </div>
+              </div>
+
+              <!-- Drop-off → office (deadhead) -->
+              <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Drop-off → office (deadhead)</label>
+                <p class="text-xs text-gray-500 mb-2">Empty return from drop-off back to the dispatch office.</p>
+                <div class="grid grid-cols-3 gap-4">
+                  <div>
+                    <label class="block text-xs text-gray-500 mb-1">Miles</label>
+                    <input
+                      type="number"
+                      formControlName="deadHeadMileageQuantity"
+                      (input)="calculateInvoiceTotals()"
+                      min="0"
+                      class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-xs text-gray-500 mb-1">Price</label>
+                    <input
+                      type="number"
+                      formControlName="deadHeadMileagePrice"
+                      (input)="calculateInvoiceTotals()"
+                      step="0.01"
+                      min="0"
+                      class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-xs text-gray-500 mb-1">Total</label>
+                    <input
+                      type="text"
+                      [value]="((createJobForm.get('invoiceCharges.deadHeadMileageQuantity')?.value || 0) * (createJobForm.get('invoiceCharges.deadHeadMileagePrice')?.value || 0)).toFixed(2)"
+                      readonly
+                      class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Hookup fee -->
+              <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Hookup Fee</label>
+                <input
+                  type="number"
+                  formControlName="hookupFee"
+                  (input)="calculateInvoiceTotals()"
+                  step="0.01"
+                  min="0"
+                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary"
+                />
               </div>
 
               <!-- Service Items -->
@@ -1246,7 +1385,7 @@
               <!-- Discount and Tax Exempt -->
               <div class="grid grid-cols-2 gap-4 mb-4">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">Discount (% or $ amount)</label>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Discount ($ amount)</label>
                   <input
                     type="number"
                     formControlName="discount"
@@ -1254,6 +1393,46 @@
                     step="0.01"
                     min="0"
                     placeholder="0.00"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Discount (%)</label>
+                  <input
+                    type="number"
+                    formControlName="discountPercent"
+                    (input)="calculateInvoiceTotals()"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    placeholder="0.00"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+              </div>
+
+              <div class="grid grid-cols-3 gap-4 mb-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Service Charge %</label>
+                  <input
+                    type="number"
+                    formControlName="serviceChargePercent"
+                    (input)="calculateInvoiceTotals()"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Tax %</label>
+                  <input
+                    type="number"
+                    formControlName="taxPercent"
+                    (input)="calculateInvoiceTotals()"
+                    step="0.01"
+                    min="0"
+                    max="100"
                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary"
                   />
                 </div>
@@ -1268,6 +1447,50 @@
                     <span class="text-sm font-medium text-gray-700">Tax Exempt</span>
                   </label>
                 </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Manual Total Override</label>
+                  <input
+                    type="number"
+                    formControlName="manualTotalOverride"
+                    step="0.01"
+                    min="0"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Override Reason</label>
+                  <input
+                    type="text"
+                    formControlName="manualOverrideReason"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary"
+                    placeholder="Required if policy enforces reason"
+                  />
+                </div>
+              </div>
+
+              <div class="mb-4">
+                <button
+                  type="button"
+                  (click)="calculatePrice()"
+                  [disabled]="calculatingPrice"
+                  class="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 disabled:opacity-50"
+                >
+                  @if (calculatingPrice) {
+                    <i class="fas fa-spinner fa-spin mr-2"></i>Calculating...
+                  } @else {
+                    <i class="fas fa-calculator mr-2"></i>Calculate Price
+                  }
+                </button>
+                @if (officeToPickupMiles !== null || pickupToDestinationMiles !== null || dropoffToOfficeMiles !== null) {
+                  <p class="mt-2 text-xs text-gray-600 leading-relaxed">
+                    Office → pickup: {{ officeToPickupMiles ?? 0 | number:'1.2-2' }} mi ·
+                    Pickup → drop-off: {{ pickupToDestinationMiles ?? 0 | number:'1.2-2' }} mi ·
+                    Drop-off → office: {{ dropoffToOfficeMiles ?? 0 | number:'1.2-2' }} mi
+                  </p>
+                }
               </div>
 
               <!-- Summary -->
@@ -1389,14 +1612,19 @@
         class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col"
         (click)="$event.stopPropagation()"
       >
-        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
-          <h2 class="text-xl font-bold text-gray-900">
-            @if (locationMapTarget === 'pickup') {
-              Pickup location
-            } @else {
-              Destination
-            }
-          </h2>
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0 gap-4">
+          <div class="min-w-0">
+            <h2 class="text-xl font-bold text-gray-900">
+              @if (locationMapTarget === 'pickup') {
+                Pickup location
+              } @else {
+                Destination
+              }
+            </h2>
+            <p class="text-sm text-gray-600 font-normal mt-1">
+              Map opens centered on the <span class="font-medium text-gray-800">dispatch office</span> (Admin → Settings). Move the pin to set this address.
+            </p>
+          </div>
           <button
             type="button"
             (click)="closeLocationMapModal()"

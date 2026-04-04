@@ -49,7 +49,14 @@ export class AccountsComponent implements OnInit {
       state: [''],
       postalCode: [''],
       notes: [''],
-      isActive: [true]
+      isActive: [true],
+      hookupFee: [0, [Validators.min(0)]],
+      rateAB: [0, [Validators.min(0)]],
+      rateBC: [0, [Validators.min(0)]],
+      rateCA: [0, [Validators.min(0)]],
+      serviceChargePercent: [0, [Validators.min(0), Validators.max(100)]],
+      taxPercent: [0, [Validators.min(0), Validators.max(100)]],
+      isTaxExemptByDefault: [false]
     });
   }
 
@@ -111,7 +118,14 @@ export class AccountsComponent implements OnInit {
       state: '',
       postalCode: '',
       notes: '',
-      isActive: true
+      isActive: true,
+      hookupFee: 0,
+      rateAB: 0,
+      rateBC: 0,
+      rateCA: 0,
+      serviceChargePercent: 0,
+      taxPercent: 0,
+      isTaxExemptByDefault: false
     });
     this.showModal = true;
     this.error = null;
@@ -132,7 +146,14 @@ export class AccountsComponent implements OnInit {
       state: account.state ?? '',
       postalCode: account.postalCode ?? '',
       notes: account.notes ?? '',
-      isActive: account.isActive
+      isActive: account.isActive,
+      hookupFee: account.hookupFee ?? 0,
+      rateAB: account.rateAB ?? 0,
+      rateBC: account.rateBC ?? 0,
+      rateCA: account.rateCA ?? 0,
+      serviceChargePercent: account.serviceChargePercent ?? 0,
+      taxPercent: account.taxPercent ?? 0,
+      isTaxExemptByDefault: account.isTaxExemptByDefault ?? false
     });
     this.showModal = true;
     this.error = null;
@@ -163,7 +184,14 @@ export class AccountsComponent implements OnInit {
       state: this.emptyToNull(raw.state as string),
       postalCode: this.emptyToNull(raw.postalCode as string),
       notes: this.emptyToNull(raw.notes as string),
-      isActive: Boolean(raw.isActive)
+      isActive: Boolean(raw.isActive),
+      hookupFee: Number(raw.hookupFee ?? 0),
+      rateAB: Number(raw.rateAB ?? 0),
+      rateBC: Number(raw.rateBC ?? 0),
+      rateCA: Number(raw.rateCA ?? 0),
+      serviceChargePercent: Number(raw.serviceChargePercent ?? 0),
+      taxPercent: Number(raw.taxPercent ?? 0),
+      isTaxExemptByDefault: Boolean(raw.isTaxExemptByDefault)
     };
 
     this.submitting = true;

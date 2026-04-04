@@ -28,6 +28,7 @@ import { DriverAssignmentsComponent } from './components/dashboard/shared/driver
 import { SettingsComponent } from './components/dashboard/admin/settings/settings.component';
 import { FinancialReportComponent } from './components/dashboard/admin/reports/financial-report/financial-report.component';
 import { AccountsComponent } from './components/dashboard/admin/accounts/accounts.component';
+import { ServicesComponent as AdminServicesComponent } from './components/dashboard/admin/services/services.component';
 import { LocationPickerComponent } from './components/shared/location-picker/location-picker.component';
 
 export const routes: Routes = [
@@ -60,6 +61,12 @@ export const routes: Routes = [
       {
         path: 'accounts',
         component: AccountsComponent,
+        canActivate: [roleGuard, authGuard],
+        data: { roles: [RoleId.SuperAdmin, RoleId.Admin] }
+      },
+      {
+        path: 'services',
+        component: AdminServicesComponent,
         canActivate: [roleGuard, authGuard],
         data: { roles: [RoleId.SuperAdmin, RoleId.Admin] }
       },

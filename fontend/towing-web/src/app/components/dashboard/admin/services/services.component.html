@@ -1,0 +1,248 @@
+<div class="p-8 min-h-screen bg-white m-4 rounded-xl border border-gray-100 shadow-sm">
+  <div class="mb-6">
+    <div class="flex items-center justify-between mb-4 flex-wrap gap-4">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900 mb-1">Services</h1>
+        <p class="text-sm text-gray-600">Manage service pricing used during job creation.</p>
+      </div>
+      <div class="flex items-center gap-3 flex-wrap">
+        <button
+          type="button"
+          (click)="openCreateModal()"
+          class="px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:opacity-90 transition-colors flex items-center gap-2"
+        >
+          <i class="fas fa-plus"></i>
+          Add service
+        </button>
+        <button
+          type="button"
+          (click)="loadProfiles()"
+          class="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors flex items-center gap-2"
+          [disabled]="loading"
+        >
+          <i class="fas fa-sync-alt" [class.fa-spin]="loading"></i>
+          Refresh
+        </button>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-4 flex-wrap">
+      <label class="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+        <input
+          type="checkbox"
+          [(ngModel)]="includeUnavailable"
+          (change)="onIncludeUnavailableChange()"
+          class="rounded border-gray-300 text-primary focus:ring-primary"
+        />
+        Show unavailable
+      </label>
+      <div class="relative flex-1 min-w-[200px] max-w-md">
+        <input
+          type="text"
+          [(ngModel)]="searchTerm"
+          (ngModelChange)="onSearchChange()"
+          placeholder="Search by service name..."
+          class="pl-10 pr-4 py-2.5 w-full border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+        />
+        <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm"></i>
+      </div>
+    </div>
+  </div>
+
+  @if (successMessage) {
+    <div class="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
+      <div class="flex items-center gap-2">
+        <i class="fas fa-check-circle text-green-600"></i>
+        <p class="text-green-800">{{ successMessage }}</p>
+      </div>
+    </div>
+  }
+
+  @if (loading) {
+    <div class="flex items-center justify-center py-12">
+      <div class="text-center">
+        <i class="fas fa-spinner fa-spin text-4xl text-primary mb-4"></i>
+        <p class="text-gray-600">Loading services...</p>
+      </div>
+    </div>
+  }
+
+  @if (error && !loading) {
+    <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+      <div class="flex items-center gap-2">
+        <i class="fas fa-exclamation-circle text-red-600"></i>
+        <p class="text-red-800">{{ error }}</p>
+      </div>
+    </div>
+  }
+
+  @if (!loading) {
+    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead class="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th class="text-left py-4 px-6 text-sm font-semibold text-gray-700">Name</th>
+              <th class="text-left py-4 px-6 text-sm font-semibold text-gray-700">Loaded Price</th>
+              <th class="text-left py-4 px-6 text-sm font-semibold text-gray-700">Deadhead Price</th>
+              <th class="text-left py-4 px-6 text-sm font-semibold text-gray-700">Available</th>
+              <th class="text-left py-4 px-6 text-sm font-semibold text-gray-700">Updated</th>
+              <th class="text-left py-4 px-6 text-sm font-semibold text-gray-700">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200">
+            @if (filteredProfiles.length === 0) {
+              <tr>
+                <td colspan="6" class="py-12 text-center text-gray-500">
+                  <i class="fas fa-list text-4xl mb-3 text-gray-300"></i>
+                  <p class="text-lg font-medium">No services found</p>
+                </td>
+              </tr>
+            }
+
+            @for (profile of filteredProfiles; track profile.id) {
+              <tr class="hover:bg-gray-50 transition-colors">
+                <td class="py-4 px-6 text-sm font-medium text-gray-900">{{ profile.name }}</td>
+                <td class="py-4 px-6 text-sm text-gray-600">{{ profile.loadedPrice | number:'1.2-2' }}</td>
+                <td class="py-4 px-6 text-sm text-gray-600">{{ profile.deadHeadPrice | number:'1.2-2' }}</td>
+                <td class="py-4 px-6">
+                  <span
+                    class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium"
+                    [ngClass]="{
+                      'bg-green-100 text-green-800': profile.isAvailable,
+                      'bg-gray-100 text-gray-700': !profile.isAvailable
+                    }"
+                  >
+                    {{ profile.isAvailable ? 'Yes' : 'No' }}
+                  </span>
+                </td>
+                <td class="py-4 px-6 text-sm text-gray-600">{{ formatDate(profile.updatedAt) }}</td>
+                <td class="py-4 px-6">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      (click)="openEditModal(profile)"
+                      class="px-3 py-1.5 rounded-lg text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20"
+                    >
+                      <i class="fas fa-pen mr-1"></i> Edit
+                    </button>
+                    @if (profile.isAvailable) {
+                      <button
+                        type="button"
+                        (click)="setAvailability(profile, false)"
+                        class="px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-50 text-amber-700 hover:bg-amber-100"
+                      >
+                        Set Unavailable
+                      </button>
+                    } @else {
+                      <button
+                        type="button"
+                        (click)="setAvailability(profile, true)"
+                        class="px-3 py-1.5 rounded-lg text-xs font-medium bg-green-50 text-green-700 hover:bg-green-100"
+                      >
+                        Set Available
+                      </button>
+                    }
+                    <button
+                      type="button"
+                      (click)="confirmDelete(profile)"
+                      class="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-red-700 hover:bg-red-100"
+                    >
+                      <i class="fas fa-trash mr-1"></i> Delete
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</div>
+
+@if (showModal) {
+  <div class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40" (click)="closeModal()">
+    <div class="bg-white rounded-xl shadow-xl max-w-lg w-full" (click)="$event.stopPropagation()">
+      <div class="p-6 border-b border-gray-200 flex items-center justify-between">
+        <h2 class="text-lg font-semibold text-gray-900">
+          {{ editingId === null ? 'New service' : 'Edit service' }}
+        </h2>
+        <button type="button" (click)="closeModal()" class="text-gray-500 hover:text-gray-700">
+          <i class="fas fa-times text-xl"></i>
+        </button>
+      </div>
+
+      <form [formGroup]="form" (ngSubmit)="saveProfile()" class="p-6 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Service Name <span class="text-red-500">*</span></label>
+          <input
+            type="text"
+            list="service-name-options"
+            formControlName="name"
+            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary"
+            [class.border-red-500]="form.get('name')?.invalid && form.get('name')?.touched"
+          />
+          <datalist id="service-name-options">
+            @for (type of serviceTypes; track type) {
+              <option [value]="type"></option>
+            }
+          </datalist>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Loaded Price</label>
+            <input type="number" min="0" step="0.01" formControlName="loadedPrice" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Deadhead Price</label>
+            <input type="number" min="0" step="0.01" formControlName="deadHeadPrice" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary" />
+          </div>
+        </div>
+
+        <label class="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+          <input type="checkbox" formControlName="isAvailable" class="rounded border-gray-300 text-primary focus:ring-primary" />
+          Available
+        </label>
+
+        @if (error) {
+          <div class="text-sm text-red-600">{{ error }}</div>
+        }
+
+        <div class="flex justify-end gap-3 pt-4 border-t border-gray-200">
+          <button type="button" (click)="closeModal()" class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50">
+            Cancel
+          </button>
+          <button type="submit" [disabled]="submitting" class="px-4 py-2 rounded-lg bg-primary text-white hover:opacity-90 disabled:opacity-50">
+            @if (submitting) {
+              <i class="fas fa-spinner fa-spin mr-2"></i>
+            }
+            {{ editingId === null ? 'Create' : 'Save' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
+
+@if (deleteConfirmId !== null) {
+  <div class="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/40">
+    <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+      <h3 class="text-lg font-semibold text-gray-900 mb-2">Delete service?</h3>
+      <p class="text-sm text-gray-600 mb-6">This action cannot be undone.</p>
+      @if (error) {
+        <div class="text-sm text-red-600 mb-4">{{ error }}</div>
+      }
+      <div class="flex justify-end gap-3">
+        <button type="button" (click)="cancelDelete()" class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50">Cancel</button>
+        <button type="button" (click)="executeDelete()" [disabled]="submitting" class="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50">
+          @if (submitting) {
+            <i class="fas fa-spinner fa-spin mr-2"></i>
+          }
+          Delete
+        </button>
+      </div>
+    </div>
+  </div>
+}

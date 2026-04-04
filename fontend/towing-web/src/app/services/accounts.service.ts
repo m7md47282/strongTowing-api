@@ -31,6 +31,13 @@ function mapAccountDto(raw: Record<string, unknown>): InsuranceAccount {
     postalCode: s(raw, 'postalCode', 'PostalCode'),
     notes: s(raw, 'notes', 'Notes'),
     isActive: Boolean(raw['isActive'] ?? raw['IsActive']),
+    hookupFee: Number(raw['hookupFee'] ?? raw['HookupFee'] ?? 0),
+    rateAB: Number(raw['rateAB'] ?? raw['RateAB'] ?? 0),
+    rateBC: Number(raw['rateBC'] ?? raw['RateBC'] ?? 0),
+    rateCA: Number(raw['rateCA'] ?? raw['RateCA'] ?? 0),
+    serviceChargePercent: Number(raw['serviceChargePercent'] ?? raw['ServiceChargePercent'] ?? 0),
+    taxPercent: Number(raw['taxPercent'] ?? raw['TaxPercent'] ?? 0),
+    isTaxExemptByDefault: Boolean(raw['isTaxExemptByDefault'] ?? raw['IsTaxExemptByDefault']),
     createdAt: (raw['createdAt'] ?? raw['CreatedAt']) as string,
     updatedAt: (raw['updatedAt'] ?? raw['UpdatedAt']) as string
   };

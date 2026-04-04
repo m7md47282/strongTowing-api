@@ -94,3 +94,31 @@
   color: #b91c1c;
   font-size: 0.9rem;
 }
+
+.location-picker__legend {
+  margin: 0;
+  padding: 0.65rem 0.75rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: #475569;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.375rem;
+}
+
+.location-picker__legend-key {
+  display: block;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 0.25rem;
+}
+
+.location-picker__legend-text {
+  display: block;
+  font-weight: 400;
+}
+
+.location-picker__legend--compact {
+  padding: 0.5rem 0.65rem;
+  font-size: 0.75rem;
+}

@@ -140,12 +140,27 @@ export interface InvoiceCharges {
     price: number;
     total: number;
   };
+  deadHeadMileage?: {
+    quantity: number;
+    price: number;
+    total: number;
+  };
   serviceItems?: InvoiceChargeItem[];
   discount?: number;
+  discountPercent?: number;
   taxExempt?: boolean;
+  hookupFee?: number;
+  serviceChargePercent?: number;
+  serviceChargeAmount?: number;
+  taxPercent?: number;
   subtotal?: number;
   taxes?: number;
   grandTotal?: number;
+  manualTotalOverride?: number;
+  manualOverrideReason?: string;
+  adjustedBy?: string;
+  adjustedAt?: string;
+  adjustmentReason?: string;
 }
 
 export interface CreateJobRequest {

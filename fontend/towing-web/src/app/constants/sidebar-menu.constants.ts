@@ -82,6 +82,12 @@ export const SIDEBAR_MENU_ITEMS: MenuItem[] = [
     roles: [RoleId.SuperAdmin, RoleId.Admin]
   },
   {
+    label: 'Services',
+    icon: 'fas fa-list',
+    route: '/admin/services',
+    roles: [RoleId.SuperAdmin, RoleId.Admin]
+  },
+  {
     label: 'Vehicles',
     icon: 'fas fa-car',
     route: '/admin/vehicles',

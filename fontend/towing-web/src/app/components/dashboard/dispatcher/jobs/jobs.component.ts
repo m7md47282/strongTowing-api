@@ -10,20 +10,24 @@ import {
   startWith,
   switchMap
 } from 'rxjs/operators';
-import { combineLatest, EMPTY, from, of, Subscription } from 'rxjs';
+import { combineLatest, EMPTY, firstValueFrom, from, of, Subscription } from 'rxjs';
+import { VehicleCatalogService, VehicleModelsPage } from '../../../../services/vehicle-catalog.service';
 import { Loader } from '@googlemaps/js-api-loader';
 import { JobService, Job, CreateJobRequest, AssignDriverRequest, AssignDriverResponse, VehicleData, ClientData, UpdateJobStatusRequest } from '../../../../services/job.service';
 import { VehicleService, Vehicle } from '../../../../services/vehicle.service';
 import { ApiService } from '../../../../services/api.service';
 import { AccountsService } from '../../../../services/accounts.service';
+import { ServicePricingService } from '../../../../services/service-pricing.service';
 import { AuthService } from '../../../../services/auth.service';
 import { PaymentService } from '../../../../services/payment.service';
 import { InsuranceAccount } from '../../../../models/insurance-account.model';
+import { ServicePricingProfile } from '../../../../models/service-pricing.model';
 import { User } from '../../../../models/user.model';
 import { RoleId } from '../../../../constants/user-roles.constants';
 import { PlacesAutocompleteDirective } from '../../../../directives/places-autocomplete.directive';
 import { LocationPickerComponent } from '../../../shared/location-picker/location-picker.component';
 import { LocationService } from '../../../../services/location.service';
+import { PricingService, PricingQuoteResponse } from '../../../../services/pricing.service';
 import { environment } from '../../../../../environments/environment';
 
 interface PagedResponse<T> {
@@ -72,6 +76,7 @@ export class JobsComponent implements OnInit, OnDestroy {
   paymentLinkError: string | null = null;
   paymentLinkSubmitting = false;
   paymentLinkCopied = false;
+  quickPaySubmittingJobId: number | null = null;
   
   // Forms
   createJobForm: FormGroup;
@@ -85,6 +90,7 @@ export class JobsComponent implements OnInit, OnDestroy {
   
   // Data for dropdowns
   vehicles: Vehicle[] = [];
+  filteredVehicles: Vehicle[] = [];
   clients: User[] = [];
   drivers: User[] = [];
   availableDrivers: User[] = [];
@@ -122,18 +128,8 @@ export class JobsComponent implements OnInit, OnDestroy {
     'Completed'
   ];
   
-  // Service types
-  serviceTypes = [
-    'Towing',
-    'Roadside Assistance',
-    'Jump Start',
-    'Tire Change',
-    'Lockout',
-    'Fuel Delivery',
-    'Winch',
-    'Recovery',
-    'Other'
-  ];
+  // Service types are loaded from backend service pricing profiles.
+  serviceTypes: string[] = [];
 
   // Call types
   callTypes = ['New Call', 'Completed Call', 'Schedule a call', 'Quote'];
@@ -162,6 +158,8 @@ export class JobsComponent implements OnInit, OnDestroy {
   /** Insurance accounts for job Account dropdown (active only) */
   insuranceAccounts: InsuranceAccount[] = [];
   insuranceAccountsLoading = false;
+  servicePricingProfiles: ServicePricingProfile[] = [];
+  servicePricingProfilesLoading = false;
 
   /** Map picker sub-modal for pickup / destination (above create-job modal) */
   showLocationMapModal = false;
@@ -174,17 +172,42 @@ export class JobsComponent implements OnInit, OnDestroy {
   pickupToDestinationDurationText: string | null = null;
   pickupToDestinationMilesLoading = false;
   pickupToDestinationMilesError: string | null = null;
+  officeToPickupMiles: number | null = null;
+  dropoffToOfficeMiles: number | null = null;
+  /** Dispatch office (point A) from Admin → Settings; used for pricing legs and map centering. */
+  dispatchOfficeCoords: { lat: number; lng: number } | null = null;
+  dispatchOfficeLoadError: string | null = null;
+  calculatingPrice = false;
+  latestQuote: PricingQuoteResponse | null = null;
   private routeDistanceGeneration = 0;
   private pickupDestinationDistanceSub?: Subscription;
+  private vehicleMakeSub?: Subscription;
+
+  /** NHTSA vPIC (US) — loaded when creating a new vehicle */
+  vehicleMakes: string[] = [];
+  vehicleModels: string[] = [];
+  vehicleMakesLoading = false;
+  vehicleModelsLoading = false;
+  vehicleModelsLoadingMore = false;
+  vehicleMakesError: string | null = null;
+  /** Server-side cache makes subsequent pages fast; we track total for UI. */
+  vehicleModelsTotalCount = 0;
+  vehicleModelsHasMore = false;
+  private vehicleModelsLastLoadedPage = 0;
+  private readonly vehicleModelPageSize = 100;
+  private readonly makesSessionStorageKey = 'st_vehicle_makes_v1';
 
   constructor(
     private jobService: JobService,
     private vehicleService: VehicleService,
     private apiService: ApiService,
     private accountsService: AccountsService,
+    private servicePricingService: ServicePricingService,
     private authService: AuthService,
     private paymentService: PaymentService,
     private locationService: LocationService,
+    private pricingService: PricingService,
+    private vehicleCatalogService: VehicleCatalogService,
     private ngZone: NgZone,
     private cdr: ChangeDetectorRef,
     private fb: FormBuilder
@@ -223,8 +246,16 @@ export class JobsComponent implements OnInit, OnDestroy {
       unloadedEnrouteMileagePrice: [0],
       loadedHookedMileageQuantity: [0],
       loadedHookedMileagePrice: [0],
+      deadHeadMileageQuantity: [0],
+      deadHeadMileagePrice: [0],
+      hookupFee: [0],
       discount: [0],
-      taxExempt: [false]
+      discountPercent: [0],
+      serviceChargePercent: [0],
+      taxPercent: [10],
+      taxExempt: [false],
+      manualTotalOverride: [null as number | null],
+      manualOverrideReason: ['']
     });
     
     this.createJobForm = this.fb.group({
@@ -295,6 +326,7 @@ export class JobsComponent implements OnInit, OnDestroy {
     
     // Subscribe to individual field changes
     this.createJobForm.get('serviceType')?.valueChanges.subscribe(() => {
+      this.applySelectedServicePricing();
       if (this.createJobError && this.validationErrorList.length > 0) {
         this.createJobError = null;
         this.validationErrorList = [];
@@ -357,9 +389,9 @@ export class JobsComponent implements OnInit, OnDestroy {
       vehicleGroup.get('vehicleYear')?.clearValidators();
       vehicleGroup.get('vehicleColor')?.clearValidators();
     } else {
-      // Require new vehicle fields
+      // Require new vehicle fields (VIN optional)
       vehicleGroup.get('vehicleId')?.clearValidators();
-      vehicleGroup.get('vehicleVin')?.setValidators([Validators.required]);
+      vehicleGroup.get('vehicleVin')?.clearValidators();
       vehicleGroup.get('vehicleMake')?.setValidators([Validators.required]);
       vehicleGroup.get('vehicleModel')?.setValidators([Validators.required]);
       vehicleGroup.get('vehicleYear')?.setValidators([Validators.required, Validators.min(1900), Validators.max(2100)]);
@@ -391,6 +423,22 @@ export class JobsComponent implements OnInit, OnDestroy {
     this.loadVehicles();
     this.loadClients();
     this.loadDrivers();
+    this.loadServicePricingProfiles();
+    this.loadDispatchOfficeForDisplay();
+    this.observeSelectedClientChanges();
+
+    this.vehicleMakeSub = this.createJobForm.get('vehicle.vehicleMake')?.valueChanges.subscribe((make) => {
+      if (this.useExistingVehicle) {
+        return;
+      }
+      this.createJobForm.get('vehicle.vehicleModel')?.patchValue('', { emitEvent: false });
+      const trimmed = (make ?? '').toString().trim();
+      if (!trimmed) {
+        this.resetVehicleModelsPagination();
+        return;
+      }
+      this.loadModelsForMake(trimmed, false);
+    });
 
     const pickupCtrl = this.createJobForm.get('pickupLocation')!;
     const destCtrl = this.createJobForm.get('destinationAddress')!;
@@ -427,6 +475,143 @@ export class JobsComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.pickupDestinationDistanceSub?.unsubscribe();
+    this.vehicleMakeSub?.unsubscribe();
+  }
+
+  /** Retry loading NHTSA makes after a failure (template). */
+  retryVehicleMakes(): void {
+    try {
+      sessionStorage.removeItem(this.makesSessionStorageKey);
+    } catch {
+      /* ignore */
+    }
+    this.vehicleMakes = [];
+    this.vehicleMakesError = null;
+    this.loadVehicleMakes();
+  }
+
+  /** Load next page of models after the first page (server caches full list per make). */
+  loadMoreVehicleModels(): void {
+    const make = (this.createJobForm.get('vehicle.vehicleMake')?.value ?? '').toString().trim();
+    if (!make || !this.vehicleModelsHasMore || this.vehicleModelsLoadingMore) {
+      return;
+    }
+    this.loadModelsForMake(make, true);
+  }
+
+  private loadVehicleMakes(): void {
+    if (this.vehicleMakes.length > 0 || this.vehicleMakesLoading) {
+      return;
+    }
+    try {
+      const raw = sessionStorage.getItem(this.makesSessionStorageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw) as unknown;
+        if (Array.isArray(parsed) && parsed.length > 0 && parsed.every((x) => typeof x === 'string')) {
+          this.vehicleMakes = parsed as string[];
+          return;
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+    this.vehicleMakesLoading = true;
+    this.vehicleMakesError = null;
+    this.vehicleCatalogService
+      .getMakes()
+      .pipe(
+        catchError(() => {
+          this.vehicleMakesError = 'Could not load vehicle makes.';
+          return of([] as string[]);
+        }),
+        finalize(() => {
+          this.vehicleMakesLoading = false;
+          this.cdr.markForCheck();
+        })
+      )
+      .subscribe((makes) => {
+        this.vehicleMakes = makes;
+        try {
+          if (makes.length > 0) {
+            sessionStorage.setItem(this.makesSessionStorageKey, JSON.stringify(makes));
+          }
+        } catch {
+          /* ignore */
+        }
+      });
+  }
+
+  private emptyModelsPage(): VehicleModelsPage {
+    return {
+      models: [],
+      totalCount: 0,
+      page: 1,
+      pageSize: this.vehicleModelPageSize,
+      totalPages: 0
+    };
+  }
+
+  private resetVehicleModelsPagination(): void {
+    this.vehicleModels = [];
+    this.vehicleModelsTotalCount = 0;
+    this.vehicleModelsHasMore = false;
+    this.vehicleModelsLastLoadedPage = 0;
+  }
+
+  private loadModelsForMake(make: string, append: boolean): void {
+    if (append) {
+      if (!this.vehicleModelsHasMore || this.vehicleModelsLoadingMore) {
+        return;
+      }
+      this.vehicleModelsLoadingMore = true;
+    } else {
+      this.vehicleModelsLoading = true;
+      this.vehicleModels = [];
+      this.vehicleModelsTotalCount = 0;
+      this.vehicleModelsHasMore = false;
+      this.vehicleModelsLastLoadedPage = 0;
+    }
+
+    const page = append ? this.vehicleModelsLastLoadedPage + 1 : 1;
+
+    this.vehicleCatalogService
+      .getModelsPage(make, page, this.vehicleModelPageSize)
+      .pipe(
+        catchError(() => of(this.emptyModelsPage())),
+        finalize(() => {
+          if (append) {
+            this.vehicleModelsLoadingMore = false;
+          } else {
+            this.vehicleModelsLoading = false;
+          }
+          this.cdr.markForCheck();
+        })
+      )
+      .subscribe((res) => {
+        this.vehicleModelsTotalCount = res.totalCount;
+        this.vehicleModelsLastLoadedPage = res.page;
+        this.vehicleModelsHasMore = res.page < res.totalPages;
+        if (append) {
+          this.vehicleModels = [...this.vehicleModels, ...res.models];
+        } else {
+          this.vehicleModels = res.models;
+        }
+      });
+  }
+
+  private loadDispatchOfficeForDisplay(): void {
+    this.locationService.getOfficeLocation().subscribe({
+      next: (o) => {
+        this.dispatchOfficeCoords = { lat: o.lat, lng: o.lng };
+        this.dispatchOfficeLoadError = null;
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.dispatchOfficeCoords = null;
+        this.dispatchOfficeLoadError = 'Could not load dispatch office location.';
+        this.cdr.markForCheck();
+      }
+    });
   }
 
   private async loadPickupToDestinationMiles(pickup: string, dest: string): Promise<void> {
@@ -555,7 +740,75 @@ export class JobsComponent implements OnInit, OnDestroy {
       )
       .subscribe(vehicles => {
         this.vehicles = vehicles;
+        this.syncVehicleOptionsForCurrentClient();
       });
+  }
+
+  private observeSelectedClientChanges(): void {
+    const clientIdControl = this.createJobForm.get('client.clientId');
+    clientIdControl?.valueChanges
+      .pipe(
+        startWith(clientIdControl.value),
+        distinctUntilChanged()
+      )
+      .subscribe(() => {
+        this.syncVehicleOptionsForCurrentClient();
+      });
+  }
+
+  private syncVehicleOptionsForCurrentClient(): void {
+    if (!this.useExistingClient) {
+      this.filteredVehicles = this.vehicles;
+      return;
+    }
+
+    const selectedClientId = this.getSelectedClientId();
+    if (!selectedClientId) {
+      this.filteredVehicles = [];
+      this.clearExistingVehicleSelection();
+      return;
+    }
+
+    this.vehicleService.getAllVehicles(selectedClientId)
+      .pipe(
+        catchError(error => {
+          console.error('Failed to load client vehicles:', error);
+          return of([]);
+        })
+      )
+      .subscribe(vehicles => {
+        this.filteredVehicles = vehicles;
+        this.clearSelectedVehicleIfNotInList();
+      });
+  }
+
+  private getSelectedClientId(): string {
+    return this.createJobForm.get('client.clientId')?.value?.toString().trim() || '';
+  }
+
+  private clearExistingVehicleSelection(): void {
+    if (!this.useExistingVehicle) {
+      return;
+    }
+
+    this.createJobForm.get('vehicle.vehicleId')?.patchValue('', { emitEvent: false });
+  }
+
+  private clearSelectedVehicleIfNotInList(): void {
+    if (!this.useExistingVehicle) {
+      return;
+    }
+
+    const selectedVehicleIdValue = this.createJobForm.get('vehicle.vehicleId')?.value;
+    if (!selectedVehicleIdValue) {
+      return;
+    }
+
+    const selectedVehicleId = Number(selectedVehicleIdValue);
+    const exists = this.filteredVehicles.some(vehicle => vehicle.id === selectedVehicleId);
+    if (!exists) {
+      this.createJobForm.get('vehicle.vehicleId')?.patchValue('', { emitEvent: false });
+    }
   }
 
   loadClients(): void {
@@ -627,20 +880,30 @@ export class JobsComponent implements OnInit, OnDestroy {
     this.activeCreateJobTab = 'details';
     this.useExistingClient = true;
     this.useExistingVehicle = true;
+    this.vehicleMakesError = null;
     this.invoiceServiceItems = [];
     this.createJobValidationAttempted = false;
     this.createJobForm.reset();
     this.createJobForm.patchValue({
       callType: 'New Call',
       priority: 'Normal',
-      companyName: 'Strong Towing Inc'
+      companyName: 'Strong Towing Inc',
+      invoiceCharges: {
+        taxPercent: 10
+      }
     });
     // Disable companyName field - it should not be editable
     this.createJobForm.get('companyName')?.disable();
     this.validateClientGroup();
     this.validateVehicleGroup();
     this.createJobError = null;
+    this.latestQuote = null;
+    this.officeToPickupMiles = null;
+    this.dropoffToOfficeMiles = null;
+    this.calculatingPrice = false;
     this.loadInsuranceAccountsForJob();
+    this.loadServicePricingProfiles();
+    this.syncVehicleOptionsForCurrentClient();
   }
 
   loadInsuranceAccountsForJob(): void {
@@ -654,6 +917,76 @@ export class JobsComponent implements OnInit, OnDestroy {
       .subscribe((rows) => {
         this.insuranceAccounts = rows;
       });
+  }
+
+  loadServicePricingProfiles(): void {
+    this.servicePricingProfilesLoading = true;
+    this.servicePricingService
+      .getAll(false)
+      .pipe(
+        catchError(() => of([] as ServicePricingProfile[])),
+        finalize(() => (this.servicePricingProfilesLoading = false))
+      )
+      .subscribe((rows) => {
+        this.servicePricingProfiles = rows;
+        this.serviceTypes = rows
+          .filter((p) => p.isAvailable)
+          .map((p) => p.name)
+          .sort((a, b) => a.localeCompare(b));
+
+        const selectedServiceType = String(this.createJobForm.get('serviceType')?.value || '').trim();
+        if (
+          selectedServiceType &&
+          !this.serviceTypes.some((name) => name.toLowerCase() === selectedServiceType.toLowerCase())
+        ) {
+          this.createJobForm.patchValue({ serviceType: '' });
+        }
+
+        this.applySelectedServicePricing();
+      });
+  }
+
+  private applySelectedServicePricing(): void {
+    const serviceTypeRaw = this.createJobForm.get('serviceType')?.value;
+    const selectedServiceType = String(serviceTypeRaw || '').trim();
+    const charges = this.createJobForm.get('invoiceCharges');
+    if (!charges) {
+      return;
+    }
+
+    if (!selectedServiceType) {
+      this.calculateInvoiceTotals();
+      return;
+    }
+
+    const profile = this.servicePricingProfiles.find(
+      (p) => p.isAvailable && p.name.toLowerCase() === selectedServiceType.toLowerCase()
+    );
+
+    if (!profile) {
+      this.calculateInvoiceTotals();
+      return;
+    }
+
+    // Reflect selected service prices in invoice charges.
+    charges.patchValue({
+      loadedHookedMileagePrice: profile.loadedPrice,
+      deadHeadMileagePrice: profile.deadHeadPrice
+    });
+
+    this.calculateInvoiceTotals();
+  }
+
+  getSelectedServicePricingProfile(): ServicePricingProfile | null {
+    const serviceTypeRaw = this.createJobForm.get('serviceType')?.value;
+    const selectedServiceType = String(serviceTypeRaw || '').trim();
+    if (!selectedServiceType) {
+      return null;
+    }
+
+    return this.servicePricingProfiles.find(
+      (p) => p.isAvailable && p.name.toLowerCase() === selectedServiceType.toLowerCase()
+    ) ?? null;
   }
 
   insuranceAccountOptionLabel(account: InsuranceAccount): string {
@@ -676,6 +1009,8 @@ export class JobsComponent implements OnInit, OnDestroy {
         clientGroup.patchValue({ clientId: '' });
       }
     }
+    this.clearExistingVehicleSelection();
+    this.syncVehicleOptionsForCurrentClient();
     this.validateClientGroup();
   }
   
@@ -690,8 +1025,11 @@ export class JobsComponent implements OnInit, OnDestroy {
           vehicleYear: '',
           vehicleColor: ''
         });
+        this.resetVehicleModelsPagination();
       } else {
         vehicleGroup.patchValue({ vehicleId: '' });
+        this.resetVehicleModelsPagination();
+        this.loadVehicleMakes();
       }
     }
     this.validateVehicleGroup();
@@ -798,9 +1136,6 @@ export class JobsComponent implements OnInit, OnDestroy {
         errors.push('Vehicle: Please select an existing vehicle');
       }
     } else {
-      if (!vehicleGroup?.get('vehicleVin')?.value) {
-        errors.push('Vehicle VIN: Required field is missing');
-      }
       if (!vehicleGroup?.get('vehicleMake')?.value) {
         errors.push('Vehicle Make: Required field is missing');
       }
@@ -900,6 +1235,132 @@ export class JobsComponent implements OnInit, OnDestroy {
     }
   }
 
+  async calculatePrice(): Promise<void> {
+    this.calculatingPrice = true;
+    this.createJobError = null;
+    this.latestQuote = null;
+
+    try {
+      const charges = this.createJobForm.get('invoiceCharges');
+      if (!charges) {
+        return;
+      }
+
+      const accountRaw = this.createJobForm.get('account')?.value;
+      const accountId = accountRaw ? Number(accountRaw) : undefined;
+      const accountName = accountId
+        ? this.insuranceAccounts.find(a => a.id === accountId)?.name
+        : undefined;
+
+      const pickup = String(this.createJobForm.get('pickupLocation')?.value || '').trim();
+      const destination = String(this.createJobForm.get('destinationAddress')?.value || this.createJobForm.get('dropoffLocation')?.value || '').trim();
+
+      let milesAB = parseFloat(charges.get('unloadedEnrouteMileageQuantity')?.value || '0');
+      let milesBC = parseFloat(charges.get('loadedHookedMileageQuantity')?.value || '0');
+      let milesCA = parseFloat(charges.get('deadHeadMileageQuantity')?.value || '0');
+
+      if (pickup && destination) {
+        const office = await firstValueFrom(this.locationService.getOfficeLocation());
+        const officeRef = `${office.lat},${office.lng}`;
+        const [ab, bc, ca] = await Promise.all([
+          this.computeDrivingMiles(officeRef, pickup),
+          this.computeDrivingMiles(pickup, destination),
+          this.computeDrivingMiles(destination, officeRef)
+        ]);
+
+        this.officeToPickupMiles = ab;
+        this.pickupToDestinationMiles = bc;
+        this.dropoffToOfficeMiles = ca;
+
+        milesAB = ab;
+        milesBC = bc;
+        milesCA = ca;
+
+        charges.patchValue({
+          unloadedEnrouteMileageQuantity: milesAB,
+          loadedHookedMileageQuantity: milesBC,
+          deadHeadMileageQuantity: milesCA
+        });
+      }
+
+      const serviceItemsTotal = this.invoiceServiceItems.reduce((sum: number, item: any) => sum + (item.quantity * item.price), 0);
+      const quote = await firstValueFrom(this.pricingService.quote({
+        accountId: Number.isFinite(accountId as number) ? accountId : undefined,
+        accountName: accountName || undefined,
+        milesAB,
+        milesBC,
+        milesCA,
+        extraItemsTotal: serviceItemsTotal,
+        discountAmount: parseFloat(charges.get('discount')?.value || '0'),
+        discountPercent: parseFloat(charges.get('discountPercent')?.value || '0') || undefined,
+        taxExempt: !!charges.get('taxExempt')?.value,
+        hookupFee: parseFloat(charges.get('hookupFee')?.value || '0') || undefined,
+        rateAB: parseFloat(charges.get('unloadedEnrouteMileagePrice')?.value || '0') || undefined,
+        rateBC: parseFloat(charges.get('loadedHookedMileagePrice')?.value || '0') || undefined,
+        rateCA: parseFloat(charges.get('deadHeadMileagePrice')?.value || '0') || undefined,
+        serviceChargePercent: parseFloat(charges.get('serviceChargePercent')?.value || '0') || undefined,
+        taxPercent: parseFloat(charges.get('taxPercent')?.value || '0') || undefined,
+        manualTotalOverride: charges.get('manualTotalOverride')?.value ?? undefined,
+        manualOverrideReason: charges.get('manualOverrideReason')?.value || undefined
+      }));
+
+      this.latestQuote = quote;
+      charges.patchValue({
+        hookupFee: quote.hookupFee,
+        unloadedEnrouteMileageQuantity: quote.milesAB,
+        unloadedEnrouteMileagePrice: quote.rateAB,
+        loadedHookedMileageQuantity: quote.milesBC,
+        loadedHookedMileagePrice: quote.rateBC,
+        deadHeadMileageQuantity: quote.milesCA,
+        deadHeadMileagePrice: quote.rateCA,
+        discount: quote.discountAmount,
+        serviceChargePercent: quote.serviceChargePercent,
+        taxPercent: quote.taxPercent,
+        taxExempt: quote.taxExempt
+      });
+      this.createJobForm.patchValue({ cost: quote.grandTotal });
+    } catch (error: any) {
+      this.createJobError = error?.error?.message || 'Failed to calculate pricing. Please review account, addresses, and pricing values.';
+    } finally {
+      this.calculatingPrice = false;
+    }
+  }
+
+  private async computeDrivingMiles(origin: string, destination: string): Promise<number> {
+    const apiKey = environment.mapsApiKey?.trim();
+    if (!apiKey) {
+      throw new Error('Maps API key is not configured.');
+    }
+
+    const loader = new Loader({ apiKey, version: 'weekly', libraries: ['places'] });
+    await loader.load();
+
+    const ds = new google.maps.DirectionsService();
+    const miles = await new Promise<number>((resolve, reject) => {
+      ds.route(
+        {
+          origin,
+          destination,
+          travelMode: google.maps.TravelMode.DRIVING,
+          unitSystem: google.maps.UnitSystem.IMPERIAL
+        },
+        (result, status) => {
+          if (status === google.maps.DirectionsStatus.OK && result?.routes?.[0]) {
+            let meters = 0;
+            for (const leg of result.routes[0].legs) {
+              meters += leg.distance?.value ?? 0;
+            }
+            resolve(Math.round((meters * 0.000621371) * 100) / 100);
+            return;
+          }
+          reject(new Error('Could not compute route.'));
+        }
+      );
+    });
+
+    return miles;
+  }
+
   onCreateJob(): void {
     this.createJobValidationAttempted = true;
     // Mark all fields as touched to show validation errors
@@ -940,14 +1401,23 @@ export class JobsComponent implements OnInit, OnDestroy {
     const unloadedPrice = parseFloat(charges?.unloadedEnrouteMileagePrice || '0');
     const loadedQty = parseFloat(charges?.loadedHookedMileageQuantity || '0');
     const loadedPrice = parseFloat(charges?.loadedHookedMileagePrice || '0');
+    const deadQty = parseFloat(charges?.deadHeadMileageQuantity || '0');
+    const deadPrice = parseFloat(charges?.deadHeadMileagePrice || '0');
+    const hookupFee = parseFloat(charges?.hookupFee || '0');
     const discount = parseFloat(charges?.discount || '0');
+    const discountPercent = parseFloat(charges?.discountPercent || '0');
+    const serviceChargePercent = parseFloat(charges?.serviceChargePercent || '0');
+    const taxPercent = parseFloat(charges?.taxPercent || '0');
     
     const serviceItemsTotal = this.invoiceServiceItems.reduce((sum: number, item: any) => 
       sum + (item.quantity * item.price), 0);
-    const subtotal = (unloadedQty * unloadedPrice) + (loadedQty * loadedPrice) + serviceItemsTotal;
-    const afterDiscount = subtotal - discount;
-    const taxes = charges?.taxExempt ? 0 : afterDiscount * 0.1; // 10% tax
-    const grandTotal = afterDiscount + taxes;
+    const subtotal = hookupFee + (unloadedQty * unloadedPrice) + (loadedQty * loadedPrice) + (deadQty * deadPrice) + serviceItemsTotal;
+    const effectiveDiscount = discount > 0 ? discount : (subtotal * (discountPercent / 100));
+    const afterDiscount = Math.max(0, subtotal - effectiveDiscount);
+    const serviceChargeAmount = afterDiscount * (serviceChargePercent / 100);
+    const taxableAmount = afterDiscount + serviceChargeAmount;
+    const taxes = charges?.taxExempt ? 0 : taxableAmount * (taxPercent / 100);
+    const grandTotal = taxableAmount + taxes;
     
     const jobData: CreateJobRequest = {
       cost: parseFloat(formValue.cost) || grandTotal,
@@ -989,17 +1459,29 @@ export class JobsComponent implements OnInit, OnDestroy {
           price: loadedPrice,
           total: loadedQty * loadedPrice
         } : undefined,
+        deadHeadMileage: deadQty > 0 || deadPrice > 0 ? {
+          quantity: deadQty,
+          price: deadPrice,
+          total: deadQty * deadPrice
+        } : undefined,
         serviceItems: this.invoiceServiceItems.length > 0 ? this.invoiceServiceItems.map((item: any) => ({
           serviceName: item.serviceName,
           quantity: item.quantity,
           price: item.price,
           total: item.quantity * item.price
         })) : undefined,
-        discount: discount > 0 ? discount : undefined,
+        hookupFee: hookupFee > 0 ? hookupFee : undefined,
+        discount: effectiveDiscount > 0 ? effectiveDiscount : undefined,
+        discountPercent: discountPercent > 0 ? discountPercent : undefined,
+        serviceChargePercent: serviceChargePercent > 0 ? serviceChargePercent : undefined,
+        serviceChargeAmount: serviceChargeAmount > 0 ? serviceChargeAmount : undefined,
+        taxPercent: taxPercent > 0 ? taxPercent : undefined,
         taxExempt: charges?.taxExempt || false,
         subtotal: subtotal,
         taxes: taxes,
-        grandTotal: grandTotal
+        grandTotal: grandTotal,
+        manualTotalOverride: charges?.manualTotalOverride || undefined,
+        manualOverrideReason: charges?.manualOverrideReason || undefined
       }
     };
 
@@ -1215,23 +1697,35 @@ export class JobsComponent implements OnInit, OnDestroy {
     const unloadedPrice = parseFloat(this.createJobForm.get('invoiceCharges.unloadedEnrouteMileagePrice')?.value || '0');
     const loadedQty = parseFloat(this.createJobForm.get('invoiceCharges.loadedHookedMileageQuantity')?.value || '0');
     const loadedPrice = parseFloat(this.createJobForm.get('invoiceCharges.loadedHookedMileagePrice')?.value || '0');
+    const deadQty = parseFloat(this.createJobForm.get('invoiceCharges.deadHeadMileageQuantity')?.value || '0');
+    const deadPrice = parseFloat(this.createJobForm.get('invoiceCharges.deadHeadMileagePrice')?.value || '0');
+    const hookupFee = parseFloat(this.createJobForm.get('invoiceCharges.hookupFee')?.value || '0');
     const serviceItemsTotal = this.invoiceServiceItems.reduce((sum, item) => sum + (item.quantity * item.price), 0);
-    return (unloadedQty * unloadedPrice) + (loadedQty * loadedPrice) + serviceItemsTotal;
+    return hookupFee + (unloadedQty * unloadedPrice) + (loadedQty * loadedPrice) + (deadQty * deadPrice) + serviceItemsTotal;
   }
 
   getTaxes(): number {
     const taxExempt = this.createJobForm.get('invoiceCharges.taxExempt')?.value || false;
     if (taxExempt) return 0;
+    const taxable = this.getTaxableAmount();
+    const taxPercent = parseFloat(this.createJobForm.get('invoiceCharges.taxPercent')?.value || '0');
+    return taxable * (taxPercent / 100);
+  }
+
+  getTaxableAmount(): number {
     const subtotal = this.getSubtotal();
-    const discount = parseFloat(this.createJobForm.get('invoiceCharges.discount')?.value || '0');
-    return (subtotal - discount) * 0.1; // 10% tax
+    const discountFlat = parseFloat(this.createJobForm.get('invoiceCharges.discount')?.value || '0');
+    const discountPercent = parseFloat(this.createJobForm.get('invoiceCharges.discountPercent')?.value || '0');
+    const discount = discountFlat > 0 ? discountFlat : (subtotal * (discountPercent / 100));
+    const serviceChargePercent = parseFloat(this.createJobForm.get('invoiceCharges.serviceChargePercent')?.value || '0');
+    const afterDiscount = Math.max(0, subtotal - discount);
+    const serviceCharge = afterDiscount * (serviceChargePercent / 100);
+    return afterDiscount + serviceCharge;
   }
 
   getGrandTotal(): number {
-    const subtotal = this.getSubtotal();
-    const discount = parseFloat(this.createJobForm.get('invoiceCharges.discount')?.value || '0');
     const taxes = this.getTaxes();
-    return subtotal - discount + taxes;
+    return this.getTaxableAmount() + taxes;
   }
 
   /** SuperAdmin, Administrator, Dispatcher — matches API `payments/create-payment-link`. */
@@ -1343,6 +1837,38 @@ export class JobsComponent implements OnInit, OnDestroy {
       .subscribe((res) => {
         if (res?.url) {
           this.paymentLinkUrl = res.url;
+          this.loadJobs();
+        }
+      });
+  }
+
+  openCardGatewayForJob(job: Job): void {
+    if (!this.isJobEligibleForPaymentLink(job) || this.quickPaySubmittingJobId !== null) {
+      return;
+    }
+
+    this.quickPaySubmittingJobId = job.id;
+    this.error = null;
+
+    this.paymentService
+      .createStripePaymentLink({
+        jobId: job.id,
+        amount: job.cost,
+        successUrl: this.paymentLinkSuccessUrl()
+      })
+      .pipe(
+        finalize(() => (this.quickPaySubmittingJobId = null)),
+        catchError((error) => {
+          this.error =
+            error.error?.message ||
+            error.error?.error ||
+            'Failed to open card payment gateway. Is Stripe enabled in Settings?';
+          return of(null);
+        })
+      )
+      .subscribe((res) => {
+        if (res?.url) {
+          window.open(res.url, '_blank', 'noopener,noreferrer');
           this.loadJobs();
         }
       });

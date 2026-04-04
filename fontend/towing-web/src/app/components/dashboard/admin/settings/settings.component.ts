@@ -61,7 +61,15 @@ export class SettingsComponent implements OnInit {
       stripeTestWebhookSecret: [''],
       stripeLivePublicKey: [''],
       stripeLiveSecretKey: [''],
-      stripeLiveWebhookSecret: ['']
+      stripeLiveWebhookSecret: [''],
+      defaultPricingTaxPercent: [10, [Validators.required, Validators.min(0), Validators.max(100)]],
+      defaultPricingServiceChargePercent: [0, [Validators.required, Validators.min(0), Validators.max(100)]],
+      defaultPricingHookupFee: [75, [Validators.required, Validators.min(0)]],
+      maxDiscountPercent: [100, [Validators.required, Validators.min(0), Validators.max(100)]],
+      allowManualTotalOverride: [false],
+      manualOverrideRequiresReason: [true],
+      pricingMismatchTolerance: [1, [Validators.required, Validators.min(0)]],
+      pricingRoundingMode: ['AwayFromZero', [Validators.required]]
     });
 
     this.paymentTestForm = this.fb.group({
@@ -137,6 +145,14 @@ export class SettingsComponent implements OnInit {
       cancelFeeBeforeDispatchPercent: c.cancelFeeBeforeDispatchPercent,
       cancelFeeAfterDispatchPercent: c.cancelFeeAfterDispatchPercent,
       cancelFeeAfterArrivalPercent: c.cancelFeeAfterArrivalPercent,
+      defaultPricingTaxPercent: c.defaultPricingTaxPercent,
+      defaultPricingServiceChargePercent: c.defaultPricingServiceChargePercent,
+      defaultPricingHookupFee: c.defaultPricingHookupFee,
+      maxDiscountPercent: c.maxDiscountPercent,
+      allowManualTotalOverride: c.allowManualTotalOverride,
+      manualOverrideRequiresReason: c.manualOverrideRequiresReason,
+      pricingMismatchTolerance: c.pricingMismatchTolerance,
+      pricingRoundingMode: c.pricingRoundingMode,
       officeLatitude: c.officeLatitude ?? null,
       officeLongitude: c.officeLongitude ?? null
     };
@@ -157,7 +173,15 @@ export class SettingsComponent implements OnInit {
             stripeMode: settings.stripeMode || 'test',
             stripePublicKey: settings.stripePublicKey || '',
             stripeTestPublicKey: settings.stripeTestPublicKey || '',
-            stripeLivePublicKey: settings.stripeLivePublicKey || ''
+            stripeLivePublicKey: settings.stripeLivePublicKey || '',
+            defaultPricingTaxPercent: settings.defaultPricingTaxPercent,
+            defaultPricingServiceChargePercent: settings.defaultPricingServiceChargePercent,
+            defaultPricingHookupFee: settings.defaultPricingHookupFee,
+            maxDiscountPercent: settings.maxDiscountPercent,
+            allowManualTotalOverride: settings.allowManualTotalOverride,
+            manualOverrideRequiresReason: settings.manualOverrideRequiresReason,
+            pricingMismatchTolerance: settings.pricingMismatchTolerance,
+            pricingRoundingMode: settings.pricingRoundingMode || 'AwayFromZero'
           });
           this.generalForm.patchValue({
             officeLatitude: settings.officeLatitude ?? null,
@@ -265,7 +289,15 @@ export class SettingsComponent implements OnInit {
       stripeTestWebhookSecret: formValue.stripeTestWebhookSecret || null,
       stripeLivePublicKey: formValue.stripeLivePublicKey || null,
       stripeLiveSecretKey: formValue.stripeLiveSecretKey || null,
-      stripeLiveWebhookSecret: formValue.stripeLiveWebhookSecret || null
+      stripeLiveWebhookSecret: formValue.stripeLiveWebhookSecret || null,
+      defaultPricingTaxPercent: Number(formValue.defaultPricingTaxPercent ?? 10),
+      defaultPricingServiceChargePercent: Number(formValue.defaultPricingServiceChargePercent ?? 0),
+      defaultPricingHookupFee: Number(formValue.defaultPricingHookupFee ?? 75),
+      maxDiscountPercent: Number(formValue.maxDiscountPercent ?? 100),
+      allowManualTotalOverride: !!formValue.allowManualTotalOverride,
+      manualOverrideRequiresReason: !!formValue.manualOverrideRequiresReason,
+      pricingMismatchTolerance: Number(formValue.pricingMismatchTolerance ?? 1),
+      pricingRoundingMode: formValue.pricingRoundingMode === 'ToEven' ? 'ToEven' : 'AwayFromZero'
     };
 
     this.settingsService.updateSettings(payload)

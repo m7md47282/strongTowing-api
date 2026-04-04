@@ -25,6 +25,14 @@ export interface SystemSettings {
   cancelFeeBeforeDispatchPercent: number;
   cancelFeeAfterDispatchPercent: number;
   cancelFeeAfterArrivalPercent: number;
+  defaultPricingTaxPercent: number;
+  defaultPricingServiceChargePercent: number;
+  defaultPricingHookupFee: number;
+  maxDiscountPercent: number;
+  allowManualTotalOverride: boolean;
+  manualOverrideRequiresReason: boolean;
+  pricingMismatchTolerance: number;
+  pricingRoundingMode: 'AwayFromZero' | 'ToEven';
   officeLatitude: number | null;
   officeLongitude: number | null;
   updatedAt: string;
@@ -57,6 +65,14 @@ export interface UpdateSystemSettingsRequest {
   cancelFeeBeforeDispatchPercent: number;
   cancelFeeAfterDispatchPercent: number;
   cancelFeeAfterArrivalPercent: number;
+  defaultPricingTaxPercent: number;
+  defaultPricingServiceChargePercent: number;
+  defaultPricingHookupFee: number;
+  maxDiscountPercent: number;
+  allowManualTotalOverride: boolean;
+  manualOverrideRequiresReason: boolean;
+  pricingMismatchTolerance: number;
+  pricingRoundingMode: 'AwayFromZero' | 'ToEven';
   officeLatitude: number | null;
   officeLongitude: number | null;
 }

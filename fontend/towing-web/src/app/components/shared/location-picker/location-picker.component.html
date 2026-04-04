@@ -42,7 +42,7 @@
       <div class="location-picker__search">
         <label for="location-picker-address-input">
           <span class="location-picker__search-label">Quick search</span>
-          <span class="location-picker__search-sublabel"> — pickup address</span>
+          <span class="location-picker__search-sublabel"> — pickup address (route shown from dispatch office)</span>
         </label>
         <input
           #addressInput
@@ -55,14 +55,23 @@
       </div>
 
       <google-map [height]="mapHeight" [width]="mapWidth" [center]="center" [zoom]="zoom">
-        <map-marker *ngIf="officePosition" [position]="officePosition" title="Office"></map-marker>
-        <map-marker *ngIf="clientPosition" [position]="clientPosition" title="Destination"></map-marker>
+        <map-marker *ngIf="officePosition" [position]="officePosition" title="Dispatch office (point A)"></map-marker>
+        <map-marker *ngIf="clientPosition" [position]="clientPosition" title="Pickup address"></map-marker>
         <map-directions-renderer
           *ngIf="directions"
           [directions]="directions"
           [options]="directionsRendererOptions"
         ></map-directions-renderer>
       </google-map>
+
+      <p class="location-picker__legend" *ngIf="mapsReady && officePosition && !compact">
+        <span class="location-picker__legend-key">Dispatch office (point A)</span>
+        <span class="location-picker__legend-text">Shown on the map; configured in Admin → Settings → Dispatch office location. The line is the drive from the office to the pickup address you search.</span>
+      </p>
+      <p class="location-picker__legend location-picker__legend--compact" *ngIf="mapsReady && officePosition && compact">
+        <span class="location-picker__legend-key">Dispatch office (point A)</span>
+        <span class="location-picker__legend-text">From Admin → Settings. Route: office → pickup.</span>
+      </p>
     </ng-container>
 
     <div class="location-picker__results" *ngIf="calcDistanceMiles !== null">
