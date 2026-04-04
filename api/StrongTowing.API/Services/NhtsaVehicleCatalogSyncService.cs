@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using StrongTowing.Core.Entities;
 using StrongTowing.Infrastructure.Data;
@@ -42,6 +43,11 @@ public class NhtsaVehicleCatalogSyncService : INhtsaVehicleCatalogSyncService
         state.LastSyncStartedUtc = DateTime.UtcNow;
         state.LastSyncCompletedUtc = null;
         state.LastSyncError = null;
+        state.MakesCount = 0;
+        state.ModelsCount = 0;
+        state.TotalMakes = 0;
+        state.MakesProcessed = 0;
+        state.ModelsAddedSoFar = 0;
         await db.SaveChangesAsync(cancellationToken);
 
         _ = Task.Run(async () => await RunSyncBackgroundAsync(CancellationToken.None).ConfigureAwait(false));
@@ -83,10 +89,26 @@ public class NhtsaVehicleCatalogSyncService : INhtsaVehicleCatalogSyncService
                 .AsNoTracking()
                 .ToDictionaryAsync(m => m.NhtsaMakeId, m => m.Id, cancellationToken);
 
+            {
+                var progress = await GetOrCreateStateAsync(db, cancellationToken);
+                progress.TotalMakes = makes.Count;
+                progress.MakesProcessed = 0;
+                progress.ModelsAddedSoFar = 0;
+                await db.SaveChangesAsync(cancellationToken);
+            }
+
+            var modelsAdded = 0;
+            var makeIndex = 0;
             foreach (var (nhtsaMakeId, name) in makes)
             {
+                makeIndex++;
+
                 if (!makeKeyByNhtsaId.TryGetValue(nhtsaMakeId, out var makePk))
                 {
+                    var progress = await GetOrCreateStateAsync(db, cancellationToken);
+                    progress.TotalMakes = makes.Count;
+                    progress.MakesProcessed = makeIndex;
+                    await db.SaveChangesAsync(cancellationToken);
                     continue;
                 }
 
@@ -101,7 +123,18 @@ public class NhtsaVehicleCatalogSyncService : INhtsaVehicleCatalogSyncService
                     });
                 }
 
+                modelsAdded += modelRows.Count;
+
                 await db.SaveChangesAsync(cancellationToken);
+
+                {
+                    var progress = await GetOrCreateStateAsync(db, cancellationToken);
+                    progress.TotalMakes = makes.Count;
+                    progress.MakesProcessed = makeIndex;
+                    progress.ModelsAddedSoFar = modelsAdded;
+                    await db.SaveChangesAsync(cancellationToken);
+                }
+
                 await Task.Delay(100, cancellationToken);
             }
 
@@ -111,6 +144,9 @@ public class NhtsaVehicleCatalogSyncService : INhtsaVehicleCatalogSyncService
             state.LastSyncError = null;
             state.MakesCount = await db.VehicleCatalogMakes.CountAsync(cancellationToken);
             state.ModelsCount = await db.VehicleCatalogModels.CountAsync(cancellationToken);
+            state.TotalMakes = state.MakesCount;
+            state.MakesProcessed = state.MakesCount;
+            state.ModelsAddedSoFar = state.ModelsCount;
             await db.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation(
@@ -146,18 +182,37 @@ public class NhtsaVehicleCatalogSyncService : INhtsaVehicleCatalogSyncService
             return state;
         }
 
-        state = new VehicleCatalogSyncState
+        // EF Core often sends an explicit Id into IDENTITY columns (SQL error 544). Seed row 1 with IDENTITY_INSERT instead of Add().
+        const string seedSql = """
+            SET IDENTITY_INSERT VehicleCatalogSyncStates ON;
+            IF NOT EXISTS (SELECT 1 FROM VehicleCatalogSyncStates WHERE Id = 1)
+                INSERT INTO VehicleCatalogSyncStates (Id, Status, LastSyncStartedUtc, LastSyncCompletedUtc, LastSyncError, MakesCount, ModelsCount, TotalMakes, MakesProcessed, ModelsAddedSoFar)
+                VALUES (1, 0, NULL, NULL, NULL, 0, 0, 0, 0, 0);
+            SET IDENTITY_INSERT VehicleCatalogSyncStates OFF;
+            """;
+
+        await db.Database.ExecuteSqlRawAsync(seedSql, cancellationToken);
+
+        state = await db.VehicleCatalogSyncStates.FindAsync(new object[] { VehicleCatalogSyncState.SingletonId }, cancellationToken);
+        if (state == null)
         {
-            Id = VehicleCatalogSyncState.SingletonId,
-            Status = StatusIdle
-        };
-        db.VehicleCatalogSyncStates.Add(state);
-        await db.SaveChangesAsync(cancellationToken);
+            throw new InvalidOperationException("VehicleCatalogSyncStates row Id=1 is missing after seed.");
+        }
+
         return state;
     }
 
     private static VehicleCatalogSyncStatusDto ToDto(VehicleCatalogSyncState s) =>
-        new(s.Status, s.LastSyncStartedUtc, s.LastSyncCompletedUtc, s.LastSyncError, s.MakesCount, s.ModelsCount);
+        new(
+            s.Status,
+            s.LastSyncStartedUtc,
+            s.LastSyncCompletedUtc,
+            s.LastSyncError,
+            s.MakesCount,
+            s.ModelsCount,
+            s.TotalMakes,
+            s.MakesProcessed,
+            s.ModelsAddedSoFar);
 
     private static async Task<List<(int NhtsaMakeId, string Name)>> FetchAllMakesFromNhtsaAsync(
         IHttpClientFactory httpClientFactory,
@@ -169,11 +224,12 @@ public class NhtsaVehicleCatalogSyncService : INhtsaVehicleCatalogSyncService
         client.Timeout = HttpTimeout;
 
         var url = $"{VpicBase}getallmakes?format=json";
+        client.DefaultRequestHeaders.TryAddWithoutValidation("Accept", "application/json");
         using var response = await client.GetAsync(url, cancellationToken);
         response.EnsureSuccessStatusCode();
 
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
-        using var doc = JsonDocument.Parse(json);
+        using var doc = ParseNhtsaJsonBody(json, url, logger);
 
         if (!doc.RootElement.TryGetProperty("Results", out var results) || results.ValueKind != JsonValueKind.Array)
         {
@@ -217,6 +273,7 @@ public class NhtsaVehicleCatalogSyncService : INhtsaVehicleCatalogSyncService
 
         var encoded = Uri.EscapeDataString(makeName);
         var url = $"{VpicBase}GetModelsForMake/{encoded}?format=json";
+        client.DefaultRequestHeaders.TryAddWithoutValidation("Accept", "application/json");
         using var response = await client.GetAsync(url, cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
@@ -225,7 +282,7 @@ public class NhtsaVehicleCatalogSyncService : INhtsaVehicleCatalogSyncService
         }
 
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
-        using var doc = JsonDocument.Parse(json);
+        using var doc = ParseNhtsaJsonBody(json, url, logger);
 
         if (!doc.RootElement.TryGetProperty("Results", out var results) || results.ValueKind != JsonValueKind.Array)
         {
@@ -255,6 +312,40 @@ public class NhtsaVehicleCatalogSyncService : INhtsaVehicleCatalogSyncService
         }
 
         return set.OrderBy(kv => kv.Value, StringComparer.OrdinalIgnoreCase).Select(kv => (kv.Key, kv.Value)).ToList();
+    }
+
+    /// <summary>
+    /// vPIC must return JSON; HTML (often starting with '&lt;') means proxy/WAF/block page or wrong URL.
+    /// </summary>
+    private static JsonDocument ParseNhtsaJsonBody(string body, string requestUrl, ILogger logger)
+    {
+        var trimmed = body.TrimStart();
+        if (trimmed.Length == 0)
+        {
+            logger.LogError("NHTSA vPIC returned empty body for {Url}", requestUrl);
+            throw new InvalidOperationException($"NHTSA vPIC returned an empty body. URL: {requestUrl}");
+        }
+
+        if (trimmed[0] == '<')
+        {
+            var preview = body.Length > 280 ? body[..280] + "…" : body;
+            logger.LogError("NHTSA vPIC returned HTML instead of JSON for {Url}. Preview: {Preview}", requestUrl, preview);
+            throw new InvalidOperationException(
+                "NHTSA vPIC returned HTML (not JSON). The server may be blocked by a firewall/proxy, or TLS interception returned an error page. " +
+                $"Allow outbound HTTPS to vpic.nhtsa.dot.gov from this host. URL: {requestUrl}");
+        }
+
+        try
+        {
+            return JsonDocument.Parse(body);
+        }
+        catch (JsonException ex)
+        {
+            var preview = body.Length > 280 ? body[..280] + "…" : body;
+            logger.LogError(ex, "NHTSA vPIC JSON parse failed for {Url}. Preview: {Preview}", requestUrl, preview);
+            throw new InvalidOperationException(
+                $"NHTSA vPIC response was not valid JSON. URL: {requestUrl}", ex);
+        }
     }
 
     private static bool TryGetIntFromJson(JsonElement el, out int value)

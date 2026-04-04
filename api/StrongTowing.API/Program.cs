@@ -28,6 +28,7 @@ builder.Services.Configure<GoogleMapsOptions>(builder.Configuration.GetSection(G
 builder.Services.Configure<OfficeLocationOptions>(builder.Configuration.GetSection(OfficeLocationOptions.SectionName));
 builder.Services.Configure<DispatchContactOptions>(builder.Configuration.GetSection(DispatchContactOptions.SectionName));
 builder.Services.Configure<FirebaseOptions>(builder.Configuration.GetSection(FirebaseOptions.SectionName));
+builder.Services.AddHttpClient(); // IHttpClientFactory + default client (e.g. NHTSA vPIC sync)
 builder.Services.AddHttpClient<IGoogleRoutesService, GoogleRoutesService>();
 builder.Services.AddScoped<IOfficeLocationResolver, OfficeLocationResolver>();
 

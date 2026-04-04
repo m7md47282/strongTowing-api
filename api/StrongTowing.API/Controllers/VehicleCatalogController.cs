@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using StrongTowing.API.Services;
 using StrongTowing.Core.Constants;
@@ -15,11 +16,16 @@ public class VehicleCatalogController : ControllerBase
 {
     private readonly ApplicationDbContext _db;
     private readonly INhtsaVehicleCatalogSyncService _sync;
+    private readonly ILogger<VehicleCatalogController> _logger;
 
-    public VehicleCatalogController(ApplicationDbContext db, INhtsaVehicleCatalogSyncService sync)
+    public VehicleCatalogController(
+        ApplicationDbContext db,
+        INhtsaVehicleCatalogSyncService sync,
+        ILogger<VehicleCatalogController> logger)
     {
         _db = db;
         _sync = sync;
+        _logger = logger;
     }
 
     /// <summary>Search makes with pagination.</summary>
@@ -126,13 +132,30 @@ public class VehicleCatalogController : ControllerBase
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> PostSync(CancellationToken cancellationToken)
     {
-        var started = await _sync.TryStartSyncAsync(cancellationToken);
-        if (!started)
+        try
         {
-            return Conflict(new { error = "Conflict", message = "Vehicle catalog sync is already running." });
-        }
+            var started = await _sync.TryStartSyncAsync(cancellationToken);
+            if (!started)
+            {
+                return Conflict(new { error = "Conflict", message = "Vehicle catalog sync is already running." });
+            }
 
-        return Accepted(new { message = "Sync started." });
+            return Accepted(new { message = "Sync started." });
+        }
+        catch (Exception ex) when (IsSqlMissingObject(ex))
+        {
+            _logger.LogError(ex, "Vehicle catalog sync: database object missing (run EF migrations).");
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new
+            {
+                error = "Service Unavailable",
+                message = "Vehicle catalog tables are missing. Apply the latest EF Core migrations to this environment's database (migration AddVehicleCatalogTables), then retry."
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Vehicle catalog sync could not start.");
+            return StatusCode(StatusCodes.Status500InternalServerError, BuildSyncErrorBody(ex));
+        }
     }
 
     /// <summary>Admin: sync job status.</summary>
@@ -141,9 +164,95 @@ public class VehicleCatalogController : ControllerBase
     [ProducesResponseType(typeof(VehicleCatalogSyncStatusDto), StatusCodes.Status200OK)]
     public async Task<ActionResult<VehicleCatalogSyncStatusDto>> GetSyncStatus(CancellationToken cancellationToken)
     {
-        var dto = await _sync.GetStatusAsync(cancellationToken);
-        return Ok(dto);
+        try
+        {
+            var dto = await _sync.GetStatusAsync(cancellationToken);
+            return Ok(dto);
+        }
+        catch (Exception ex) when (IsSqlMissingObject(ex))
+        {
+            _logger.LogError(ex, "Vehicle catalog sync-status: database object missing (run EF migrations).");
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new
+            {
+                error = "Service Unavailable",
+                message = "Vehicle catalog tables are missing. Apply EF migrations (AddVehicleCatalogTables), then retry."
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Vehicle catalog sync-status failed.");
+            return StatusCode(StatusCodes.Status500InternalServerError, BuildSyncErrorBody(ex));
+        }
     }
+
+    /// <summary>SQL Server 208 = invalid object name (tables not migrated).</summary>
+    private static bool IsSqlMissingObject(Exception ex)
+    {
+        for (var e = ex; e != null; e = e.InnerException)
+        {
+            if (e is SqlException sql && sql.Number == 208)
+            {
+                return true;
+            }
+
+            // EF sometimes surfaces only message text
+            if (e.Message.Contains("Invalid object name", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Safe diagnostics for admin-only sync endpoints (helps production without log access).</summary>
+    private static object BuildSyncErrorBody(Exception ex)
+    {
+        var sql = FindSqlException(ex);
+        var inner = ex.GetBaseException();
+        const int maxLen = 600;
+        var innerMsg = inner.Message;
+        if (innerMsg.Length > maxLen)
+        {
+            innerMsg = innerMsg[..maxLen] + "…";
+        }
+
+        return new
+        {
+            error = "Internal Server Error",
+            message = "Could not complete vehicle catalog sync operation. Use sqlErrorNumber / sqlMessage below to fix the database or permissions.",
+            sqlErrorNumber = sql?.Number,
+            sqlMessage = sql != null && sql.Message.Length > maxLen ? sql.Message[..maxLen] + "…" : sql?.Message,
+            innerMessage = innerMsg,
+            hint = HintForSqlError(sql?.Number)
+        };
+    }
+
+    private static SqlException? FindSqlException(Exception ex)
+    {
+        for (var e = ex; e != null; e = e.InnerException)
+        {
+            if (e is SqlException sql)
+            {
+                return sql;
+            }
+        }
+
+        return null;
+    }
+
+    private static string? HintForSqlError(int? number) => number switch
+    {
+        208 => "Run EF migrations so VehicleCatalog* tables exist.",
+        207 => "Schema mismatch: migration not applied or outdated build.",
+        544 => "IDENTITY insert conflict: deploy app build where VehicleCatalogSyncState.Id is store-generated (not forced to 1).",
+        229 or 230 => "SQL login lacks permission on VehicleCatalog* tables.",
+        18456 => "SQL authentication failed (check connection string / password).",
+        4060 => "Cannot open database (name, availability, or firewall).",
+        53 or 258 or 10060 => "Network / firewall: SQL Server not reachable from this host.",
+        -2 => "Query/command timed out (try again; check SQL load).",
+        _ => null
+    };
 }
 
 public record VehicleCatalogMakeItem(int Id, string Name);

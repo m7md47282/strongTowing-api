@@ -182,6 +182,10 @@ namespace StrongTowing.Infrastructure.Data
 
             builder.Entity<VehicleCatalogSyncState>()
                 .HasKey(s => s.Id);
+
+            builder.Entity<VehicleCatalogSyncState>()
+                .Property(s => s.Id)
+                .ValueGeneratedOnAdd();
         }
         
     }

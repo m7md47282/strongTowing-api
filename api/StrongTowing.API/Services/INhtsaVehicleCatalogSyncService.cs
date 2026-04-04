@@ -14,4 +14,7 @@ public record VehicleCatalogSyncStatusDto(
     DateTime? LastSyncCompletedUtc,
     string? LastSyncError,
     int MakesCount,
-    int ModelsCount);
+    int ModelsCount,
+    int TotalMakes,
+    int MakesProcessed,
+    int ModelsAddedSoFar);
