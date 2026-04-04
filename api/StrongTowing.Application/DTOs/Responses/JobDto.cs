@@ -59,6 +59,16 @@ public class JobDto
     public string PaymentStatus { get; set; } = "Unpaid";
     public string? PaymentMethod { get; set; }
     public DateTime? PaidAt { get; set; }
+
+    /// <summary>Standard, InsuranceFull, SplitInsuranceClient, CashToDriverPayroll.</summary>
+    public string BillingPaymentMode { get; set; } = "Standard";
+    public decimal? InsuranceCoveredAmount { get; set; }
+    public decimal? ClientCoveredAmount { get; set; }
+    public bool InsurancePortionBilled { get; set; }
+    public bool ClientPortionPaid { get; set; }
+    public decimal? DriverCashCollectedAmount { get; set; }
+    public decimal? PayrollDeductionAmount { get; set; }
+    public bool PayrollDeductionRecorded { get; set; }
     public string? Notes { get; set; }
     public string? BillingNotes { get; set; }
     public bool IncludeBillingNotesOnReceipt { get; set; }

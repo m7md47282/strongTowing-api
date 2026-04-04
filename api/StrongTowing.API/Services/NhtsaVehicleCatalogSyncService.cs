@@ -59,7 +59,21 @@ public class NhtsaVehicleCatalogSyncService : INhtsaVehicleCatalogSyncService
         await using var scope = _scopeFactory.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var state = await GetOrCreateStateAsync(db, cancellationToken);
-        return ToDto(state);
+
+        // Live row counts so the UI is not stuck at 0 during a long Running sync (state snapshot is reset at start).
+        var makesCount = await db.VehicleCatalogMakes.AsNoTracking().CountAsync(cancellationToken);
+        var modelsCount = await db.VehicleCatalogModels.AsNoTracking().CountAsync(cancellationToken);
+
+        return new VehicleCatalogSyncStatusDto(
+            state.Status,
+            state.LastSyncStartedUtc,
+            state.LastSyncCompletedUtc,
+            state.LastSyncError,
+            makesCount,
+            modelsCount,
+            state.TotalMakes,
+            state.MakesProcessed,
+            state.ModelsAddedSoFar);
     }
 
     private async Task RunSyncBackgroundAsync(CancellationToken cancellationToken)
@@ -201,18 +215,6 @@ public class NhtsaVehicleCatalogSyncService : INhtsaVehicleCatalogSyncService
 
         return state;
     }
-
-    private static VehicleCatalogSyncStatusDto ToDto(VehicleCatalogSyncState s) =>
-        new(
-            s.Status,
-            s.LastSyncStartedUtc,
-            s.LastSyncCompletedUtc,
-            s.LastSyncError,
-            s.MakesCount,
-            s.ModelsCount,
-            s.TotalMakes,
-            s.MakesProcessed,
-            s.ModelsAddedSoFar);
 
     private static async Task<List<(int NhtsaMakeId, string Name)>> FetchAllMakesFromNhtsaAsync(
         IHttpClientFactory httpClientFactory,

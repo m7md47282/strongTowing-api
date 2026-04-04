@@ -65,11 +65,41 @@ public class DriversController : ControllerBase
             })
             .ToListAsync();
 
+        var cashToDriverJobs = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.DriverId == userId
+                        && j.Status == JobStatus.Completed
+                        && j.BillingPaymentMode == JobBillingModes.CashToDriverPayroll
+                        && j.DriverCashCollectedAmount.HasValue
+                        && j.DriverCashCollectedAmount.Value > 0)
+            .OrderByDescending(j => j.CompletedAt ?? j.CreatedAt)
+            .ToListAsync();
+
+        var totalCashCollected = cashToDriverJobs.Sum(j => j.DriverCashCollectedAmount ?? 0);
+        var totalPayrollDeduction = cashToDriverJobs.Sum(j =>
+            j.PayrollDeductionAmount ?? j.DriverCashCollectedAmount ?? 0);
+
+        var recentCash = cashToDriverJobs
+            .Take(24)
+            .Select(j => new DriverCashCollectionItemDto
+            {
+                JobId = j.Id,
+                CompletedAt = j.CompletedAt,
+                CashCollected = j.DriverCashCollectedAmount ?? 0,
+                PayrollDeductionAmount = j.PayrollDeductionAmount ?? j.DriverCashCollectedAmount ?? 0,
+                PayrollDeductionRecorded = j.PayrollDeductionRecorded
+            })
+            .ToList();
+
         return Ok(new DriverEarningsSummaryDto
         {
             CompletedJobsCount = completedCount,
             CompletedJobsTotalRevenue = totalRevenue,
-            Payrolls = payrolls
+            Payrolls = payrolls,
+            CashCollectionJobsCount = cashToDriverJobs.Count,
+            TotalCashCollected = totalCashCollected,
+            TotalPayrollDeductionFromCash = totalPayrollDeduction,
+            RecentCashCollections = recentCash
         });
     }
 }

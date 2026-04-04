@@ -1,4 +1,6 @@
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using StrongTowing.Core.Constants;
 using StrongTowing.Core.Enums;
 
 namespace StrongTowing.Core.Entities
@@ -7,7 +9,7 @@ namespace StrongTowing.Core.Entities
     {
         public int Id { get; set; }
         
-        public JobStatus Status { get; set; } = JobStatus.Pending;
+        public JobStatus Status { get; set; } = JobStatus.Waiting;
 
         // Vehicle Link
         public int VehicleId { get; set; }
@@ -65,8 +67,35 @@ namespace StrongTowing.Core.Entities
         public string? InvoiceChargesJson { get; set; }
         
         // Payment fields
-        public string? PaymentMethod { get; set; } // 'Card', 'PaymentLink', 'Cash'
+        public string? PaymentMethod { get; set; } // 'Card', 'PaymentLink', 'Cash', 'Insurance', 'CashToDriverPayroll'
         public string PaymentStatus { get; set; } = "Unpaid"; // 'Unpaid', 'Pending', 'PendingCash', 'Paid', 'Failed', 'Cancelled', 'Refunded'
+
+        /// <summary>See <see cref="JobBillingModes"/>.</summary>
+        [MaxLength(64)]
+        public string BillingPaymentMode { get; set; } = JobBillingModes.Standard;
+
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? InsuranceCoveredAmount { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? ClientCoveredAmount { get; set; }
+
+        /// <summary>Insurance portion billed / confirmed (full or split).</summary>
+        public bool InsurancePortionBilled { get; set; }
+
+        /// <summary>Client portion received (split mode).</summary>
+        public bool ClientPortionPaid { get; set; }
+
+        /// <summary>Cash the driver collected for the company (cash-to-driver flow).</summary>
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? DriverCashCollectedAmount { get; set; }
+
+        /// <summary>Amount to withhold from driver payroll (usually equals driver cash collected).</summary>
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? PayrollDeductionAmount { get; set; }
+
+        /// <summary>Recorded for payroll processing (deduction queued or applied).</summary>
+        public bool PayrollDeductionRecorded { get; set; }
         public int? PaymentId { get; set; }
         public Payment? Payment { get; set; }
         public DateTime? PaidAt { get; set; }

@@ -7,6 +7,12 @@ public static class PaymentLifecycle
         public const string Card = "Card";
         public const string PaymentLink = "PaymentLink";
         public const string Cash = "Cash";
+        /// <summary>Job paid via insurance billing (see Job.BillingPaymentMode).</summary>
+        public const string Insurance = "Insurance";
+        /// <summary>Cash collected by driver; payroll deduction (see Job.DriverCashCollectedAmount).</summary>
+        public const string CashToDriverPayroll = "CashToDriverPayroll";
+        /// <summary>Insurance + client split (see Job.BillingPaymentMode).</summary>
+        public const string SplitInsuranceClient = "SplitInsuranceClient";
     }
 
     public static class Statuses

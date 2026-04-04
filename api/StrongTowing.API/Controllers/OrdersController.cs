@@ -64,7 +64,7 @@ public class OrdersController : ControllerBase
             var job = new Job
             {
                 VehicleId = vehicle.Id,
-                Status = JobStatus.Pending,
+                Status = JobStatus.Waiting,
                 ServiceType = request.ServiceType,
                 Priority = request.Priority,
                 Reason = request.Description,

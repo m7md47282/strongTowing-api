@@ -342,7 +342,7 @@ public class JobsController : ControllerBase
                 VehicleId = vehicle.Id,
                 Cost = pricingQuote.GrandTotal,
                 Notes = request.Notes,
-                Status = JobStatus.Pending,
+                Status = JobStatus.Waiting,
                 CreatedAt = DateTime.UtcNow,
                 
                 // Call/Job Type
@@ -393,10 +393,12 @@ public class JobsController : ControllerBase
                 InvoiceChargesJson = invoiceChargesJson
             };
 
-            // Set status to Assigned if driver is provided
+            ApplyBillingFromCreateRequest(job, request);
+
+            // Set status to Dispatch if driver is provided
             if (driver != null)
             {
-                job.Status = JobStatus.Assigned;
+                job.Status = JobStatus.Dispatch;
             }
 
             _context.Jobs.Add(job);
@@ -513,7 +515,7 @@ public class JobsController : ControllerBase
     }
 
     /// <summary>
-    /// Upload a photo for a job (assigned driver, or admin/dispatcher). Maximum 5 photos per job.
+    /// Upload a photo for a job (assigned driver, or admin/dispatcher). Maximum 10 photos per job.
     /// </summary>
     [HttpPost("{id}/photos")]
     [RequestSizeLimit(10 * 1024 * 1024)]
@@ -573,9 +575,9 @@ public class JobsController : ControllerBase
                 }
             }
 
-            if (job.Photos.Count >= 5)
+            if (job.Photos.Count >= 10)
             {
-                return BadRequest(new { error = "Bad Request", message = "This job already has the maximum of 5 photos." });
+                return BadRequest(new { error = "Bad Request", message = "This job already has the maximum of 10 photos." });
             }
 
             var webRoot = _environment.WebRootPath;
@@ -626,7 +628,8 @@ public class JobsController : ControllerBase
     }
 
     /// <summary>
-    /// Assign a driver to a pending job (SuperAdmin / Admin / Dispatcher)
+    /// Assign or reassign a driver (SuperAdmin / Admin / Dispatcher).
+    /// Waiting → first assignment (status becomes Dispatch). Active jobs (Dispatch…Loaded) → reassign; status unchanged.
     /// </summary>
     [HttpPost("{id}/assign")]
     [Authorize(Roles = $"{UserRoles.SuperAdmin},{UserRoles.Administrator},{UserRoles.Dispatcher}")]
@@ -646,9 +649,9 @@ public class JobsController : ControllerBase
                 return NotFound(new { error = "Not Found", message = $"Job with ID {id} was not found." });
             }
 
-            if (job.Status != JobStatus.Pending)
+            if (job.Status == JobStatus.Completed || job.Status == JobStatus.Cancelled)
             {
-                return BadRequest(new { error = "Bad Request", message = "Only pending jobs can be assigned to a driver." });
+                return BadRequest(new { error = "Bad Request", message = "Cannot assign or reassign a completed or cancelled job." });
             }
 
             var driver = await _userManager.FindByIdAsync(request.DriverId);
@@ -673,9 +676,23 @@ public class JobsController : ControllerBase
                 return BadRequest(new { error = "Bad Request", message = "That driver is off-duty and cannot receive new assignments." });
             }
 
+            var isFirstAssignment = job.Status == JobStatus.Waiting;
+            if (!isFirstAssignment && job.DriverId == driver.Id)
+            {
+                return Ok(new AssignDriverResponseDto
+                {
+                    Job = MapToJobDto(job),
+                    NotificationSent = false,
+                    NotificationMessage = null
+                });
+            }
+
             job.DriverId = driver.Id;
             job.Driver = driver;
-            job.Status = JobStatus.Assigned;
+            if (isFirstAssignment)
+            {
+                job.Status = JobStatus.Dispatch;
+            }
 
             await _context.SaveChangesAsync();
 
@@ -685,10 +702,13 @@ public class JobsController : ControllerBase
                 pickup = pickup[..117] + "...";
             }
 
+            var notifyTitle = isFirstAssignment ? "New job assigned" : "Job reassigned to you";
+            var notifyBody = $"Job #{job.Id} — {pickup}";
+
             var notifyResult = await _fcmNotificationService.SendToUserAsync(
                 driver.Id,
-                "New job assigned",
-                $"Job #{job.Id} — {pickup}",
+                notifyTitle,
+                notifyBody,
                 new Dictionary<string, string> { ["jobId"] = job.Id.ToString() });
 
             if (!notifyResult.Sent)
@@ -712,6 +732,89 @@ public class JobsController : ControllerBase
         {
             _logger.LogError(ex, "Error assigning driver to job {JobId}", id);
             return StatusCode(500, new { error = "Internal Server Error", message = "An error occurred while assigning the driver." });
+        }
+    }
+
+    /// <summary>
+    /// Set how the job is paid: insurance-only, insurance + client split, or cash to driver (payroll deduction).
+    /// </summary>
+    [HttpPut("{id}/billing-payment")]
+    [Authorize(Roles = $"{UserRoles.SuperAdmin},{UserRoles.Administrator},{UserRoles.Dispatcher}")]
+    public async Task<ActionResult<JobDto>> UpdateJobBillingPayment(int id, [FromBody] UpdateJobBillingPaymentRequest request)
+    {
+        try
+        {
+            if (!IsValidBillingMode(request.BillingPaymentMode))
+            {
+                return BadRequest(new { error = "Bad Request", message = "Invalid billing payment mode." });
+            }
+
+            var job = await _context.Jobs
+                .Include(j => j.Vehicle)
+                    .ThenInclude(v => v.Owner)
+                .Include(j => j.Driver)
+                .Include(j => j.Photos)
+                .Include(j => j.StatusUpdatedBy)
+                .FirstOrDefaultAsync(j => j.Id == id);
+
+            if (job == null)
+            {
+                return NotFound(new { error = "Not Found", message = $"Job with ID {id} was not found." });
+            }
+
+            job.BillingPaymentMode = request.BillingPaymentMode.Trim();
+            job.InsuranceCoveredAmount = request.InsuranceCoveredAmount;
+            job.ClientCoveredAmount = request.ClientCoveredAmount;
+            job.InsurancePortionBilled = request.InsurancePortionBilled;
+            job.ClientPortionPaid = request.ClientPortionPaid;
+            job.DriverCashCollectedAmount = request.DriverCashCollectedAmount;
+            job.PayrollDeductionAmount = request.PayrollDeductionAmount ?? request.DriverCashCollectedAmount;
+            job.PayrollDeductionRecorded = request.PayrollDeductionRecorded;
+
+            if (request.BillingPaymentMode == JobBillingModes.SplitInsuranceClient)
+            {
+                var ins = request.InsuranceCoveredAmount ?? 0m;
+                var cli = request.ClientCoveredAmount ?? 0m;
+                if (Math.Abs(ins + cli - job.Cost) > 0.02m)
+                {
+                    return BadRequest(new
+                    {
+                        error = "Bad Request",
+                        message = "Insurance amount plus client amount must equal the job total."
+                    });
+                }
+            }
+
+            if (request.BillingPaymentMode == JobBillingModes.InsuranceFull && request.InsurancePortionBilled)
+            {
+                job.PaymentMethod = PaymentLifecycle.Methods.Insurance;
+                job.PaymentStatus = PaymentLifecycle.Statuses.Paid;
+                job.PaidAt ??= DateTime.UtcNow;
+            }
+            else if (request.BillingPaymentMode == JobBillingModes.SplitInsuranceClient
+                     && request.InsurancePortionBilled && request.ClientPortionPaid)
+            {
+                job.PaymentMethod = PaymentLifecycle.Methods.SplitInsuranceClient;
+                job.PaymentStatus = PaymentLifecycle.Statuses.Paid;
+                job.PaidAt ??= DateTime.UtcNow;
+            }
+            else if (request.BillingPaymentMode == JobBillingModes.CashToDriverPayroll
+                     && request.DriverCashCollectedAmount.HasValue && request.DriverCashCollectedAmount.Value > 0
+                     && request.PayrollDeductionRecorded)
+            {
+                job.PaymentMethod = PaymentLifecycle.Methods.CashToDriverPayroll;
+                job.PaymentStatus = PaymentLifecycle.Statuses.Paid;
+                job.PaidAt ??= DateTime.UtcNow;
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(MapToJobDto(job));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating billing payment for job {JobId}", id);
+            return StatusCode(500, new { error = "Internal Server Error", message = "An error occurred while updating billing." });
         }
     }
 
@@ -751,20 +854,20 @@ public class JobsController : ControllerBase
                 }
             }
 
-            // Business rule: drivers must upload exactly 5 photos before ReadyToRelease.
+            // Business rule: drivers must upload exactly 10 photos before Loaded.
             // SuperAdmin / Administrator / Dispatcher may set this status without photos (testing, support, corrections).
-            if (status == JobStatus.ReadyToRelease && job.Photos.Count != 5 && User.IsInRole(UserRoles.Driver))
+            if (status == JobStatus.Loaded && job.Photos.Count != 10 && User.IsInRole(UserRoles.Driver))
             {
-                return BadRequest(new { error = "Bad Request", message = "Job must have exactly 5 photos before marking as ReadyToRelease." });
+                return BadRequest(new { error = "Bad Request", message = "Job must have exactly 10 photos before marking as Loaded." });
             }
 
-            // Settlement gate: job cannot be marked completed unless payment is settled.
-            if (status == JobStatus.Completed && !IsPaymentSettled(job.PaymentStatus))
+            // Settlement gate: job cannot be marked completed unless payment is settled (including insurance/split/cash-to-payroll).
+            if (status == JobStatus.Completed && !IsJobFinanciallySettled(job))
             {
                 return BadRequest(new
                 {
                     error = "Payment Not Settled",
-                    message = "Job cannot be completed until payment is settled. Use admin override if required."
+                    message = "Job cannot be completed until payment is settled (card/cash, insurance billing, split portions, or driver cash + payroll deduction). Use admin override if required."
                 });
             }
 
@@ -843,6 +946,85 @@ public class JobsController : ControllerBase
         {
             _logger.LogError(ex, "Error overriding completion for job {JobId}", id);
             return StatusCode(500, new { error = "Internal Server Error", message = "An error occurred while overriding job completion." });
+        }
+    }
+
+    /// <summary>
+    /// Admin-only: set job <see cref="Job.Cost"/> after creation and update invoice snapshot metadata.
+    /// </summary>
+    [HttpPost("{id}/override-price")]
+    [Authorize(Roles = $"{UserRoles.SuperAdmin},{UserRoles.Administrator}")]
+    public async Task<ActionResult<JobDto>> OverrideJobPrice(int id, [FromBody] OverrideJobPriceRequest request)
+    {
+        try
+        {
+            var job = await _context.Jobs
+                .Include(j => j.Vehicle)
+                    .ThenInclude(v => v.Owner)
+                .Include(j => j.Driver)
+                .Include(j => j.Photos)
+                .FirstOrDefaultAsync(j => j.Id == id);
+
+            if (job == null)
+            {
+                return NotFound(new { error = "Not Found", message = $"Job with ID {id} was not found." });
+            }
+
+            if (job.Status == JobStatus.Cancelled)
+            {
+                return BadRequest(new { error = "Bad Request", message = "Cannot override price on a cancelled job." });
+            }
+
+            var currentUserId = _userManager.GetUserId(User);
+            var currentUser = !string.IsNullOrEmpty(currentUserId)
+                ? await _userManager.FindByIdAsync(currentUserId)
+                : null;
+            var actorName = currentUser?.FullName ?? "Unknown Admin";
+
+            InvoiceChargesData invoiceCharges;
+            if (!string.IsNullOrEmpty(job.InvoiceChargesJson))
+            {
+                try
+                {
+                    invoiceCharges = JsonSerializer.Deserialize<InvoiceChargesData>(job.InvoiceChargesJson) ?? new InvoiceChargesData();
+                }
+                catch
+                {
+                    invoiceCharges = new InvoiceChargesData();
+                }
+            }
+            else
+            {
+                invoiceCharges = new InvoiceChargesData();
+            }
+
+            var previousCost = job.Cost;
+            job.Cost = request.Cost;
+            invoiceCharges.ManualTotalOverride = request.Cost;
+            invoiceCharges.ManualOverrideReason = request.Reason;
+            invoiceCharges.GrandTotal = request.Cost;
+            invoiceCharges.AdjustedBy = currentUserId;
+            invoiceCharges.AdjustedAt = DateTime.UtcNow;
+            invoiceCharges.AdjustmentReason = request.Reason;
+            job.InvoiceChargesJson = JsonSerializer.Serialize(invoiceCharges);
+            job.Notes = $"{job.Notes}\n[Price Override] {previousCost:0.00} → {request.Cost:0.00} by {actorName} at {DateTime.UtcNow:u}. Reason: {request.Reason}".Trim();
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogWarning(
+                "Job {JobId} price overridden by {UserId}. PreviousCost={PreviousCost}, NewCost={NewCost}, Reason={Reason}",
+                job.Id,
+                currentUserId,
+                previousCost,
+                request.Cost,
+                request.Reason);
+
+            return Ok(MapToJobDto(job));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error overriding price for job {JobId}", id);
+            return StatusCode(500, new { error = "Internal Server Error", message = "An error occurred while updating the job price." });
         }
     }
 
@@ -946,30 +1128,60 @@ public class JobsController : ControllerBase
             || paymentStatus == "PartiallyRefunded";
     }
 
+    private static bool IsValidBillingMode(string mode) =>
+        mode is JobBillingModes.Standard or JobBillingModes.InsuranceFull or JobBillingModes.SplitInsuranceClient
+            or JobBillingModes.CashToDriverPayroll;
+
+    /// <summary>Stripe/cash paid, or insurance/split/cash-to-driver rules satisfied.</summary>
+    private static bool IsJobFinanciallySettled(Job job)
+    {
+        if (IsPaymentSettled(job.PaymentStatus))
+            return true;
+        return job.BillingPaymentMode switch
+        {
+            JobBillingModes.InsuranceFull => job.InsurancePortionBilled,
+            JobBillingModes.SplitInsuranceClient => job.InsurancePortionBilled && job.ClientPortionPaid,
+            JobBillingModes.CashToDriverPayroll => job.DriverCashCollectedAmount.HasValue && job.DriverCashCollectedAmount.Value > 0
+                && job.PayrollDeductionRecorded,
+            _ => false
+        };
+    }
+
     private static decimal ResolveCancellationFeePercent(JobStatus status, SystemSettings? settings)
     {
         if (settings == null)
         {
             return status switch
             {
-                JobStatus.Pending => 0m,
-                JobStatus.Assigned => 0m,
+                JobStatus.Waiting => 0m,
+                JobStatus.Dispatch => 0m,
                 JobStatus.OnRoute => 30m,
-                JobStatus.InProgress => 50m,
-                JobStatus.ReadyToRelease => 50m,
+                JobStatus.OnScene => 50m,
+                JobStatus.Loaded => 50m,
                 _ => 0m
             };
         }
 
         return status switch
         {
-            JobStatus.Pending => settings.CancelFeeBeforeDispatchPercent,
-            JobStatus.Assigned => settings.CancelFeeBeforeDispatchPercent,
+            JobStatus.Waiting => settings.CancelFeeBeforeDispatchPercent,
+            JobStatus.Dispatch => settings.CancelFeeBeforeDispatchPercent,
             JobStatus.OnRoute => settings.CancelFeeAfterDispatchPercent,
-            JobStatus.InProgress => settings.CancelFeeAfterArrivalPercent,
-            JobStatus.ReadyToRelease => settings.CancelFeeAfterArrivalPercent,
+            JobStatus.OnScene => settings.CancelFeeAfterArrivalPercent,
+            JobStatus.Loaded => settings.CancelFeeAfterArrivalPercent,
             _ => settings.CancelFeeBeforeDispatchPercent
         };
+    }
+
+    private static void ApplyBillingFromCreateRequest(Job job, CreateJobRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.BillingPaymentMode))
+            return;
+        if (!IsValidBillingMode(request.BillingPaymentMode.Trim()))
+            return;
+        job.BillingPaymentMode = request.BillingPaymentMode.Trim();
+        job.InsuranceCoveredAmount = request.InsuranceCoveredAmount;
+        job.ClientCoveredAmount = request.ClientCoveredAmount;
     }
 
     private static PricingQuoteRequestDto BuildPricingQuoteRequest(CreateJobRequest request)
@@ -1094,6 +1306,14 @@ public class JobsController : ControllerBase
             PaymentStatus = string.IsNullOrWhiteSpace(job.PaymentStatus) ? "Unpaid" : job.PaymentStatus,
             PaymentMethod = job.PaymentMethod,
             PaidAt = job.PaidAt,
+            BillingPaymentMode = string.IsNullOrWhiteSpace(job.BillingPaymentMode) ? JobBillingModes.Standard : job.BillingPaymentMode,
+            InsuranceCoveredAmount = job.InsuranceCoveredAmount,
+            ClientCoveredAmount = job.ClientCoveredAmount,
+            InsurancePortionBilled = job.InsurancePortionBilled,
+            ClientPortionPaid = job.ClientPortionPaid,
+            DriverCashCollectedAmount = job.DriverCashCollectedAmount,
+            PayrollDeductionAmount = job.PayrollDeductionAmount,
+            PayrollDeductionRecorded = job.PayrollDeductionRecorded,
             Notes = job.Notes,
             BillingNotes = job.BillingNotes,
             IncludeBillingNotesOnReceipt = job.IncludeBillingNotesOnReceipt,
