@@ -219,16 +219,24 @@ public class JobsController : ControllerBase
                     return BadRequest(new { error = "Bad Request", message = "Vehicle data is required when VehicleId is not provided." });
                 }
 
-                // Check if vehicle already exists by VIN
-                var existingVehicle = await _context.Vehicles
-                    .FirstOrDefaultAsync(v => v.VIN == request.Vehicle.VIN);
+                var vinNormalized = string.IsNullOrWhiteSpace(request.Vehicle.VIN)
+                    ? $"NOVIN-{Guid.NewGuid():N}"[..17]
+                    : request.Vehicle.VIN.Trim();
+
+                // Check if vehicle already exists by VIN (only when a real VIN was provided)
+                Vehicle? existingVehicle = null;
+                if (!string.IsNullOrWhiteSpace(request.Vehicle.VIN))
+                {
+                    existingVehicle = await _context.Vehicles
+                        .FirstOrDefaultAsync(v => v.VIN == vinNormalized);
+                }
 
                 if (existingVehicle != null)
                 {
                     // Verify it belongs to the same client
                     if (existingVehicle.OwnerId != client.Id)
                     {
-                        return BadRequest(new { error = "Bad Request", message = $"A vehicle with VIN {request.Vehicle.VIN} already exists and belongs to a different client." });
+                        return BadRequest(new { error = "Bad Request", message = $"A vehicle with VIN {vinNormalized} already exists and belongs to a different client." });
                     }
                     vehicle = existingVehicle;
                 }
@@ -237,7 +245,7 @@ public class JobsController : ControllerBase
                     // Create new vehicle
                     vehicle = new Vehicle
                     {
-                        VIN = request.Vehicle.VIN,
+                        VIN = vinNormalized,
                         Make = request.Vehicle.Make,
                         Model = request.Vehicle.Model,
                         Year = request.Vehicle.Year,

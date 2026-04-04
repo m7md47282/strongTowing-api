@@ -63,8 +63,7 @@ public class CreateJobRequest
 
 public class VehicleData
 {
-    [Required(ErrorMessage = "VIN is required")]
-    public string VIN { get; set; } = string.Empty;
+    public string? VIN { get; set; }
 
     [Required(ErrorMessage = "Make is required")]
     public string Make { get; set; } = string.Empty;

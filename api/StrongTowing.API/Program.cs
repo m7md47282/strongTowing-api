@@ -29,6 +29,7 @@ builder.Services.Configure<OfficeLocationOptions>(builder.Configuration.GetSecti
 builder.Services.Configure<DispatchContactOptions>(builder.Configuration.GetSection(DispatchContactOptions.SectionName));
 builder.Services.Configure<FirebaseOptions>(builder.Configuration.GetSection(FirebaseOptions.SectionName));
 builder.Services.AddHttpClient<IGoogleRoutesService, GoogleRoutesService>();
+builder.Services.AddMemoryCache();
 builder.Services.AddScoped<IOfficeLocationResolver, OfficeLocationResolver>();
 
 // IIS Integration
