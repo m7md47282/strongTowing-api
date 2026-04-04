@@ -1,192 +1,167 @@
-using System.Net;
-using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Caching.Memory;
+using Microsoft.EntityFrameworkCore;
+using StrongTowing.API.Services;
+using StrongTowing.Core.Constants;
+using StrongTowing.Infrastructure.Data;
 
 namespace StrongTowing.API.Controllers;
 
-/// <summary>
-/// Proxies NHTSA vPIC (US vehicle catalog). Full responses are cached in memory; models are paginated for smaller payloads.
-/// </summary>
+/// <summary>Vehicle make/model catalog (SQL). Populate via POST sync from NHTSA (Admin).</summary>
 [ApiController]
 [Route("api/vehicle-catalog")]
 [Authorize]
 public class VehicleCatalogController : ControllerBase
 {
-    private const string VpicBase = "https://vpic.nhtsa.dot.gov/api/vehicles/";
-    private static readonly TimeSpan CacheDuration = TimeSpan.FromHours(24);
+    private readonly ApplicationDbContext _db;
+    private readonly INhtsaVehicleCatalogSyncService _sync;
 
-    private readonly IHttpClientFactory _httpClientFactory;
-    private readonly IMemoryCache _cache;
-    private readonly ILogger<VehicleCatalogController> _logger;
-
-    public VehicleCatalogController(
-        IHttpClientFactory httpClientFactory,
-        IMemoryCache cache,
-        ILogger<VehicleCatalogController> logger)
+    public VehicleCatalogController(ApplicationDbContext db, INhtsaVehicleCatalogSyncService sync)
     {
-        _httpClientFactory = httpClientFactory;
-        _cache = cache;
-        _logger = logger;
+        _db = db;
+        _sync = sync;
     }
 
-    /// <summary>All manufacturer names (US market, NHTSA). Cached server-side.</summary>
+    /// <summary>Search makes with pagination.</summary>
     [HttpGet("makes")]
-    [ProducesResponseType(typeof(VehicleMakesResponse), StatusCodes.Status200OK)]
-    public async Task<ActionResult<VehicleMakesResponse>> GetMakes(CancellationToken cancellationToken)
-    {
-        try
-        {
-            var list = await _cache.GetOrCreateAsync(
-                "vpic:makes:v1",
-                async entry =>
-                {
-                    entry.AbsoluteExpirationRelativeToNow = CacheDuration;
-                    return await FetchAllMakesFromNhtsaAsync(cancellationToken);
-                }) ?? new List<string>();
-
-            return Ok(new VehicleMakesResponse(list));
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error loading NHTSA makes");
-            return StatusCode((int)HttpStatusCode.BadGateway, new { error = "Bad Gateway", message = "Could not load vehicle makes." });
-        }
-    }
-
-    /// <summary>Models for a make, paginated. Full list per make is cached after first NHTSA call.</summary>
-    [HttpGet("models")]
-    [ProducesResponseType(typeof(VehicleModelsResponse), StatusCodes.Status200OK)]
-    public async Task<ActionResult<VehicleModelsResponse>> GetModelsForMake(
-        [FromQuery] string? makeName,
+    [ProducesResponseType(typeof(VehicleCatalogMakesPageResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<VehicleCatalogMakesPageResponse>> GetMakes(
+        [FromQuery] string? q,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 100,
+        [FromQuery] int pageSize = 30,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(makeName))
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, 200);
+
+        var totalMakes = await _db.VehicleCatalogMakes.CountAsync(cancellationToken);
+        var catalogEmpty = totalMakes == 0;
+
+        var query = _db.VehicleCatalogMakes.AsNoTracking().AsQueryable();
+        if (!string.IsNullOrWhiteSpace(q))
         {
-            return BadRequest(new { error = "Bad Request", message = "makeName is required." });
+            var term = q.Trim();
+            query = query.Where(m => m.Name.Contains(term));
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)pageSize);
+        if (totalPages > 0 && page > totalPages)
+        {
+            page = totalPages;
+        }
+
+        var skip = (page - 1) * pageSize;
+        var items = await query
+            .OrderBy(m => m.Name)
+            .Skip(skip)
+            .Take(pageSize)
+            .Select(m => new VehicleCatalogMakeItem(m.Id, m.Name))
+            .ToListAsync(cancellationToken);
+
+        return Ok(new VehicleCatalogMakesPageResponse(items, totalCount, page, pageSize, totalPages, catalogEmpty));
+    }
+
+    /// <summary>Search models for a make with pagination.</summary>
+    [HttpGet("models")]
+    [ProducesResponseType(typeof(VehicleCatalogModelsPageResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<VehicleCatalogModelsPageResponse>> GetModels(
+        [FromQuery] int? makeId,
+        [FromQuery] string? makeName,
+        [FromQuery] string? q,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 30,
+        CancellationToken cancellationToken = default)
+    {
+        if (!makeId.HasValue || makeId.Value <= 0)
+        {
+            if (!string.IsNullOrWhiteSpace(makeName))
+            {
+                var mk = await _db.VehicleCatalogMakes.AsNoTracking()
+                    .FirstOrDefaultAsync(m => m.Name == makeName.Trim(), cancellationToken);
+                makeId = mk?.Id;
+            }
+        }
+
+        if (!makeId.HasValue || makeId.Value <= 0)
+        {
+            return BadRequest(new { error = "Bad Request", message = "makeId or makeName is required." });
         }
 
         page = Math.Max(1, page);
         pageSize = Math.Clamp(pageSize, 1, 200);
 
-        try
+        var totalModels = await _db.VehicleCatalogModels.CountAsync(cancellationToken);
+        var catalogEmpty = totalModels == 0;
+
+        var query = _db.VehicleCatalogModels.AsNoTracking().Where(m => m.MakeId == makeId);
+        if (!string.IsNullOrWhiteSpace(q))
         {
-            var cacheKey = $"vpic:models:v1:{makeName.Trim().ToUpperInvariant()}";
-            var fullList = await _cache.GetOrCreateAsync(
-                cacheKey,
-                async entry =>
-                {
-                    entry.AbsoluteExpirationRelativeToNow = CacheDuration;
-                    return await FetchAllModelsForMakeFromNhtsaAsync(makeName.Trim(), cancellationToken);
-                }) ?? new List<string>();
-
-            var totalCount = fullList.Count;
-            var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)pageSize);
-            if (totalPages > 0 && page > totalPages)
-            {
-                page = totalPages;
-            }
-
-            var skip = (page - 1) * pageSize;
-            IReadOnlyList<string> slice = skip >= totalCount
-                ? Array.Empty<string>()
-                : fullList.Skip(skip).Take(pageSize).ToList();
-
-            return Ok(new VehicleModelsResponse(slice, totalCount, page, pageSize, totalPages));
+            var term = q.Trim();
+            query = query.Where(m => m.Name.Contains(term));
         }
-        catch (Exception ex)
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)pageSize);
+        if (totalPages > 0 && page > totalPages)
         {
-            _logger.LogError(ex, "Error loading NHTSA models for make {Make}", makeName);
-            return StatusCode((int)HttpStatusCode.BadGateway, new { error = "Bad Gateway", message = "Could not load vehicle models." });
+            page = totalPages;
         }
+
+        var skip = (page - 1) * pageSize;
+        var items = await query
+            .OrderBy(m => m.Name)
+            .Skip(skip)
+            .Take(pageSize)
+            .Select(m => new VehicleCatalogModelItem(m.Id, m.Name))
+            .ToListAsync(cancellationToken);
+
+        return Ok(new VehicleCatalogModelsPageResponse(items, totalCount, page, pageSize, totalPages, catalogEmpty));
     }
 
-    private async Task<List<string>> FetchAllMakesFromNhtsaAsync(CancellationToken cancellationToken)
+    /// <summary>Admin: trigger NHTSA sync (background).</summary>
+    [HttpPost("sync")]
+    [Authorize(Roles = $"{UserRoles.Administrator},{UserRoles.SuperAdmin}")]
+    [ProducesResponseType(StatusCodes.Status202Accepted)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> PostSync(CancellationToken cancellationToken)
     {
-        var client = _httpClientFactory.CreateClient();
-        client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "StrongTowing-VehicleCatalog/1.0");
-        client.Timeout = TimeSpan.FromSeconds(60);
-
-        var url = $"{VpicBase}getallmakes?format=json";
-        using var response = await client.GetAsync(url, cancellationToken);
-        if (!response.IsSuccessStatusCode)
+        var started = await _sync.TryStartSyncAsync(cancellationToken);
+        if (!started)
         {
-            _logger.LogWarning("NHTSA getallmakes failed: {Status}", response.StatusCode);
-            throw new InvalidOperationException("NHTSA getallmakes failed.");
+            return Conflict(new { error = "Conflict", message = "Vehicle catalog sync is already running." });
         }
 
-        var json = await response.Content.ReadAsStringAsync(cancellationToken);
-        using var doc = JsonDocument.Parse(json);
-
-        if (!doc.RootElement.TryGetProperty("Results", out var results) || results.ValueKind != JsonValueKind.Array)
-        {
-            return new List<string>();
-        }
-
-        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var row in results.EnumerateArray())
-        {
-            if (row.TryGetProperty("Make_Name", out var makeEl))
-            {
-                var name = makeEl.GetString();
-                if (!string.IsNullOrWhiteSpace(name))
-                {
-                    set.Add(name.Trim());
-                }
-            }
-        }
-
-        return set.OrderBy(m => m, StringComparer.OrdinalIgnoreCase).ToList();
+        return Accepted(new { message = "Sync started." });
     }
 
-    private async Task<List<string>> FetchAllModelsForMakeFromNhtsaAsync(string makeName, CancellationToken cancellationToken)
+    /// <summary>Admin: sync job status.</summary>
+    [HttpGet("sync-status")]
+    [Authorize(Roles = $"{UserRoles.Administrator},{UserRoles.SuperAdmin}")]
+    [ProducesResponseType(typeof(VehicleCatalogSyncStatusDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<VehicleCatalogSyncStatusDto>> GetSyncStatus(CancellationToken cancellationToken)
     {
-        var client = _httpClientFactory.CreateClient();
-        client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "StrongTowing-VehicleCatalog/1.0");
-        client.Timeout = TimeSpan.FromSeconds(60);
-
-        var encoded = Uri.EscapeDataString(makeName);
-        var url = $"{VpicBase}GetModelsForMake/{encoded}?format=json";
-        using var response = await client.GetAsync(url, cancellationToken);
-        if (!response.IsSuccessStatusCode)
-        {
-            _logger.LogWarning("NHTSA GetModelsForMake failed: {Status} make={Make}", response.StatusCode, makeName);
-            throw new InvalidOperationException("NHTSA GetModelsForMake failed.");
-        }
-
-        var json = await response.Content.ReadAsStringAsync(cancellationToken);
-        using var doc = JsonDocument.Parse(json);
-
-        if (!doc.RootElement.TryGetProperty("Results", out var results) || results.ValueKind != JsonValueKind.Array)
-        {
-            return new List<string>();
-        }
-
-        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var row in results.EnumerateArray())
-        {
-            if (row.TryGetProperty("Model_Name", out var modelEl))
-            {
-                var name = modelEl.GetString();
-                if (!string.IsNullOrWhiteSpace(name))
-                {
-                    set.Add(name.Trim());
-                }
-            }
-        }
-
-        return set.OrderBy(m => m, StringComparer.OrdinalIgnoreCase).ToList();
+        var dto = await _sync.GetStatusAsync(cancellationToken);
+        return Ok(dto);
     }
 }
 
-public record VehicleMakesResponse(IReadOnlyList<string> Makes);
+public record VehicleCatalogMakeItem(int Id, string Name);
 
-public record VehicleModelsResponse(
-    IReadOnlyList<string> Models,
+public record VehicleCatalogModelItem(int Id, string Name);
+
+public record VehicleCatalogMakesPageResponse(
+    IReadOnlyList<VehicleCatalogMakeItem> Items,
     int TotalCount,
     int Page,
     int PageSize,
-    int TotalPages);
+    int TotalPages,
+    bool CatalogEmpty);
+
+public record VehicleCatalogModelsPageResponse(
+    IReadOnlyList<VehicleCatalogModelItem> Items,
+    int TotalCount,
+    int Page,
+    int PageSize,
+    int TotalPages,
+    bool CatalogEmpty);

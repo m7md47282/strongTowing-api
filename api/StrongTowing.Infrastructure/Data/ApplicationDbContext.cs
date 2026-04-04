@@ -22,6 +22,9 @@ namespace StrongTowing.Infrastructure.Data
         public DbSet<DriverPayroll> DriverPayrolls { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<UserFcmToken> UserFcmTokens { get; set; }
+        public DbSet<VehicleCatalogMake> VehicleCatalogMakes { get; set; }
+        public DbSet<VehicleCatalogModel> VehicleCatalogModels { get; set; }
+        public DbSet<VehicleCatalogSyncState> VehicleCatalogSyncStates { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -152,6 +155,33 @@ namespace StrongTowing.Infrastructure.Data
                 .WithMany(u => u.FcmTokens)
                 .HasForeignKey(t => t.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<VehicleCatalogMake>()
+                .HasIndex(m => m.NhtsaMakeId)
+                .IsUnique();
+
+            builder.Entity<VehicleCatalogMake>()
+                .Property(m => m.Name)
+                .HasMaxLength(200)
+                .IsRequired();
+
+            builder.Entity<VehicleCatalogModel>()
+                .HasOne(m => m.Make)
+                .WithMany(mk => mk.Models)
+                .HasForeignKey(m => m.MakeId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<VehicleCatalogModel>()
+                .HasIndex(m => new { m.MakeId, m.NhtsaModelId })
+                .IsUnique();
+
+            builder.Entity<VehicleCatalogModel>()
+                .Property(m => m.Name)
+                .HasMaxLength(200)
+                .IsRequired();
+
+            builder.Entity<VehicleCatalogSyncState>()
+                .HasKey(s => s.Id);
         }
         
     }

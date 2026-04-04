@@ -29,7 +29,6 @@ builder.Services.Configure<OfficeLocationOptions>(builder.Configuration.GetSecti
 builder.Services.Configure<DispatchContactOptions>(builder.Configuration.GetSection(DispatchContactOptions.SectionName));
 builder.Services.Configure<FirebaseOptions>(builder.Configuration.GetSection(FirebaseOptions.SectionName));
 builder.Services.AddHttpClient<IGoogleRoutesService, GoogleRoutesService>();
-builder.Services.AddMemoryCache();
 builder.Services.AddScoped<IOfficeLocationResolver, OfficeLocationResolver>();
 
 // IIS Integration
@@ -116,6 +115,7 @@ builder.Services.AddScoped<IEncryptionService, EncryptionService>();
 builder.Services.AddScoped<IPaymentProvider, StripePaymentProvider>();
 builder.Services.AddScoped<IFcmNotificationService, FcmNotificationService>();
 builder.Services.AddScoped<IPricingCalculatorService, PricingCalculatorService>();
+builder.Services.AddSingleton<INhtsaVehicleCatalogSyncService, NhtsaVehicleCatalogSyncService>();
 
 // 7. Add Controllers with validation
 builder.Services.AddControllers(options =>
