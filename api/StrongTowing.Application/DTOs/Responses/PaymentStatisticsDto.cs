@@ -8,6 +8,9 @@ namespace StrongTowing.Application.DTOs.Responses
         public int PendingPayments { get; set; }
         public decimal TotalCashCollected { get; set; }
         public decimal TotalDriverCommissions { get; set; }
+
+        /// <summary>Percentage applied to paid payment amounts for <see cref="TotalDriverCommissions"/> (system settings).</summary>
+        public decimal DriverCommissionRatePercent { get; set; }
     }
     
     public class RevenueByMethodDto

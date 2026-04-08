@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using StrongTowing.Application.Abstractions;
@@ -18,18 +19,23 @@ namespace StrongTowing.API.Controllers;
 [Authorize(Roles = $"{UserRoles.SuperAdmin},{UserRoles.Administrator}")]
 public class PayrollReportsController : ControllerBase
 {
+    private const int MaxDetailLength = 4000;
+
     private readonly IDriverPayrollService _payrollService;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ILogger<PayrollReportsController> _logger;
+    private readonly IWebHostEnvironment _environment;
 
     public PayrollReportsController(
         IDriverPayrollService payrollService,
         UserManager<ApplicationUser> userManager,
-        ILogger<PayrollReportsController> logger)
+        ILogger<PayrollReportsController> logger,
+        IWebHostEnvironment environment)
     {
         _payrollService = payrollService;
         _userManager = userManager;
         _logger = logger;
+        _environment = environment;
     }
 
     /// <summary>List payroll snapshots (optional period overlap filter and status).</summary>
@@ -39,33 +45,57 @@ public class PayrollReportsController : ControllerBase
         [FromQuery] string? endDate = null,
         [FromQuery] string? status = null)
     {
-        DateTime? fs = null;
-        DateTime? fe = null;
-        if (!string.IsNullOrWhiteSpace(startDate) && DateTime.TryParse(startDate, out var s))
+        try
         {
-            fs = s;
-        }
+            DateTime? fs = null;
+            DateTime? fe = null;
+            if (!string.IsNullOrWhiteSpace(startDate) && DateTime.TryParse(startDate, out var s))
+            {
+                fs = s;
+            }
 
-        if (!string.IsNullOrWhiteSpace(endDate) && DateTime.TryParse(endDate, out var e))
+            if (!string.IsNullOrWhiteSpace(endDate) && DateTime.TryParse(endDate, out var e))
+            {
+                fe = e;
+            }
+
+            var list = await _payrollService.ListAsync(fs, fe, status);
+            return Ok(list);
+        }
+        catch (Exception ex)
         {
-            fe = e;
+            return PayrollServerError(
+                ex,
+                friendlyMessage: "An error occurred while loading payroll.",
+                logMessage: "Error listing payroll (startDate={StartDate}, endDate={EndDate}, status={Status})",
+                startDate,
+                endDate,
+                status);
         }
-
-        var list = await _payrollService.ListAsync(fs, fe, status);
-        return Ok(list);
     }
 
     /// <summary>Get one payroll snapshot by id.</summary>
     [HttpGet("{id:int}")]
     public async Task<ActionResult<DriverPayrollAdminDto>> GetById([FromRoute] int id)
     {
-        var row = await _payrollService.GetByIdAsync(id);
-        if (row == null)
+        try
         {
-            return NotFound(new { error = "Not Found", message = "Payroll record not found." });
-        }
+            var row = await _payrollService.GetByIdAsync(id);
+            if (row == null)
+            {
+                return NotFound(new { error = "Not Found", message = "Payroll record not found." });
+            }
 
-        return Ok(row);
+            return Ok(row);
+        }
+        catch (Exception ex)
+        {
+            return PayrollServerError(
+                ex,
+                friendlyMessage: "An error occurred while loading the payroll record.",
+                logMessage: "Error getting payroll by id {Id}",
+                id);
+        }
     }
 
     /// <summary>
@@ -86,8 +116,10 @@ public class PayrollReportsController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error generating payroll");
-            return StatusCode(500, new { error = "Internal Server Error", message = "An error occurred while generating payroll." });
+            return PayrollServerError(
+                ex,
+                friendlyMessage: "An error occurred while generating payroll.",
+                logMessage: "Error generating payroll");
         }
     }
 
@@ -110,6 +142,14 @@ public class PayrollReportsController : ControllerBase
         {
             return BadRequest(new { error = "Bad Request", message = ex.Message });
         }
+        catch (Exception ex)
+        {
+            return PayrollServerError(
+                ex,
+                friendlyMessage: "An error occurred while finalizing payroll.",
+                logMessage: "Error finalizing payroll {Id}",
+                id);
+        }
     }
 
     /// <summary>Mark a finalized payroll as paid.</summary>
@@ -131,6 +171,14 @@ public class PayrollReportsController : ControllerBase
         {
             return BadRequest(new { error = "Bad Request", message = ex.Message });
         }
+        catch (Exception ex)
+        {
+            return PayrollServerError(
+                ex,
+                friendlyMessage: "An error occurred while marking payroll as paid.",
+                logMessage: "Error marking payroll paid {Id}",
+                id);
+        }
     }
 
     /// <summary>Export payroll rows as CSV for the same filters as list.</summary>
@@ -140,23 +188,83 @@ public class PayrollReportsController : ControllerBase
         [FromQuery] string? endDate = null,
         [FromQuery] string? status = null)
     {
-        DateTime? fs = null;
-        DateTime? fe = null;
-        if (!string.IsNullOrWhiteSpace(startDate) && DateTime.TryParse(startDate, out var s))
+        try
         {
-            fs = s;
+            DateTime? fs = null;
+            DateTime? fe = null;
+            if (!string.IsNullOrWhiteSpace(startDate) && DateTime.TryParse(startDate, out var s))
+            {
+                fs = s;
+            }
+
+            if (!string.IsNullOrWhiteSpace(endDate) && DateTime.TryParse(endDate, out var e))
+            {
+                fe = e;
+            }
+
+            var list = await _payrollService.ListAsync(fs, fe, status);
+            var csv = BuildPayrollCsv(list);
+            var bytes = Encoding.UTF8.GetBytes(csv);
+            var fileName = $"driver-payroll-{DateTime.UtcNow:yyyyMMddHHmmss}.csv";
+            return File(bytes, "text/csv", fileName);
+        }
+        catch (Exception ex)
+        {
+            return PayrollServerError(
+                ex,
+                friendlyMessage: "An error occurred while exporting payroll.",
+                logMessage: "Error exporting payroll CSV (startDate={StartDate}, endDate={EndDate}, status={Status})",
+                startDate,
+                endDate,
+                status);
+        }
+    }
+
+    /// <summary>
+    /// Consistent JSON error for payroll endpoints: logs full exception, returns safe summary + detail for admins.
+    /// In Development, <paramref name="detail"/> includes a fuller diagnostic string.
+    /// </summary>
+    private ObjectResult PayrollServerError(
+        Exception ex,
+        string friendlyMessage,
+        string logMessage,
+        params object?[] logArgs)
+    {
+        _logger.LogError(ex, logMessage, logArgs);
+
+        var correlationId = HttpContext.TraceIdentifier;
+        string detail;
+        string? inner;
+
+        if (_environment.IsDevelopment())
+        {
+            detail = Truncate(ex.ToString(), MaxDetailLength);
+            inner = null;
+        }
+        else
+        {
+            detail = Truncate(ex.Message, MaxDetailLength);
+            inner = ex.InnerException != null ? Truncate(ex.InnerException.Message, MaxDetailLength) : null;
         }
 
-        if (!string.IsNullOrWhiteSpace(endDate) && DateTime.TryParse(endDate, out var e))
+        return StatusCode(500, new
         {
-            fe = e;
+            error = "Internal Server Error",
+            message = friendlyMessage,
+            detail,
+            inner,
+            correlationId
+        });
+    }
+
+    private static string Truncate(string value, int maxLen)
+    {
+        if (string.IsNullOrEmpty(value) || value.Length <= maxLen)
+        {
+            return value;
         }
 
-        var list = await _payrollService.ListAsync(fs, fe, status);
-        var csv = BuildPayrollCsv(list);
-        var bytes = Encoding.UTF8.GetBytes(csv);
-        var fileName = $"driver-payroll-{DateTime.UtcNow:yyyyMMddHHmmss}.csv";
-        return File(bytes, "text/csv", fileName);
+        return value[..maxLen] + "…";
     }
 
     private static string BuildPayrollCsv(IReadOnlyList<DriverPayrollAdminDto> rows)

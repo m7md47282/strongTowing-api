@@ -1,3 +1,4 @@
+using System;
 using Microsoft.EntityFrameworkCore;
 using StrongTowing.Application.Abstractions;
 using StrongTowing.Application.DTOs.Responses;
@@ -152,13 +153,19 @@ public class DriverPayrollService : IDriverPayrollService
             query = query.Where(d => d.PayPeriodStart <= fe);
         }
 
+        // Order only by columns on DriverPayrolls (+ DriverId) so SQL does not depend on JOIN sort by User.FullName
+        // (avoids provider-specific failures; display order by name applied after map).
         var list = await query
             .OrderByDescending(d => d.PayPeriodEnd)
-            .ThenBy(d => d.Driver!.FullName)
+            .ThenBy(d => d.DriverId)
             .Take(500)
             .ToListAsync(cancellationToken);
 
-        return list.Select(Map).ToList();
+        return list
+            .Select(Map)
+            .OrderByDescending(x => x.PayPeriodEnd)
+            .ThenBy(x => x.DriverName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     public async Task<DriverPayrollAdminDto?> GetByIdAsync(int id, CancellationToken cancellationToken)

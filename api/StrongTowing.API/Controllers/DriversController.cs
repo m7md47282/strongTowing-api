@@ -91,10 +91,14 @@ public class DriversController : ControllerBase
             })
             .ToList();
 
+        var settings = await _context.SystemSettings.AsNoTracking().FirstOrDefaultAsync();
+        var currentCommissionPct = settings?.DriverCommissionPercentage ?? 30.00m;
+
         return Ok(new DriverEarningsSummaryDto
         {
             CompletedJobsCount = completedCount,
             CompletedJobsTotalRevenue = totalRevenue,
+            CurrentDriverCommissionPercentage = currentCommissionPct,
             Payrolls = payrolls,
             CashCollectionJobsCount = cashToDriverJobs.Count,
             TotalCashCollected = totalCashCollected,

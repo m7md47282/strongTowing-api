@@ -4,6 +4,10 @@ public class DriverEarningsSummaryDto
 {
     public int CompletedJobsCount { get; set; }
     public decimal CompletedJobsTotalRevenue { get; set; }
+
+    /// <summary>Current system-wide rate from Settings (same value used for payroll generation).</summary>
+    public decimal CurrentDriverCommissionPercentage { get; set; }
+
     public List<DriverPayrollListItemDto> Payrolls { get; set; } = new();
 
     /// <summary>Jobs where the client paid cash to you (cash-to-driver / payroll deduction flow).</summary>

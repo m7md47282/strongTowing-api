@@ -186,7 +186,8 @@ public class PaymentsController : ControllerBase
                 TotalCashCollected = payments.Where(p => p.PaymentMethod == PaymentLifecycle.Methods.Cash && p.PaymentStatus == PaymentLifecycle.Statuses.Paid).Sum(p => p.Amount),
                 TotalDriverCommissions = payments
                     .Where(p => p.PaymentStatus == PaymentLifecycle.Statuses.Paid)
-                    .Sum(p => p.Amount * (commissionPercentage / 100))
+                    .Sum(p => p.Amount * (commissionPercentage / 100)),
+                DriverCommissionRatePercent = commissionPercentage
             };
 
             return Ok(statistics);
@@ -1405,6 +1406,7 @@ public class PaymentsController : ControllerBase
             DriverId = job?.DriverId,
             DriverName = job?.Driver?.FullName,
             DriverCommission = driverCommission,
+            DriverCommissionRatePercent = commissionPercentage,
             CashCollected = cashCollection != null,
             CashCollectedBy = cashCollection?.Driver?.FullName,
             CashCollectedAt = cashCollection?.CollectedAt,

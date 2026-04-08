@@ -22,7 +22,10 @@ namespace StrongTowing.Application.DTOs.Responses
         public string? DriverId { get; set; }
         public string? DriverName { get; set; }
         public decimal DriverCommission { get; set; }
-        
+
+        /// <summary>System commission rate used for <see cref="DriverCommission"/>.</summary>
+        public decimal DriverCommissionRatePercent { get; set; }
+
         // Cash collection
         public bool CashCollected { get; set; }
         public string? CashCollectedBy { get; set; }

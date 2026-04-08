@@ -218,7 +218,8 @@ public class UsersController : ControllerBase
                 query = query.Where(u =>
                     (u.Email != null && u.Email.ToLower().Contains(search)) ||
                     (u.FullName != null && u.FullName.ToLower().Contains(search)) ||
-                    (u.PhoneNumber != null && u.PhoneNumber.Contains(search)));
+                    (u.PhoneNumber != null && u.PhoneNumber.ToLower().Contains(search)) ||
+                    u.Id.ToLower().Contains(search));
             }
 
             // Get total count before pagination

@@ -465,7 +465,8 @@ public class JobsController : ControllerBase
                 .OrderByDescending(j => j.CreatedAt)
                 .ToListAsync();
 
-            var jobDtos = jobs.Select(j => MapToJobDto(j)).ToList();
+            var commissionPct = await GetDriverCommissionPercentageAsync();
+            var jobDtos = jobs.Select(j => MapToJobDto(j, commissionPct)).ToList();
             return Ok(jobDtos);
         }
         catch (Exception ex)
@@ -504,7 +505,9 @@ public class JobsController : ControllerBase
                 }
             }
 
-            var jobDto = MapToJobDto(job);
+            var jobDto = User.IsInRole(UserRoles.Driver)
+                ? MapToJobDto(job, await GetDriverCommissionPercentageAsync())
+                : MapToJobDto(job);
             return Ok(jobDto);
         }
         catch (Exception ex)
@@ -618,7 +621,7 @@ public class JobsController : ControllerBase
                 .Include(j => j.StatusUpdatedBy)
                 .FirstAsync(j => j.Id == id);
 
-            return Ok(MapToJobDto(reloaded));
+            return Ok(await MapToJobDtoForCallerAsync(reloaded));
         }
         catch (Exception ex)
         {
@@ -885,7 +888,7 @@ public class JobsController : ControllerBase
                 job.StatusUpdatedBy = await _userManager.FindByIdAsync(job.StatusUpdatedById);
             }
 
-            var jobDto = MapToJobDto(job);
+            var jobDto = await MapToJobDtoForCallerAsync(job);
             return Ok(jobDto);
         }
         catch (Exception ex)
@@ -1226,7 +1229,24 @@ public class JobsController : ControllerBase
         };
     }
 
-    private JobDto MapToJobDto(Job job)
+    private async Task<decimal> GetDriverCommissionPercentageAsync(CancellationToken cancellationToken = default)
+    {
+        var s = await _context.SystemSettings.AsNoTracking().FirstOrDefaultAsync(cancellationToken);
+        return s?.DriverCommissionPercentage ?? 30.00m;
+    }
+
+    private async Task<JobDto> MapToJobDtoForCallerAsync(Job job, CancellationToken cancellationToken = default)
+    {
+        decimal? pct = null;
+        if (User.IsInRole(UserRoles.Driver))
+        {
+            pct = await GetDriverCommissionPercentageAsync(cancellationToken);
+        }
+
+        return MapToJobDto(job, pct);
+    }
+
+    private JobDto MapToJobDto(Job job, decimal? driverCommissionPct = null)
     {
         // Deserialize invoice charges if present
         InvoiceChargesData? invoiceCharges = null;
@@ -1303,6 +1323,10 @@ public class JobsController : ControllerBase
             
             // Financials
             Cost = job.Cost,
+            DriverCommissionRatePercent = driverCommissionPct,
+            DriverCommissionEstimate = driverCommissionPct.HasValue
+                ? decimal.Round(job.Cost * (driverCommissionPct.Value / 100m), 2, MidpointRounding.AwayFromZero)
+                : null,
             PaymentStatus = string.IsNullOrWhiteSpace(job.PaymentStatus) ? "Unpaid" : job.PaymentStatus,
             PaymentMethod = job.PaymentMethod,
             PaidAt = job.PaidAt,
