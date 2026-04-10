@@ -10,6 +10,7 @@ using StrongTowing.Core.Entities;
 using StrongTowing.Core.Constants;
 using StrongTowing.Infrastructure.Data;
 using StrongTowing.API.Services;
+using StrongTowing.Application.Abstractions;
 using System.Security.Claims;
 using System.Text.Json;
 
@@ -24,17 +25,20 @@ public class PaymentsController : ControllerBase
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ILogger<PaymentsController> _logger;
     private readonly IPaymentProvider _paymentProvider;
+    private readonly ISmsNotificationService _smsNotificationService;
 
     public PaymentsController(
         ApplicationDbContext context,
         UserManager<ApplicationUser> userManager,
         ILogger<PaymentsController> logger,
-        IPaymentProvider paymentProvider)
+        IPaymentProvider paymentProvider,
+        ISmsNotificationService smsNotificationService)
     {
         _context = context;
         _userManager = userManager;
         _logger = logger;
         _paymentProvider = paymentProvider;
+        _smsNotificationService = smsNotificationService;
     }
 
     /// <summary>
@@ -554,6 +558,16 @@ public class PaymentsController : ControllerBase
 
             await _context.SaveChangesAsync();
 
+            await _context.Entry(job).Reference(j => j.Vehicle).LoadAsync();
+            if (job.Vehicle != null)
+                await _context.Entry(job.Vehicle).Reference(v => v.Owner).LoadAsync();
+            await _smsNotificationService.NotifyClientPaymentLinkCreatedAsync(
+                job.Id,
+                request.Amount,
+                result.Url,
+                job.ContactPhoneNumber,
+                job.Vehicle?.Owner?.PhoneNumber);
+
             return Ok(new CreateStripePaymentLinkResponse
             {
                 Url = result.Url,
@@ -935,6 +949,8 @@ public class PaymentsController : ControllerBase
             return;
         }
 
+        var previousPaymentStatus = payment.PaymentStatus;
+
         payment.PaymentStatus = PaymentLifecycle.Statuses.Paid;
         payment.ProcessedAt = DateTime.UtcNow;
         payment.TransactionId ??= webhookEvent.SessionId ?? correlation?.SessionId;
@@ -954,6 +970,16 @@ public class PaymentsController : ControllerBase
 
         await _context.SaveChangesAsync();
         _logger.LogInformation("Marked payment as Paid for transaction {TransactionId}.", webhookEvent.TransactionId);
+
+        if (previousPaymentStatus != PaymentLifecycle.Statuses.Paid && payment.Job != null)
+        {
+            await LoadJobVehicleOwnerAsync(payment.Job);
+            await _smsNotificationService.NotifyClientPaymentSucceededAsync(
+                payment.JobId,
+                payment.Amount,
+                payment.Job.ContactPhoneNumber,
+                payment.Job.Vehicle?.Owner?.PhoneNumber);
+        }
     }
 
     private async Task HandlePaymentFailed(WebhookEventResult webhookEvent)
@@ -1016,6 +1042,8 @@ public class PaymentsController : ControllerBase
             return;
         }
 
+        var previousFailedStatus = payment.PaymentStatus;
+
         payment.PaymentStatus = PaymentLifecycle.Statuses.Failed;
         payment.PaymentErrorMessage = webhookEvent.ErrorMessage;
         payment.StripePaymentIntentId ??= webhookEvent.TransactionId;
@@ -1029,6 +1057,15 @@ public class PaymentsController : ControllerBase
 
         await _context.SaveChangesAsync();
         _logger.LogInformation("Marked payment as Failed for transaction {TransactionId}.", webhookEvent.TransactionId);
+
+        if (previousFailedStatus != PaymentLifecycle.Statuses.Failed && payment.Job != null)
+        {
+            await LoadJobVehicleOwnerAsync(payment.Job);
+            await _smsNotificationService.NotifyClientPaymentFailedAsync(
+                payment.JobId,
+                payment.Job.ContactPhoneNumber,
+                payment.Job.Vehicle?.Owner?.PhoneNumber);
+        }
     }
 
     private async Task HandlePaymentLinkCompleted(WebhookEventResult webhookEvent)
@@ -1106,6 +1143,8 @@ public class PaymentsController : ControllerBase
             return;
         }
 
+        var previousLinkPaymentStatus = payment.PaymentStatus;
+
         payment.PaymentStatus = PaymentLifecycle.Statuses.Paid;
         payment.ProcessedAt = DateTime.UtcNow;
         payment.TransactionId ??= webhookEvent.SessionId ?? correlation?.SessionId;
@@ -1122,6 +1161,24 @@ public class PaymentsController : ControllerBase
 
         await _context.SaveChangesAsync();
         _logger.LogInformation("Marked payment as Paid for payment link {PaymentLinkId}.", webhookEvent.PaymentLinkId);
+
+        if (previousLinkPaymentStatus != PaymentLifecycle.Statuses.Paid && payment.Job != null)
+        {
+            await LoadJobVehicleOwnerAsync(payment.Job);
+            await _smsNotificationService.NotifyClientPaymentSucceededAsync(
+                payment.JobId,
+                payment.Amount,
+                payment.Job.ContactPhoneNumber,
+                payment.Job.Vehicle?.Owner?.PhoneNumber);
+        }
+    }
+
+    private async Task LoadJobVehicleOwnerAsync(Job job)
+    {
+        if (job.Vehicle == null)
+            await _context.Entry(job).Reference(j => j.Vehicle).LoadAsync();
+        if (job.Vehicle != null)
+            await _context.Entry(job.Vehicle).Reference(v => v.Owner).LoadAsync();
     }
 
     private async Task PersistWebhookErrorAsync(WebhookEventResult webhookEvent, string errorMessage)

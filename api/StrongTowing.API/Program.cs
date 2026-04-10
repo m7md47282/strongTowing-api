@@ -115,6 +115,8 @@ builder.Services.AddScoped<RoleSeederService>();
 builder.Services.AddScoped<IEncryptionService, EncryptionService>();
 builder.Services.AddScoped<IPaymentProvider, StripePaymentProvider>();
 builder.Services.AddScoped<IFcmNotificationService, FcmNotificationService>();
+builder.Services.AddScoped<ISmsSender, TwilioSmsSender>();
+builder.Services.AddScoped<ISmsNotificationService, SmsNotificationService>();
 builder.Services.AddScoped<IPricingCalculatorService, PricingCalculatorService>();
 builder.Services.AddScoped<IDriverPayrollService, DriverPayrollService>();
 builder.Services.AddSingleton<INhtsaVehicleCatalogSyncService, NhtsaVehicleCatalogSyncService>();

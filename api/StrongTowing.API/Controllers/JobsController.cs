@@ -29,6 +29,7 @@ public class JobsController : ControllerBase
     private readonly ILogger<JobsController> _logger;
     private readonly IPaymentProvider _paymentProvider;
     private readonly IFcmNotificationService _fcmNotificationService;
+    private readonly ISmsNotificationService _smsNotificationService;
     private readonly IWebHostEnvironment _environment;
     private readonly IPricingCalculatorService _pricingCalculatorService;
 
@@ -39,6 +40,7 @@ public class JobsController : ControllerBase
         ILogger<JobsController> logger,
         IPaymentProvider paymentProvider,
         IFcmNotificationService fcmNotificationService,
+        ISmsNotificationService smsNotificationService,
         IWebHostEnvironment environment,
         IPricingCalculatorService pricingCalculatorService)
     {
@@ -48,6 +50,7 @@ public class JobsController : ControllerBase
         _logger = logger;
         _paymentProvider = paymentProvider;
         _fcmNotificationService = fcmNotificationService;
+        _smsNotificationService = smsNotificationService;
         _environment = environment;
         _pricingCalculatorService = pricingCalculatorService;
     }
@@ -419,6 +422,18 @@ public class JobsController : ControllerBase
                 .Reference(v => v.Owner)
                 .LoadAsync();
 
+            var contactPhone = job.ContactPhoneNumber;
+            var ownerPhone = job.Vehicle?.Owner?.PhoneNumber;
+            await _smsNotificationService.NotifyClientJobCreatedAsync(job.Id, contactPhone, ownerPhone);
+            if (job.DriverId != null)
+            {
+                var pickupSms = string.IsNullOrWhiteSpace(job.PickupLocation) ? "Pickup TBD" : job.PickupLocation;
+                if (pickupSms.Length > 120)
+                    pickupSms = pickupSms[..117] + "...";
+                await _smsNotificationService.NotifyDriverJobAssignedAsync(job.Id, pickupSms, job.DriverId);
+                await _smsNotificationService.NotifyClientDriverAssignedAsync(job.Id, contactPhone, ownerPhone);
+            }
+
             var jobDto = MapToJobDto(job);
 
             return CreatedAtAction(nameof(GetJobById), new { id = job.Id }, jobDto);
@@ -723,6 +738,12 @@ public class JobsController : ControllerBase
                     notifyResult.Message);
             }
 
+            await _smsNotificationService.NotifyDriverJobAssignedAsync(job.Id, pickup, driver.Id);
+            await _smsNotificationService.NotifyClientDriverAssignedAsync(
+                job.Id,
+                job.ContactPhoneNumber,
+                job.Vehicle?.Owner?.PhoneNumber);
+
             var jobDto = MapToJobDto(job);
             return Ok(new AssignDriverResponseDto
             {
@@ -874,6 +895,8 @@ public class JobsController : ControllerBase
                 });
             }
 
+            var previousStatus = job.Status;
+
             // Update status and audit fields
             job.Status = status;
             job.StatusUpdatedAt = DateTime.UtcNow;
@@ -886,6 +909,22 @@ public class JobsController : ControllerBase
             if (!string.IsNullOrEmpty(job.StatusUpdatedById))
             {
                 job.StatusUpdatedBy = await _userManager.FindByIdAsync(job.StatusUpdatedById);
+            }
+
+            if (previousStatus != status)
+            {
+                var c = job.ContactPhoneNumber;
+                var o = job.Vehicle?.Owner?.PhoneNumber;
+                if (status == JobStatus.Completed)
+                {
+                    if (!string.IsNullOrEmpty(job.DriverId))
+                        await _smsNotificationService.NotifyDriverJobCompletedAsync(job.Id, job.DriverId);
+                    await _smsNotificationService.NotifyClientJobCompletedAsync(job.Id, c, o);
+                }
+                else if (status is JobStatus.OnRoute or JobStatus.OnScene or JobStatus.Loaded)
+                {
+                    await _smsNotificationService.NotifyClientJobStatusAsync(job.Id, status, c, o);
+                }
             }
 
             var jobDto = await MapToJobDtoForCallerAsync(job);
@@ -941,6 +980,16 @@ public class JobsController : ControllerBase
                 previousStatus,
                 job.PaymentStatus,
                 request.Reason);
+
+            if (previousStatus != JobStatus.Completed)
+            {
+                if (!string.IsNullOrEmpty(job.DriverId))
+                    await _smsNotificationService.NotifyDriverJobCompletedAsync(job.Id, job.DriverId);
+                await _smsNotificationService.NotifyClientJobCompletedAsync(
+                    job.Id,
+                    job.ContactPhoneNumber,
+                    job.Vehicle?.Owner?.PhoneNumber);
+            }
 
             var jobDto = MapToJobDto(job);
             return Ok(jobDto);
@@ -1101,6 +1150,13 @@ public class JobsController : ControllerBase
             job.StatusUpdatedById = userId;
 
             await _context.SaveChangesAsync();
+
+            await _smsNotificationService.NotifyClientJobCancelledAsync(
+                job.Id,
+                feeAmount > 0 ? feeAmount : null,
+                job.ContactPhoneNumber,
+                job.Vehicle?.Owner?.PhoneNumber);
+
             return Ok(MapToJobDto(job));
         }
         catch (PaymentProviderException ex)

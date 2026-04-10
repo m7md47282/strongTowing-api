@@ -234,6 +234,31 @@ public class SettingsController : ControllerBase
                 settings.StripeLiveWebhookSecret = _encryptionService.Encrypt(request.StripeLiveWebhookSecret);
             }
 
+            settings.SmsEnabled = request.SmsEnabled;
+            settings.SmsTwilioAccountSid = request.SmsTwilioAccountSid;
+            if (!string.IsNullOrWhiteSpace(request.SmsTwilioAuthToken))
+            {
+                settings.SmsTwilioAuthToken = _encryptionService.Encrypt(request.SmsTwilioAuthToken);
+            }
+
+            settings.SmsTwilioFromNumber = request.SmsTwilioFromNumber;
+            settings.SmsTwilioMessagingServiceSid = request.SmsTwilioMessagingServiceSid;
+
+            settings.SmsDriverJobAssigned = request.SmsDriverJobAssigned;
+            settings.SmsDriverJobCompleted = request.SmsDriverJobCompleted;
+            settings.SmsDriverPayrollPaid = request.SmsDriverPayrollPaid;
+            settings.SmsClientJobCreated = request.SmsClientJobCreated;
+            settings.SmsClientFraudUnderReview = request.SmsClientFraudUnderReview;
+            settings.SmsClientDriverAssigned = request.SmsClientDriverAssigned;
+            settings.SmsClientStatusOnRoute = request.SmsClientStatusOnRoute;
+            settings.SmsClientStatusOnScene = request.SmsClientStatusOnScene;
+            settings.SmsClientStatusLoaded = request.SmsClientStatusLoaded;
+            settings.SmsClientPaymentLinkCreated = request.SmsClientPaymentLinkCreated;
+            settings.SmsClientPaymentSucceeded = request.SmsClientPaymentSucceeded;
+            settings.SmsClientPaymentFailed = request.SmsClientPaymentFailed;
+            settings.SmsClientJobCancelled = request.SmsClientJobCancelled;
+            settings.SmsClientJobCompleted = request.SmsClientJobCompleted;
+
             await _context.SaveChangesAsync();
 
             return Ok(MapToSystemSettingsDto(settings));
@@ -281,6 +306,25 @@ public class SettingsController : ControllerBase
             PricingRoundingMode = settings.PricingRoundingMode,
             OfficeLatitude = settings.OfficeLatitude,
             OfficeLongitude = settings.OfficeLongitude,
+            SmsEnabled = settings.SmsEnabled,
+            SmsTwilioAccountSid = settings.SmsTwilioAccountSid,
+            SmsTwilioAuthTokenConfigured = !string.IsNullOrEmpty(settings.SmsTwilioAuthToken),
+            SmsTwilioFromNumber = settings.SmsTwilioFromNumber,
+            SmsTwilioMessagingServiceSid = settings.SmsTwilioMessagingServiceSid,
+            SmsDriverJobAssigned = settings.SmsDriverJobAssigned,
+            SmsDriverJobCompleted = settings.SmsDriverJobCompleted,
+            SmsDriverPayrollPaid = settings.SmsDriverPayrollPaid,
+            SmsClientJobCreated = settings.SmsClientJobCreated,
+            SmsClientFraudUnderReview = settings.SmsClientFraudUnderReview,
+            SmsClientDriverAssigned = settings.SmsClientDriverAssigned,
+            SmsClientStatusOnRoute = settings.SmsClientStatusOnRoute,
+            SmsClientStatusOnScene = settings.SmsClientStatusOnScene,
+            SmsClientStatusLoaded = settings.SmsClientStatusLoaded,
+            SmsClientPaymentLinkCreated = settings.SmsClientPaymentLinkCreated,
+            SmsClientPaymentSucceeded = settings.SmsClientPaymentSucceeded,
+            SmsClientPaymentFailed = settings.SmsClientPaymentFailed,
+            SmsClientJobCancelled = settings.SmsClientJobCancelled,
+            SmsClientJobCompleted = settings.SmsClientJobCompleted,
             UpdatedAt = settings.UpdatedAt,
             UpdatedBy = settings.UpdatedBy
         };

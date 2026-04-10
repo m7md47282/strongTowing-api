@@ -75,6 +75,31 @@ namespace StrongTowing.Core.Entities
 
         /// <summary>Dispatch office longitude (WGS84).</summary>
         public double? OfficeLongitude { get; set; }
+
+        // Twilio SMS (credentials from Admin Settings; Auth Token encrypted like Stripe)
+        public bool SmsEnabled { get; set; } = true;
+        public string? SmsTwilioAccountSid { get; set; }
+        public string? SmsTwilioAuthToken { get; set; }
+        /// <summary>E.164 sender phone, e.g. +15551234567. Use this or MessagingServiceSid.</summary>
+        public string? SmsTwilioFromNumber { get; set; }
+        /// <summary>Optional Twilio Messaging Service SID (MG...). Use this or FromNumber.</summary>
+        public string? SmsTwilioMessagingServiceSid { get; set; }
+
+        public bool SmsDriverJobAssigned { get; set; } = true;
+        public bool SmsDriverJobCompleted { get; set; } = true;
+        public bool SmsDriverPayrollPaid { get; set; } = true;
+
+        public bool SmsClientJobCreated { get; set; } = true;
+        public bool SmsClientFraudUnderReview { get; set; } = true;
+        public bool SmsClientDriverAssigned { get; set; } = true;
+        public bool SmsClientStatusOnRoute { get; set; } = true;
+        public bool SmsClientStatusOnScene { get; set; } = true;
+        public bool SmsClientStatusLoaded { get; set; } = true;
+        public bool SmsClientPaymentLinkCreated { get; set; } = true;
+        public bool SmsClientPaymentSucceeded { get; set; } = true;
+        public bool SmsClientPaymentFailed { get; set; } = true;
+        public bool SmsClientJobCancelled { get; set; } = true;
+        public bool SmsClientJobCompleted { get; set; } = true;
         
         // Metadata
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

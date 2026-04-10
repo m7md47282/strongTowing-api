@@ -33,5 +33,27 @@ namespace StrongTowing.Application.DTOs.Requests
 
         public double? OfficeLatitude { get; set; }
         public double? OfficeLongitude { get; set; }
+
+        public bool SmsEnabled { get; set; } = true;
+        public string? SmsTwilioAccountSid { get; set; }
+        public string? SmsTwilioAuthToken { get; set; }
+        public string? SmsTwilioFromNumber { get; set; }
+        public string? SmsTwilioMessagingServiceSid { get; set; }
+
+        public bool SmsDriverJobAssigned { get; set; } = true;
+        public bool SmsDriverJobCompleted { get; set; } = true;
+        public bool SmsDriverPayrollPaid { get; set; } = true;
+
+        public bool SmsClientJobCreated { get; set; } = true;
+        public bool SmsClientFraudUnderReview { get; set; } = true;
+        public bool SmsClientDriverAssigned { get; set; } = true;
+        public bool SmsClientStatusOnRoute { get; set; } = true;
+        public bool SmsClientStatusOnScene { get; set; } = true;
+        public bool SmsClientStatusLoaded { get; set; } = true;
+        public bool SmsClientPaymentLinkCreated { get; set; } = true;
+        public bool SmsClientPaymentSucceeded { get; set; } = true;
+        public bool SmsClientPaymentFailed { get; set; } = true;
+        public bool SmsClientJobCancelled { get; set; } = true;
+        public bool SmsClientJobCompleted { get; set; } = true;
     }
 }

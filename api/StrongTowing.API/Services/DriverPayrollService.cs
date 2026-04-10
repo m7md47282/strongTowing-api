@@ -12,10 +12,12 @@ namespace StrongTowing.API.Services;
 public class DriverPayrollService : IDriverPayrollService
 {
     private readonly ApplicationDbContext _context;
+    private readonly ISmsNotificationService _smsNotificationService;
 
-    public DriverPayrollService(ApplicationDbContext context)
+    public DriverPayrollService(ApplicationDbContext context, ISmsNotificationService smsNotificationService)
     {
         _context = context;
+        _smsNotificationService = smsNotificationService;
     }
 
     public async Task<GenerateDriverPayrollResponseDto> GenerateOrRefreshAsync(
@@ -217,6 +219,13 @@ public class DriverPayrollService : IDriverPayrollService
         row.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        await _smsNotificationService.NotifyDriverPayrollPaidAsync(
+            row.DriverId,
+            row.PayPeriodStart,
+            row.PayPeriodEnd,
+            row.NetPay,
+            cancellationToken);
 
         row = await _context.DriverPayrolls
             .AsNoTracking()

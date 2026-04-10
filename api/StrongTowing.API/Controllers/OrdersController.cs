@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using StrongTowing.API.Services;
+using StrongTowing.Application.Abstractions;
 using StrongTowing.Application.DTOs.Requests;
 using StrongTowing.Application.DTOs.Responses;
 using StrongTowing.Application.Exceptions;
@@ -21,6 +22,7 @@ public class OrdersController : ControllerBase
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly RoleManager<IdentityRole> _roleManager;
     private readonly IPaymentProvider _paymentProvider;
+    private readonly ISmsNotificationService _smsNotificationService;
     private readonly ILogger<OrdersController> _logger;
 
     public OrdersController(
@@ -28,12 +30,14 @@ public class OrdersController : ControllerBase
         UserManager<ApplicationUser> userManager,
         RoleManager<IdentityRole> roleManager,
         IPaymentProvider paymentProvider,
+        ISmsNotificationService smsNotificationService,
         ILogger<OrdersController> logger)
     {
         _context = context;
         _userManager = userManager;
         _roleManager = roleManager;
         _paymentProvider = paymentProvider;
+        _smsNotificationService = smsNotificationService;
         _logger = logger;
     }
 
@@ -113,12 +117,21 @@ public class OrdersController : ControllerBase
             job.PaymentStatus = payment.PaymentStatus;
             await _context.SaveChangesAsync();
 
+            await _context.Entry(job).Reference(j => j.Vehicle).LoadAsync();
+            if (job.Vehicle != null)
+                await _context.Entry(job.Vehicle).Reference(v => v.Owner).LoadAsync();
+            var contactPhone = job.ContactPhoneNumber;
+            var ownerPhone = job.Vehicle?.Owner?.PhoneNumber;
+            await _smsNotificationService.NotifyClientJobCreatedAsync(job.Id, contactPhone, ownerPhone);
+
             // If risk score is too high, queue for review before payment action.
             if (fraud.UnderReview)
             {
                 job.PaymentStatus = PaymentLifecycle.Statuses.UnderReview;
                 payment.PaymentStatus = PaymentLifecycle.Statuses.UnderReview;
                 await _context.SaveChangesAsync();
+
+                await _smsNotificationService.NotifyClientFraudUnderReviewAsync(job.Id, contactPhone, ownerPhone);
 
                 return Ok(new CreateOrderResponse
                 {
