@@ -22,6 +22,14 @@
       >
         Payments
       </button>
+      <button
+        type="button"
+        (click)="selectTab('sms')"
+        class="px-4 py-2.5 text-sm font-medium rounded-t-lg border-b-2 transition-colors"
+        [ngClass]="activeTab === 'sms' ? 'border-primary text-primary bg-primary/5' : 'border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50'"
+      >
+        SMS (Twilio)
+      </button>
       @if (isAdminOrSuperAdmin()) {
         <button
           type="button"
@@ -131,6 +139,171 @@
                 </span>
               } @else {
                 <span>Save office location</span>
+              }
+            </button>
+          </div>
+        </div>
+      </form>
+    }
+
+    @if (activeTab === 'sms') {
+      <form [formGroup]="smsForm" (ngSubmit)="saveSmsSettings()" class="space-y-6">
+        <div class="bg-white border border-gray-200 rounded-xl p-6">
+          <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+            <div>
+              <h2 class="text-lg font-semibold text-gray-900 mb-1">Twilio SMS</h2>
+              <p class="text-sm text-gray-600">
+                Outbound SMS uses Twilio. Store credentials here (same idea as Stripe). Leave Auth Token blank to keep the existing token.
+              </p>
+            </div>
+            <button
+              type="button"
+              (click)="openSmsTestModal()"
+              class="shrink-0 px-3 py-2 text-sm font-medium rounded-lg border border-primary text-primary hover:bg-primary/5 transition-colors"
+            >
+              Test SMS
+            </button>
+          </div>
+          <p class="text-xs text-gray-500 mb-4">
+            Save Twilio credentials before testing. Test uses the credentials stored on the server, not unsaved form values.
+          </p>
+
+          <label class="inline-flex items-center gap-2 mb-4">
+            <span class="text-sm font-medium text-gray-800">SMS enabled</span>
+            <input type="checkbox" formControlName="smsEnabled" class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
+          </label>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Twilio Account SID</label>
+              <input
+                type="text"
+                formControlName="smsTwilioAccountSid"
+                autocomplete="off"
+                class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="ACxxxxxxxx"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Auth Token</label>
+              <input
+                type="password"
+                formControlName="smsTwilioAuthToken"
+                autocomplete="new-password"
+                class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="Leave blank to keep existing"
+              />
+              @if (currentSettings?.smsTwilioAuthTokenConfigured) {
+                <p class="text-xs text-green-700 mt-1">A token is already saved.</p>
+              }
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">From number (E.164)</label>
+              <input
+                type="text"
+                formControlName="smsTwilioFromNumber"
+                class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="+15551234567"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Messaging Service SID (optional)</label>
+              <input
+                type="text"
+                formControlName="smsTwilioMessagingServiceSid"
+                class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="MGxxxxxxxx"
+              />
+              <p class="text-xs text-gray-500 mt-1">Use either From number or Messaging Service SID.</p>
+            </div>
+          </div>
+
+          <div class="border-t border-gray-200 pt-4 mt-4">
+            <h3 class="text-sm font-semibold text-gray-900 mb-3">Driver notifications</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <label class="inline-flex items-center gap-2 text-sm text-gray-800">
+                <input type="checkbox" formControlName="smsDriverJobAssigned" class="h-4 w-4 rounded border-gray-300 text-primary" />
+                Job assigned
+              </label>
+              <label class="inline-flex items-center gap-2 text-sm text-gray-800">
+                <input type="checkbox" formControlName="smsDriverJobCompleted" class="h-4 w-4 rounded border-gray-300 text-primary" />
+                Job completed
+              </label>
+              <label class="inline-flex items-center gap-2 text-sm text-gray-800">
+                <input type="checkbox" formControlName="smsDriverPayrollPaid" class="h-4 w-4 rounded border-gray-300 text-primary" />
+                Payroll paid
+              </label>
+            </div>
+          </div>
+
+          <div class="border-t border-gray-200 pt-4 mt-4">
+            <h3 class="text-sm font-semibold text-gray-900 mb-3">Client notifications</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <label class="inline-flex items-center gap-2 text-sm text-gray-800">
+                <input type="checkbox" formControlName="smsClientJobCreated" class="h-4 w-4 rounded border-gray-300 text-primary" />
+                Job created
+              </label>
+              <label class="inline-flex items-center gap-2 text-sm text-gray-800">
+                <input type="checkbox" formControlName="smsClientFraudUnderReview" class="h-4 w-4 rounded border-gray-300 text-primary" />
+                Fraud / under review
+              </label>
+              <label class="inline-flex items-center gap-2 text-sm text-gray-800">
+                <input type="checkbox" formControlName="smsClientDriverAssigned" class="h-4 w-4 rounded border-gray-300 text-primary" />
+                Driver assigned
+              </label>
+              <label class="inline-flex items-center gap-2 text-sm text-gray-800">
+                <input type="checkbox" formControlName="smsClientStatusOnRoute" class="h-4 w-4 rounded border-gray-300 text-primary" />
+                On route
+              </label>
+              <label class="inline-flex items-center gap-2 text-sm text-gray-800">
+                <input type="checkbox" formControlName="smsClientStatusOnScene" class="h-4 w-4 rounded border-gray-300 text-primary" />
+                On scene
+              </label>
+              <label class="inline-flex items-center gap-2 text-sm text-gray-800">
+                <input type="checkbox" formControlName="smsClientStatusLoaded" class="h-4 w-4 rounded border-gray-300 text-primary" />
+                Loaded
+              </label>
+              <label class="inline-flex items-center gap-2 text-sm text-gray-800">
+                <input type="checkbox" formControlName="smsClientPaymentLinkCreated" class="h-4 w-4 rounded border-gray-300 text-primary" />
+                Payment link created
+              </label>
+              <label class="inline-flex items-center gap-2 text-sm text-gray-800">
+                <input type="checkbox" formControlName="smsClientPaymentSucceeded" class="h-4 w-4 rounded border-gray-300 text-primary" />
+                Payment succeeded
+              </label>
+              <label class="inline-flex items-center gap-2 text-sm text-gray-800">
+                <input type="checkbox" formControlName="smsClientPaymentFailed" class="h-4 w-4 rounded border-gray-300 text-primary" />
+                Payment failed
+              </label>
+              <label class="inline-flex items-center gap-2 text-sm text-gray-800">
+                <input type="checkbox" formControlName="smsClientJobCancelled" class="h-4 w-4 rounded border-gray-300 text-primary" />
+                Job cancelled
+              </label>
+              <label class="inline-flex items-center gap-2 text-sm text-gray-800">
+                <input type="checkbox" formControlName="smsClientJobCompleted" class="h-4 w-4 rounded border-gray-300 text-primary" />
+                Job completed
+              </label>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-3 mt-6">
+            @if (!isSuperAdmin()) {
+              <span class="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg">
+                Only Super Admin can save SMS settings.
+              </span>
+            }
+            <button
+              type="submit"
+              class="px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
+              [disabled]="savingSms || !isSuperAdmin()"
+            >
+              @if (savingSms) {
+                <span class="flex items-center gap-2">
+                  <i class="fas fa-spinner fa-spin"></i>
+                  Saving...
+                </span>
+              } @else {
+                <span>Save SMS settings</span>
               }
             </button>
           </div>
@@ -533,6 +706,94 @@
             <pre class="text-xs text-gray-700 overflow-auto whitespace-pre-wrap">{{ paymentLinkResult | json }}</pre>
           </div>
         }
+      </div>
+    </div>
+  </div>
+}
+
+@if (showSmsTestModal) {
+  <div class="fixed inset-0 z-40 bg-black/40" (click)="closeSmsTestModal()"></div>
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="w-full max-w-lg bg-white rounded-xl shadow-xl border border-gray-200" (click)="$event.stopPropagation()">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+        <div>
+          <h3 class="text-base font-semibold text-gray-900">Test SMS</h3>
+          <p class="text-sm text-gray-600">Send a one-off message using saved Twilio settings.</p>
+        </div>
+        <button
+          type="button"
+          (click)="closeSmsTestModal()"
+          class="h-8 w-8 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+          aria-label="Close"
+        >
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <div class="p-5">
+        <form [formGroup]="smsTestForm" class="space-y-4">
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">Destination phone</label>
+            <input
+              type="tel"
+              formControlName="toPhone"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder="5551234567 or +15551234567"
+              autocomplete="tel"
+            />
+            @if (smsTestForm.get('toPhone')?.invalid && smsTestForm.get('toPhone')?.touched) {
+              <p class="text-xs text-red-600 mt-1">Phone is required.</p>
+            }
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">Message (optional)</label>
+            <textarea
+              formControlName="message"
+              rows="3"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder="Leave blank for default test text"
+            ></textarea>
+          </div>
+        </form>
+
+        @if (smsTestError) {
+          <div class="mt-4 bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+            {{ smsTestError }}
+          </div>
+        }
+
+        @if (smsTestResult && smsTestResult.success) {
+          <div class="mt-4 bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-800">
+            <p class="font-medium">SMS sent successfully.</p>
+            @if (smsTestResult.toE164) {
+              <p class="mt-1">To: {{ smsTestResult.toE164 }}</p>
+            }
+            @if (smsTestResult.twilioMessageSid) {
+              <p class="mt-1 font-mono text-xs">Twilio SID: {{ smsTestResult.twilioMessageSid }}</p>
+            }
+          </div>
+        }
+
+        <div class="mt-5 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            (click)="sendTestSms()"
+            class="px-4 py-2 text-sm font-medium bg-primary text-white rounded-lg hover:opacity-90 disabled:opacity-50"
+            [disabled]="smsTestLoading || !isSuperAdmin()"
+          >
+            @if (smsTestLoading) {
+              <span class="flex items-center gap-2">
+                <i class="fas fa-spinner fa-spin"></i>
+                Sending...
+              </span>
+            } @else {
+              <span>Send test SMS</span>
+            }
+          </button>
+          @if (!isSuperAdmin()) {
+            <span class="text-xs text-amber-700">Super Admin only.</span>
+          }
+        </div>
       </div>
     </div>
   </div>

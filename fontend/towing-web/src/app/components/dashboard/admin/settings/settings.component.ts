@@ -6,7 +6,12 @@ import { interval, Subscription } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import { RoleId } from '../../../../constants/user-roles.constants';
 import { AuthService } from '../../../../services/auth.service';
-import { SettingsService, SystemSettings, UpdateSystemSettingsRequest } from '../../../../services/settings.service';
+import {
+  SettingsService,
+  SystemSettings,
+  TestSmsResponse,
+  UpdateSystemSettingsRequest
+} from '../../../../services/settings.service';
 import {
   CreatePaymentIntentResponse,
   CreateStripePaymentLinkResponse,
@@ -18,7 +23,7 @@ import {
   VehicleCatalogSyncStatus
 } from '../../../../services/vehicle-catalog-admin.service';
 
-type SettingsTab = 'general' | 'payments' | 'vehicleCatalog';
+type SettingsTab = 'general' | 'payments' | 'vehicleCatalog' | 'sms';
 
 @Component({
   selector: 'app-settings',
@@ -37,9 +42,12 @@ export class SettingsComponent implements OnInit, OnDestroy {
   private catalogPollSub?: Subscription;
   settingsForm: FormGroup;
   generalForm: FormGroup;
+  smsForm: FormGroup;
+  smsTestForm: FormGroup;
   paymentTestForm: FormGroup;
   loading = false;
   saving = false;
+  savingSms = false;
   savingOffice = false;
   error: string | null = null;
   successMessage: string | null = null;
@@ -49,6 +57,11 @@ export class SettingsComponent implements OnInit, OnDestroy {
   paymentTestError: string | null = null;
   paymentIntentResult: CreatePaymentIntentResponse | null = null;
   paymentLinkResult: CreateStripePaymentLinkResponse | null = null;
+
+  showSmsTestModal = false;
+  smsTestLoading = false;
+  smsTestError: string | null = null;
+  smsTestResult: TestSmsResponse | null = null;
 
   constructor(
     private fb: FormBuilder,
@@ -90,6 +103,33 @@ export class SettingsComponent implements OnInit, OnDestroy {
       amount: [25, [Validators.required, Validators.min(0.5)]],
       currency: ['usd', [Validators.required]],
       successUrl: ['']
+    });
+
+    this.smsTestForm = this.fb.group({
+      toPhone: ['', Validators.required],
+      message: ['']
+    });
+
+    this.smsForm = this.fb.group({
+      smsEnabled: [true],
+      smsTwilioAccountSid: [''],
+      smsTwilioAuthToken: [''],
+      smsTwilioFromNumber: [''],
+      smsTwilioMessagingServiceSid: [''],
+      smsDriverJobAssigned: [true],
+      smsDriverJobCompleted: [true],
+      smsDriverPayrollPaid: [true],
+      smsClientJobCreated: [true],
+      smsClientFraudUnderReview: [true],
+      smsClientDriverAssigned: [true],
+      smsClientStatusOnRoute: [true],
+      smsClientStatusOnScene: [true],
+      smsClientStatusLoaded: [true],
+      smsClientPaymentLinkCreated: [true],
+      smsClientPaymentSucceeded: [true],
+      smsClientPaymentFailed: [true],
+      smsClientJobCancelled: [true],
+      smsClientJobCompleted: [true]
     });
   }
 
@@ -269,7 +309,27 @@ export class SettingsComponent implements OnInit, OnDestroy {
       pricingMismatchTolerance: c.pricingMismatchTolerance,
       pricingRoundingMode: c.pricingRoundingMode,
       officeLatitude: c.officeLatitude ?? null,
-      officeLongitude: c.officeLongitude ?? null
+      officeLongitude: c.officeLongitude ?? null,
+
+      smsEnabled: c.smsEnabled ?? true,
+      smsTwilioAccountSid: c.smsTwilioAccountSid ?? null,
+      smsTwilioAuthToken: null,
+      smsTwilioFromNumber: c.smsTwilioFromNumber ?? null,
+      smsTwilioMessagingServiceSid: c.smsTwilioMessagingServiceSid ?? null,
+      smsDriverJobAssigned: c.smsDriverJobAssigned ?? true,
+      smsDriverJobCompleted: c.smsDriverJobCompleted ?? true,
+      smsDriverPayrollPaid: c.smsDriverPayrollPaid ?? true,
+      smsClientJobCreated: c.smsClientJobCreated ?? true,
+      smsClientFraudUnderReview: c.smsClientFraudUnderReview ?? true,
+      smsClientDriverAssigned: c.smsClientDriverAssigned ?? true,
+      smsClientStatusOnRoute: c.smsClientStatusOnRoute ?? true,
+      smsClientStatusOnScene: c.smsClientStatusOnScene ?? true,
+      smsClientStatusLoaded: c.smsClientStatusLoaded ?? true,
+      smsClientPaymentLinkCreated: c.smsClientPaymentLinkCreated ?? true,
+      smsClientPaymentSucceeded: c.smsClientPaymentSucceeded ?? true,
+      smsClientPaymentFailed: c.smsClientPaymentFailed ?? true,
+      smsClientJobCancelled: c.smsClientJobCancelled ?? true,
+      smsClientJobCompleted: c.smsClientJobCompleted ?? true
     };
   }
 
@@ -302,6 +362,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
             officeLatitude: settings.officeLatitude ?? null,
             officeLongitude: settings.officeLongitude ?? null
           });
+          this.patchSmsFormFromSettings(settings);
         },
         error: (err) => {
           this.error = err.error?.message || err.error?.error || 'Failed to load settings.';
@@ -434,9 +495,152 @@ export class SettingsComponent implements OnInit, OnDestroy {
             stripeLiveSecretKey: '',
             stripeLiveWebhookSecret: ''
           });
+          this.patchSmsFormFromSettings(settings);
         },
         error: (err) => {
           this.error = err.error?.message || err.error?.error || 'Failed to save settings.';
+        }
+      });
+  }
+
+  saveSmsSettings(): void {
+    if (!this.isSuperAdmin()) {
+      this.error = 'Only Super Admin can update settings.';
+      return;
+    }
+
+    if (!this.currentSettings) {
+      return;
+    }
+
+    this.savingSms = true;
+    this.error = null;
+    this.successMessage = null;
+
+    const v = this.smsForm.getRawValue();
+    const token =
+      v.smsTwilioAuthToken && String(v.smsTwilioAuthToken).trim().length > 0
+        ? String(v.smsTwilioAuthToken).trim()
+        : null;
+
+    const payload: UpdateSystemSettingsRequest = {
+      ...this.buildUpdateFromCurrent(),
+      smsEnabled: !!v.smsEnabled,
+      smsTwilioAccountSid: v.smsTwilioAccountSid || null,
+      smsTwilioAuthToken: token,
+      smsTwilioFromNumber: v.smsTwilioFromNumber || null,
+      smsTwilioMessagingServiceSid: v.smsTwilioMessagingServiceSid || null,
+      smsDriverJobAssigned: !!v.smsDriverJobAssigned,
+      smsDriverJobCompleted: !!v.smsDriverJobCompleted,
+      smsDriverPayrollPaid: !!v.smsDriverPayrollPaid,
+      smsClientJobCreated: !!v.smsClientJobCreated,
+      smsClientFraudUnderReview: !!v.smsClientFraudUnderReview,
+      smsClientDriverAssigned: !!v.smsClientDriverAssigned,
+      smsClientStatusOnRoute: !!v.smsClientStatusOnRoute,
+      smsClientStatusOnScene: !!v.smsClientStatusOnScene,
+      smsClientStatusLoaded: !!v.smsClientStatusLoaded,
+      smsClientPaymentLinkCreated: !!v.smsClientPaymentLinkCreated,
+      smsClientPaymentSucceeded: !!v.smsClientPaymentSucceeded,
+      smsClientPaymentFailed: !!v.smsClientPaymentFailed,
+      smsClientJobCancelled: !!v.smsClientJobCancelled,
+      smsClientJobCompleted: !!v.smsClientJobCompleted
+    };
+
+    this.settingsService
+      .updateSettings(payload)
+      .pipe(finalize(() => {
+        this.savingSms = false;
+      }))
+      .subscribe({
+        next: (settings) => {
+          this.currentSettings = settings;
+          this.patchSmsFormFromSettings(settings);
+          this.successMessage = 'SMS settings saved.';
+        },
+        error: (err) => {
+          this.error = err.error?.message || err.error?.error || 'Failed to save SMS settings.';
+        }
+      });
+  }
+
+  private patchSmsFormFromSettings(settings: SystemSettings): void {
+    this.smsForm.patchValue({
+      smsEnabled: settings.smsEnabled ?? true,
+      smsTwilioAccountSid: settings.smsTwilioAccountSid || '',
+      smsTwilioAuthToken: '',
+      smsTwilioFromNumber: settings.smsTwilioFromNumber || '',
+      smsTwilioMessagingServiceSid: settings.smsTwilioMessagingServiceSid || '',
+      smsDriverJobAssigned: settings.smsDriverJobAssigned ?? true,
+      smsDriverJobCompleted: settings.smsDriverJobCompleted ?? true,
+      smsDriverPayrollPaid: settings.smsDriverPayrollPaid ?? true,
+      smsClientJobCreated: settings.smsClientJobCreated ?? true,
+      smsClientFraudUnderReview: settings.smsClientFraudUnderReview ?? true,
+      smsClientDriverAssigned: settings.smsClientDriverAssigned ?? true,
+      smsClientStatusOnRoute: settings.smsClientStatusOnRoute ?? true,
+      smsClientStatusOnScene: settings.smsClientStatusOnScene ?? true,
+      smsClientStatusLoaded: settings.smsClientStatusLoaded ?? true,
+      smsClientPaymentLinkCreated: settings.smsClientPaymentLinkCreated ?? true,
+      smsClientPaymentSucceeded: settings.smsClientPaymentSucceeded ?? true,
+      smsClientPaymentFailed: settings.smsClientPaymentFailed ?? true,
+      smsClientJobCancelled: settings.smsClientJobCancelled ?? true,
+      smsClientJobCompleted: settings.smsClientJobCompleted ?? true
+    });
+  }
+
+  openSmsTestModal(): void {
+    this.showSmsTestModal = true;
+    this.smsTestError = null;
+    this.smsTestResult = null;
+    this.smsTestForm.patchValue({ toPhone: '', message: '' });
+  }
+
+  closeSmsTestModal(): void {
+    this.showSmsTestModal = false;
+    this.smsTestLoading = false;
+    this.smsTestError = null;
+    this.smsTestResult = null;
+  }
+
+  sendTestSms(): void {
+    if (!this.isSuperAdmin()) {
+      return;
+    }
+    if (this.smsTestForm.invalid) {
+      this.smsTestForm.markAllAsTouched();
+      return;
+    }
+
+    const v = this.smsTestForm.getRawValue();
+    const message = typeof v.message === 'string' && v.message.trim().length > 0 ? v.message.trim() : undefined;
+
+    this.smsTestLoading = true;
+    this.smsTestError = null;
+    this.smsTestResult = null;
+
+    this.settingsService
+      .testSms({
+        toPhone: String(v.toPhone).trim(),
+        message
+      })
+      .pipe(
+        finalize(() => {
+          this.smsTestLoading = false;
+        })
+      )
+      .subscribe({
+        next: (res) => {
+          this.smsTestResult = res;
+          if (!res.success) {
+            this.smsTestError = res.errorMessage || 'SMS could not be sent.';
+          }
+        },
+        error: (err) => {
+          const body = err.error;
+          this.smsTestError =
+            body?.errorMessage ||
+            body?.message ||
+            body?.error ||
+            'Failed to send test SMS.';
         }
       });
   }
