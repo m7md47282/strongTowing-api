@@ -1,37 +1,61 @@
 import { Injectable } from '@angular/core';
 import { HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
 import { ApiService } from './api.service';
 
-/** Paginated models response (API camelCase JSON). */
-export interface VehicleModelsPage {
-  models: string[];
+export interface VehicleCatalogMakeItem {
+  id: number;
+  name: string;
+}
+
+export interface VehicleCatalogPagedMakes {
+  items: VehicleCatalogMakeItem[];
   totalCount: number;
   page: number;
   pageSize: number;
   totalPages: number;
+  catalogEmpty: boolean;
 }
 
-/** US-market makes/models via backend proxy to NHTSA vPIC (server caches NHTSA responses). */
+export interface VehicleCatalogModelItem {
+  id: number;
+  name: string;
+}
+
+export interface VehicleCatalogPagedModels {
+  items: VehicleCatalogModelItem[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  catalogEmpty: boolean;
+}
+
+/** US-market makes/models from local DB (sync from NHTSA via Admin settings). */
 @Injectable({
   providedIn: 'root'
 })
 export class VehicleCatalogService {
   constructor(private api: ApiService) {}
 
-  getMakes(): Observable<string[]> {
-    return this.api
-      .get<{ makes: string[] }>('vehicle-catalog/makes')
-      .pipe(map((r) => r.makes ?? []));
+  searchMakes(q: string, page = 1, pageSize = 30): Observable<VehicleCatalogPagedMakes> {
+    let params = new HttpParams().set('page', String(page)).set('pageSize', String(pageSize));
+    const t = (q ?? '').trim();
+    if (t) {
+      params = params.set('q', t);
+    }
+    return this.api.get<VehicleCatalogPagedMakes>('vehicle-catalog/makes', params);
   }
 
-  /** One page of models; backend caches full list per make. */
-  getModelsPage(makeName: string, page = 1, pageSize = 100): Observable<VehicleModelsPage> {
-    const params = new HttpParams()
-      .set('makeName', makeName)
+  searchModels(makeId: number, q: string, page = 1, pageSize = 30): Observable<VehicleCatalogPagedModels> {
+    let params = new HttpParams()
+      .set('makeId', String(makeId))
       .set('page', String(page))
       .set('pageSize', String(pageSize));
-    return this.api.get<VehicleModelsPage>('vehicle-catalog/models', params);
+    const t = (q ?? '').trim();
+    if (t) {
+      params = params.set('q', t);
+    }
+    return this.api.get<VehicleCatalogPagedModels>('vehicle-catalog/models', params);
   }
 }

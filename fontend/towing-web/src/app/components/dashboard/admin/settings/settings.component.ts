@@ -1,7 +1,9 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize } from 'rxjs/operators';
+import { interval, Subscription } from 'rxjs';
+import { switchMap } from 'rxjs/operators';
 import { RoleId } from '../../../../constants/user-roles.constants';
 import { AuthService } from '../../../../services/auth.service';
 import { SettingsService, SystemSettings, UpdateSystemSettingsRequest } from '../../../../services/settings.service';
@@ -11,8 +13,12 @@ import {
   PaymentService
 } from '../../../../services/payment.service';
 import { LocationPickerComponent } from '../../../shared/location-picker/location-picker.component';
+import {
+  VehicleCatalogAdminService,
+  VehicleCatalogSyncStatus
+} from '../../../../services/vehicle-catalog-admin.service';
 
-type SettingsTab = 'general' | 'payments';
+type SettingsTab = 'general' | 'payments' | 'vehicleCatalog';
 
 @Component({
   selector: 'app-settings',
@@ -21,8 +27,14 @@ type SettingsTab = 'general' | 'payments';
   templateUrl: './settings.component.html',
   styleUrls: ['./settings.component.scss']
 })
-export class SettingsComponent implements OnInit {
+export class SettingsComponent implements OnInit, OnDestroy {
   activeTab: SettingsTab = 'general';
+
+  /** NHTSA catalog sync (Admin / Super Admin) */
+  catalogSyncStatus: VehicleCatalogSyncStatus | null = null;
+  catalogSyncSubmitting = false;
+  catalogSyncError: string | null = null;
+  private catalogPollSub?: Subscription;
   settingsForm: FormGroup;
   generalForm: FormGroup;
   paymentTestForm: FormGroup;
@@ -42,7 +54,8 @@ export class SettingsComponent implements OnInit {
     private fb: FormBuilder,
     private settingsService: SettingsService,
     private authService: AuthService,
-    private paymentService: PaymentService
+    private paymentService: PaymentService,
+    private vehicleCatalogAdmin: VehicleCatalogAdminService
   ) {
     this.generalForm = this.fb.group({
       officeLatitude: [null as number | null],
@@ -84,6 +97,20 @@ export class SettingsComponent implements OnInit {
     this.loadSettings();
   }
 
+  ngOnDestroy(): void {
+    this.catalogPollSub?.unsubscribe();
+  }
+
+  isAdminOrSuperAdmin(): boolean {
+    const currentUser = this.authService.getCurrentUser();
+    if (!currentUser) {
+      return false;
+    }
+    const roleId =
+      typeof currentUser.roleId === 'string' ? parseInt(currentUser.roleId, 10) : Number(currentUser.roleId);
+    return roleId === RoleId.SuperAdmin || roleId === RoleId.Admin;
+  }
+
   isSuperAdmin(): boolean {
     const currentUser = this.authService.getCurrentUser();
     if (!currentUser) {
@@ -101,6 +128,94 @@ export class SettingsComponent implements OnInit {
     this.activeTab = tab;
     this.error = null;
     this.successMessage = null;
+    this.catalogSyncError = null;
+    if (tab === 'vehicleCatalog' && this.isAdminOrSuperAdmin()) {
+      this.refreshCatalogSyncStatus();
+    }
+  }
+
+  refreshCatalogSyncStatus(): void {
+    this.catalogSyncError = null;
+    this.vehicleCatalogAdmin.getSyncStatus().subscribe({
+      next: (s) => {
+        this.catalogSyncStatus = s;
+        if (s.status === 1) {
+          this.ensureCatalogPolling();
+        }
+      },
+      error: () => {
+        this.catalogSyncError = 'Could not load vehicle catalog sync status.';
+      }
+    });
+  }
+
+  private ensureCatalogPolling(): void {
+    if (this.catalogPollSub && !this.catalogPollSub.closed) {
+      return;
+    }
+    this.catalogPollSub?.unsubscribe();
+    this.catalogPollSub = interval(3000)
+      .pipe(switchMap(() => this.vehicleCatalogAdmin.getSyncStatus()))
+      .subscribe({
+        next: (s) => {
+          this.catalogSyncStatus = s;
+          if (s.status !== 1) {
+            this.catalogPollSub?.unsubscribe();
+            this.catalogPollSub = undefined;
+          }
+        },
+        error: () => {
+          this.catalogPollSub?.unsubscribe();
+          this.catalogPollSub = undefined;
+        }
+      });
+  }
+
+  triggerVehicleCatalogSync(): void {
+    if (!this.isAdminOrSuperAdmin()) {
+      return;
+    }
+    this.catalogSyncSubmitting = true;
+    this.catalogSyncError = null;
+    this.vehicleCatalogAdmin
+      .postSync()
+      .pipe(finalize(() => (this.catalogSyncSubmitting = false)))
+      .subscribe({
+        next: () => {
+          this.refreshCatalogSyncStatus();
+          this.ensureCatalogPolling();
+        },
+        error: (err) => {
+          this.catalogSyncError =
+            err.error?.message || err.error?.error || 'Could not start sync. It may already be running.';
+        }
+      });
+  }
+
+  catalogStatusLabel(status: number): string {
+    switch (status) {
+      case 0:
+        return 'Idle';
+      case 1:
+        return 'Running';
+      case 2:
+        return 'Succeeded';
+      case 3:
+        return 'Failed';
+      default:
+        return 'Unknown';
+    }
+  }
+
+  /** 0–100 for makes loop progress while sync is running. */
+  catalogSyncProgressPercent(): number {
+    const s = this.catalogSyncStatus;
+    const total = s?.totalMakes ?? 0;
+    const done = s?.makesProcessed ?? 0;
+    if (!s || total <= 0) {
+      return 0;
+    }
+    return Math.min(100, Math.round((100 * done) / total));
   }
 
   setStripeMode(mode: 'test' | 'live'): void {

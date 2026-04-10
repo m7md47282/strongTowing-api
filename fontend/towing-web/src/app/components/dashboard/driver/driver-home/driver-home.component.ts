@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { finalize } from 'rxjs/operators';
-import { JobService, Job } from '../../../../services/job.service';
+import { JobService, Job, JOB_STATUS, JobStatus } from '../../../../services/job.service';
 
 @Component({
   selector: 'app-driver-home',
@@ -38,8 +38,8 @@ export class DriverHomeComponent implements OnInit {
   }
 
   private applyCounts(jobs: Job[]): void {
-    const closed = new Set(['Completed', 'Cancelled']);
-    this.completedCount = jobs.filter((j) => j.status === 'Completed').length;
+    const closed = new Set<JobStatus>([JOB_STATUS.Completed, JOB_STATUS.Cancelled]);
+    this.completedCount = jobs.filter((j) => j.status === JOB_STATUS.Completed).length;
     this.activeCount = jobs.filter((j) => !closed.has(j.status)).length;
   }
 }

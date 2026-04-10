@@ -7,7 +7,10 @@ import {
   JobService,
   Job,
   UpdateJobStatusRequest,
-  resolvePublicAssetUrl
+  resolvePublicAssetUrl,
+  JOB_STATUS,
+  JOB_STATUS_PIPELINE,
+  JobStatus
 } from '../../../../services/job.service';
 import { SettingsService, DispatchContact } from '../../../../services/settings.service';
 import { LocationService } from '../../../../services/location.service';
@@ -33,14 +36,10 @@ export class DriverJobDetailComponent implements OnInit {
   locationPingMessage: string | null = null;
   locationPinging = false;
 
-  readonly statusProgression: Job['status'][] = [
-    'Pending',
-    'Assigned',
-    'OnRoute',
-    'InProgress',
-    'ReadyToRelease',
-    'Completed'
-  ];
+  readonly statusProgression: JobStatus[] = [...JOB_STATUS_PIPELINE];
+
+  /** Minimum photos required before driver can advance to Loaded (matches API). */
+  readonly minPhotosRequiredForLoaded = 10;
 
   updateStatusControl = new FormControl<string>('', { nonNullable: true });
 
@@ -95,7 +94,7 @@ export class DriverJobDetailComponent implements OnInit {
       });
   }
 
-  getNextStatuses(job: Job): Job['status'][] {
+  getNextStatuses(job: Job): JobStatus[] {
     const currentIndex = this.statusProgression.indexOf(job.status);
     if (currentIndex === -1) {
       return [];
@@ -104,25 +103,29 @@ export class DriverJobDetailComponent implements OnInit {
   }
 
   getStatusClass(status: string): string {
-    const map: Record<string, string> = {
-      Pending: 'bg-gray-100 text-gray-800',
-      Assigned: 'bg-blue-100 text-blue-800',
-      OnRoute: 'bg-indigo-100 text-indigo-800',
-      InProgress: 'bg-amber-100 text-amber-900',
-      ReadyToRelease: 'bg-purple-100 text-purple-800',
-      Completed: 'bg-green-100 text-green-800',
-      Cancelled: 'bg-red-100 text-red-800'
+    const map: Record<JobStatus, string> = {
+      [JOB_STATUS.Waiting]: 'bg-gray-100 text-gray-800',
+      [JOB_STATUS.Dispatch]: 'bg-blue-100 text-blue-800',
+      [JOB_STATUS.OnRoute]: 'bg-indigo-100 text-indigo-800',
+      [JOB_STATUS.OnScene]: 'bg-amber-100 text-amber-900',
+      [JOB_STATUS.Loaded]: 'bg-purple-100 text-purple-800',
+      [JOB_STATUS.Completed]: 'bg-green-100 text-green-800',
+      [JOB_STATUS.Cancelled]: 'bg-red-100 text-red-800'
     };
-    return map[status] || 'bg-gray-100 text-gray-800';
+    return map[status as JobStatus] || 'bg-gray-100 text-gray-800';
   }
 
   formatStatus(status: string): string {
-    const map: Record<string, string> = {
-      OnRoute: 'On route',
-      InProgress: 'In progress',
-      ReadyToRelease: 'Ready to release'
+    const map: Record<JobStatus, string> = {
+      [JOB_STATUS.Waiting]: 'Waiting',
+      [JOB_STATUS.Dispatch]: 'Dispatch',
+      [JOB_STATUS.OnRoute]: 'On route',
+      [JOB_STATUS.OnScene]: 'On scene',
+      [JOB_STATUS.Loaded]: 'Loaded',
+      [JOB_STATUS.Completed]: 'Completed',
+      [JOB_STATUS.Cancelled]: 'Cancelled'
     };
-    return map[status] || status;
+    return map[status as JobStatus] || status;
   }
 
   vehicleLabel(job: Job): string {
@@ -145,7 +148,7 @@ export class DriverJobDetailComponent implements OnInit {
   }
 
   canUploadPhoto(job: Job): boolean {
-    return (job.photoCount ?? job.photos?.length ?? 0) < 5;
+    return (job.photoCount ?? job.photos?.length ?? 0) < this.minPhotosRequiredForLoaded;
   }
 
   onPhotoSelected(event: Event): void {

@@ -1,4 +1,14 @@
-import { ChangeDetectorRef, Component, NgZone, OnDestroy, OnInit } from '@angular/core';
+import {
+  AfterViewInit,
+  ChangeDetectorRef,
+  Component,
+  ElementRef,
+  HostListener,
+  NgZone,
+  OnDestroy,
+  OnInit,
+  ViewChild
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormControl, AbstractControl } from '@angular/forms';
 import { HttpParams } from '@angular/common/http';
@@ -7,13 +17,46 @@ import {
   debounceTime,
   distinctUntilChanged,
   finalize,
+  map,
   startWith,
   switchMap
 } from 'rxjs/operators';
-import { combineLatest, EMPTY, firstValueFrom, from, of, Subscription } from 'rxjs';
-import { VehicleCatalogService, VehicleModelsPage } from '../../../../services/vehicle-catalog.service';
+import {
+  combineLatest,
+  EMPTY,
+  firstValueFrom,
+  from,
+  merge,
+  Observable,
+  of,
+  Subject,
+  Subscription
+} from 'rxjs';
+import {
+  VehicleCatalogMakeItem,
+  VehicleCatalogModelItem,
+  VehicleCatalogService
+} from '../../../../services/vehicle-catalog.service';
 import { Loader } from '@googlemaps/js-api-loader';
-import { JobService, Job, CreateJobRequest, AssignDriverRequest, AssignDriverResponse, VehicleData, ClientData, UpdateJobStatusRequest } from '../../../../services/job.service';
+import {
+  JobService,
+  Job,
+  CreateJobRequest,
+  AssignDriverRequest,
+  AssignDriverResponse,
+  VehicleData,
+  ClientData,
+  UpdateJobStatusRequest,
+  OverrideJobPriceRequest,
+  JOB_STATUS,
+  JOB_STATUS_PIPELINE,
+  JOB_STATUS_ORDER,
+  JOB_STATUS_LABELS,
+  JobStatus,
+  formatJobStatusLabel,
+  JOB_BILLING_PAYMENT_MODE,
+  UpdateJobBillingPaymentRequest
+} from '../../../../services/job.service';
 import { VehicleService, Vehicle } from '../../../../services/vehicle.service';
 import { ApiService } from '../../../../services/api.service';
 import { AccountsService } from '../../../../services/accounts.service';
@@ -29,6 +72,29 @@ import { LocationPickerComponent } from '../../../shared/location-picker/locatio
 import { LocationService } from '../../../../services/location.service';
 import { PricingService, PricingQuoteResponse } from '../../../../services/pricing.service';
 import { environment } from '../../../../../environments/environment';
+
+const JOBS_TABLE_COL_COUNT = 17;
+const JOBS_STICKY_STORAGE_KEY = 'dispatcherJobsTableStickyColumns';
+
+/** Per column: off, stick to left when scrolling, or stick to right when scrolling. */
+type JobTableStickyPin = 'off' | 'left' | 'right';
+
+function defaultJobsTableStickyConfig(): JobTableStickyPin[] {
+  const d = new Array<JobTableStickyPin>(JOBS_TABLE_COL_COUNT).fill('off');
+  d[0] = 'left';
+  d[1] = 'left';
+  d[16] = 'right';
+  return d;
+}
+
+function migrateJobsTableStickyFromBooleans(parsed: boolean[]): JobTableStickyPin[] {
+  return parsed.map((b, i) => {
+    if (!b) {
+      return 'off';
+    }
+    return i === JOBS_TABLE_COL_COUNT - 1 ? 'right' : 'left';
+  });
+}
 
 interface PagedResponse<T> {
   data: T[];
@@ -53,7 +119,12 @@ interface PagedResponse<T> {
   templateUrl: './jobs.component.html',
   styleUrls: ['./jobs.component.scss']
 })
-export class JobsComponent implements OnInit, OnDestroy {
+export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
+  /** Expose for template (`job.status === JOB_STATUS.Waiting`). */
+  readonly JOB_STATUS = JOB_STATUS;
+  readonly JOB_BILLING_PAYMENT_MODE = JOB_BILLING_PAYMENT_MODE;
+  /** Full lifecycle order — all statuses shown in job details (e.g. new job = Waiting current, rest upcoming). */
+  readonly JOB_STATUS_ORDER_ALL = JOB_STATUS_ORDER;
   jobs: Job[] = [];
   filteredJobs: Job[] = [];
   loading = false;
@@ -77,6 +148,24 @@ export class JobsComponent implements OnInit, OnDestroy {
   paymentLinkSubmitting = false;
   paymentLinkCopied = false;
   quickPaySubmittingJobId: number | null = null;
+
+  /** Admin-only: set job price after creation (job details modal). */
+  priceOverrideCost: number | null = null;
+  priceOverrideReason = '';
+  priceOverrideSubmitting = false;
+  priceOverrideError: string | null = null;
+
+  /** Job details modal — billing / payment arrangement (synced in openJobDetails). */
+  billingBillingPaymentMode: string = JOB_BILLING_PAYMENT_MODE.Standard;
+  billingInsuranceCoveredAmount: number | null = null;
+  billingClientCoveredAmount: number | null = null;
+  billingInsurancePortionBilled = false;
+  billingClientPortionPaid = false;
+  billingDriverCashCollectedAmount: number | null = null;
+  billingPayrollDeductionAmount: number | null = null;
+  billingPayrollDeductionRecorded = false;
+  billingSubmitting = false;
+  billingError: string | null = null;
   
   // Forms
   createJobForm: FormGroup;
@@ -91,9 +180,19 @@ export class JobsComponent implements OnInit, OnDestroy {
   // Data for dropdowns
   vehicles: Vehicle[] = [];
   filteredVehicles: Vehicle[] = [];
-  clients: User[] = [];
   drivers: User[] = [];
   availableDrivers: User[] = [];
+
+  /** Searchable client combobox (create job → existing client); data from `GET users/clients`. */
+  createJobClientSearch = '';
+  createJobClientSelectOpen = false;
+  createJobClientSearchResults: User[] = [];
+  createJobClientSearchLoading = false;
+  private createJobSelectedClient: User | null = null;
+  private readonly createJobClientInstant$ = new Subject<string>();
+  private readonly createJobClientDebounced$ = new Subject<string>();
+  private createJobClientFetchSub?: Subscription;
+  @ViewChild('createJobClientSelectRoot') createJobClientSelectRoot?: ElementRef<HTMLElement>;
   
   // Selection modes
   useExistingClient: boolean = true;
@@ -108,25 +207,13 @@ export class JobsComponent implements OnInit, OnDestroy {
   // Create job modal tabs
   activeCreateJobTab: 'details' | 'payment' = 'details';
   
-  // Status options
+  // Status options (all values from JOB_STATUS / JOB_STATUS_LABELS in job.service)
   statusOptions = [
     { value: '', label: 'All Statuses' },
-    { value: 'Pending', label: 'Pending' },
-    { value: 'Assigned', label: 'Assigned' },
-    { value: 'OnRoute', label: 'On Route' },
-    { value: 'InProgress', label: 'In Progress' },
-    { value: 'ReadyToRelease', label: 'Ready to Release' },
-    { value: 'Completed', label: 'Completed' }
+    ...JOB_STATUS_ORDER.map((s) => ({ value: s, label: JOB_STATUS_LABELS[s] }))
   ];
   
-  statusProgression: Job['status'][] = [
-    'Pending',
-    'Assigned',
-    'OnRoute',
-    'InProgress',
-    'ReadyToRelease',
-    'Completed'
-  ];
+  statusProgression: JobStatus[] = [...JOB_STATUS_PIPELINE];
   
   // Service types are loaded from backend service pricing profiles.
   serviceTypes: string[] = [];
@@ -181,21 +268,35 @@ export class JobsComponent implements OnInit, OnDestroy {
   latestQuote: PricingQuoteResponse | null = null;
   private routeDistanceGeneration = 0;
   private pickupDestinationDistanceSub?: Subscription;
-  private vehicleMakeSub?: Subscription;
+  private catalogMakeSearchSub?: Subscription;
+  private catalogModelSearchSub?: Subscription;
+  private readonly makeSearch$ = new Subject<string>();
+  private readonly modelSearch$ = new Subject<{ makeId: number; q: string }>();
 
-  /** NHTSA vPIC (US) — loaded when creating a new vehicle */
-  vehicleMakes: string[] = [];
-  vehicleModels: string[] = [];
-  vehicleMakesLoading = false;
-  vehicleModelsLoading = false;
-  vehicleModelsLoadingMore = false;
-  vehicleMakesError: string | null = null;
-  /** Server-side cache makes subsequent pages fast; we track total for UI. */
-  vehicleModelsTotalCount = 0;
-  vehicleModelsHasMore = false;
-  private vehicleModelsLastLoadedPage = 0;
-  private readonly vehicleModelPageSize = 100;
-  private readonly makesSessionStorageKey = 'st_vehicle_makes_v1';
+  /** Per-column sticky (pin) — horizontal scroll. Persisted in localStorage. */
+  jobsTableStickyMode: JobTableStickyPin[] = defaultJobsTableStickyConfig();
+
+  /** Measured cumulative `left` / `right` (px) for pinned columns. */
+  private stickyLeftPx: (number | undefined)[] = new Array(JOBS_TABLE_COL_COUNT).fill(undefined);
+  private stickyRightPx: (number | undefined)[] = new Array(JOBS_TABLE_COL_COUNT).fill(undefined);
+
+  @ViewChild('jobsTableWrap') jobsTableWrapRef?: ElementRef<HTMLElement>;
+  @ViewChild('jobsTableHeaderRow') jobsTableHeaderRowRef?: ElementRef<HTMLTableRowElement>;
+
+  private jobsStickyResizeObserver?: ResizeObserver;
+  private jobsStickyMeasureRaf = 0;
+
+  /** DB-backed catalog (sync from Admin → Settings). Searchable make/model pickers. */
+  catalogMakeSearchDraft = '';
+  catalogModelSearchDraft = '';
+  catalogMakeSuggestions: VehicleCatalogMakeItem[] = [];
+  catalogModelSuggestions: VehicleCatalogModelItem[] = [];
+  catalogMakeSearchLoading = false;
+  catalogModelSearchLoading = false;
+  catalogEmpty = false;
+  catalogModelEmpty = false;
+  showMakeDropdown = false;
+  showModelDropdown = false;
 
   constructor(
     private jobService: JobService,
@@ -227,6 +328,7 @@ export class JobsComponent implements OnInit, OnDestroy {
       // New vehicle fields
       vehicleVin: [''],
       vehicleMake: [''],
+      vehicleCatalogMakeId: [null as number | null],
       vehicleModel: [''],
       vehicleYear: ['', [Validators.min(1900), Validators.max(2100)]],
       vehicleColor: [''],
@@ -419,26 +521,78 @@ export class JobsComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.loadJobsTableStickyConfig();
     this.loadJobs();
     this.loadVehicles();
-    this.loadClients();
     this.loadDrivers();
     this.loadServicePricingProfiles();
     this.loadDispatchOfficeForDisplay();
     this.observeSelectedClientChanges();
 
-    this.vehicleMakeSub = this.createJobForm.get('vehicle.vehicleMake')?.valueChanges.subscribe((make) => {
-      if (this.useExistingVehicle) {
-        return;
-      }
-      this.createJobForm.get('vehicle.vehicleModel')?.patchValue('', { emitEvent: false });
-      const trimmed = (make ?? '').toString().trim();
-      if (!trimmed) {
-        this.resetVehicleModelsPagination();
-        return;
-      }
-      this.loadModelsForMake(trimmed, false);
-    });
+    this.createJobClientFetchSub = merge(
+      this.createJobClientInstant$,
+      this.createJobClientDebounced$.pipe(debounceTime(300), distinctUntilChanged())
+    )
+      .pipe(
+        distinctUntilChanged(),
+        switchMap((q): Observable<User[]> => this.runCreateJobClientFetch(q))
+      )
+      .subscribe((rows: User[]) => {
+        this.createJobClientSearchResults = rows;
+        this.cdr.markForCheck();
+      });
+
+    this.catalogMakeSearchSub = this.makeSearch$
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged(),
+        switchMap((q) =>
+          this.vehicleCatalogService.searchMakes(q, 1, 30).pipe(
+            catchError(() =>
+              of({
+                items: [] as VehicleCatalogMakeItem[],
+                totalCount: 0,
+                page: 1,
+                pageSize: 30,
+                totalPages: 0,
+                catalogEmpty: false
+              })
+            )
+          )
+        )
+      )
+      .subscribe((r) => {
+        this.catalogMakeSuggestions = r.items;
+        this.catalogEmpty = r.catalogEmpty;
+        this.catalogMakeSearchLoading = false;
+        this.cdr.markForCheck();
+      });
+
+    this.catalogModelSearchSub = this.modelSearch$
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged((a, b) => a.makeId === b.makeId && a.q === b.q),
+        switchMap(({ makeId, q }) =>
+          this.vehicleCatalogService.searchModels(makeId, q, 1, 30).pipe(
+            catchError(() =>
+              of({
+                items: [] as VehicleCatalogModelItem[],
+                totalCount: 0,
+                page: 1,
+                pageSize: 30,
+                totalPages: 0,
+                catalogEmpty: false
+              })
+            )
+          )
+        )
+      )
+      .subscribe((r) => {
+        this.catalogModelSuggestions = r.items;
+        this.catalogModelEmpty = r.catalogEmpty;
+        this.catalogModelSearchLoading = false;
+        this.cdr.markForCheck();
+      });
 
     const pickupCtrl = this.createJobForm.get('pickupLocation')!;
     const destCtrl = this.createJobForm.get('destinationAddress')!;
@@ -473,130 +627,271 @@ export class JobsComponent implements OnInit, OnDestroy {
       .subscribe();
   }
 
+  ngAfterViewInit(): void {
+    setTimeout(() => {
+      this.setupJobsStickyResizeObserver();
+      this.scheduleJobsStickyMeasure();
+    }, 0);
+  }
+
+  private setupJobsStickyResizeObserver(): void {
+    const wrap = this.jobsTableWrapRef?.nativeElement;
+    if (!wrap || this.jobsStickyResizeObserver) {
+      return;
+    }
+    this.jobsStickyResizeObserver = new ResizeObserver(() => this.scheduleJobsStickyMeasure());
+    this.jobsStickyResizeObserver.observe(wrap);
+  }
+
   ngOnDestroy(): void {
+    this.jobsStickyResizeObserver?.disconnect();
+    cancelAnimationFrame(this.jobsStickyMeasureRaf);
     this.pickupDestinationDistanceSub?.unsubscribe();
-    this.vehicleMakeSub?.unsubscribe();
+    this.catalogMakeSearchSub?.unsubscribe();
+    this.catalogModelSearchSub?.unsubscribe();
+    this.createJobClientFetchSub?.unsubscribe();
   }
 
-  /** Retry loading NHTSA makes after a failure (template). */
-  retryVehicleMakes(): void {
-    try {
-      sessionStorage.removeItem(this.makesSessionStorageKey);
-    } catch {
-      /* ignore */
+  setJobsTableStickySide(index: number, side: 'left' | 'right'): void {
+    const cur = this.jobsTableStickyMode[index];
+    if (cur === side) {
+      this.jobsTableStickyMode[index] = 'off';
+    } else {
+      this.jobsTableStickyMode[index] = side;
     }
-    this.vehicleMakes = [];
-    this.vehicleMakesError = null;
-    this.loadVehicleMakes();
+    this.saveJobsTableStickyConfig();
+    this.scheduleJobsStickyMeasure();
   }
 
-  /** Load next page of models after the first page (server caches full list per make). */
-  loadMoreVehicleModels(): void {
-    const make = (this.createJobForm.get('vehicle.vehicleMake')?.value ?? '').toString().trim();
-    if (!make || !this.vehicleModelsHasMore || this.vehicleModelsLoadingMore) {
-      return;
-    }
-    this.loadModelsForMake(make, true);
+  getStickyThStyle(colIndex: number): Record<string, string> {
+    return this.getStickyCellStyle(colIndex, true);
   }
 
-  private loadVehicleMakes(): void {
-    if (this.vehicleMakes.length > 0 || this.vehicleMakesLoading) {
-      return;
+  getStickyTdStyle(colIndex: number): Record<string, string> {
+    return this.getStickyCellStyle(colIndex, false);
+  }
+
+  private getStickyCellStyle(colIndex: number, isHeader: boolean): Record<string, string> {
+    const zBase = isHeader ? 30 : 20;
+    const mode = this.jobsTableStickyMode[colIndex];
+    if (mode === 'off') {
+      return {};
     }
-    try {
-      const raw = sessionStorage.getItem(this.makesSessionStorageKey);
-      if (raw) {
-        const parsed = JSON.parse(raw) as unknown;
-        if (Array.isArray(parsed) && parsed.length > 0 && parsed.every((x) => typeof x === 'string')) {
-          this.vehicleMakes = parsed as string[];
-          return;
-        }
+    if (mode === 'left') {
+      const left = this.stickyLeftPx[colIndex];
+      if (left === undefined) {
+        return {};
       }
-    } catch {
-      /* ignore */
+      return {
+        position: 'sticky',
+        left: `${left}px`,
+        zIndex: String(zBase + colIndex),
+        boxShadow: '2px 0 6px -2px rgba(0, 0, 0, 0.08)'
+      };
     }
-    this.vehicleMakesLoading = true;
-    this.vehicleMakesError = null;
-    this.vehicleCatalogService
-      .getMakes()
-      .pipe(
-        catchError(() => {
-          this.vehicleMakesError = 'Could not load vehicle makes.';
-          return of([] as string[]);
-        }),
-        finalize(() => {
-          this.vehicleMakesLoading = false;
-          this.cdr.markForCheck();
-        })
-      )
-      .subscribe((makes) => {
-        this.vehicleMakes = makes;
-        try {
-          if (makes.length > 0) {
-            sessionStorage.setItem(this.makesSessionStorageKey, JSON.stringify(makes));
-          }
-        } catch {
-          /* ignore */
-        }
-      });
-  }
-
-  private emptyModelsPage(): VehicleModelsPage {
+    const right = this.stickyRightPx[colIndex];
+    if (right === undefined) {
+      return {};
+    }
     return {
-      models: [],
-      totalCount: 0,
-      page: 1,
-      pageSize: this.vehicleModelPageSize,
-      totalPages: 0
+      position: 'sticky',
+      right: `${right}px`,
+      zIndex: String(zBase + 25 + (JOBS_TABLE_COL_COUNT - 1 - colIndex)),
+      boxShadow: '-2px 0 6px -2px rgba(0, 0, 0, 0.08)'
     };
   }
 
-  private resetVehicleModelsPagination(): void {
-    this.vehicleModels = [];
-    this.vehicleModelsTotalCount = 0;
-    this.vehicleModelsHasMore = false;
-    this.vehicleModelsLastLoadedPage = 0;
+  private scheduleJobsStickyMeasure(): void {
+    cancelAnimationFrame(this.jobsStickyMeasureRaf);
+    this.jobsStickyMeasureRaf = requestAnimationFrame(() => {
+      this.measureJobsStickyOffsets();
+      this.jobsStickyMeasureRaf = requestAnimationFrame(() => this.measureJobsStickyOffsets());
+    });
   }
 
-  private loadModelsForMake(make: string, append: boolean): void {
-    if (append) {
-      if (!this.vehicleModelsHasMore || this.vehicleModelsLoadingMore) {
-        return;
-      }
-      this.vehicleModelsLoadingMore = true;
-    } else {
-      this.vehicleModelsLoading = true;
-      this.vehicleModels = [];
-      this.vehicleModelsTotalCount = 0;
-      this.vehicleModelsHasMore = false;
-      this.vehicleModelsLastLoadedPage = 0;
+  private measureJobsStickyOffsets(): void {
+    const row = this.jobsTableHeaderRowRef?.nativeElement;
+    if (!row) {
+      return;
+    }
+    const cells = row.querySelectorAll('th');
+    if (cells.length !== JOBS_TABLE_COL_COUNT) {
+      return;
     }
 
-    const page = append ? this.vehicleModelsLastLoadedPage + 1 : 1;
+    const nextLeft: (number | undefined)[] = new Array(JOBS_TABLE_COL_COUNT).fill(undefined);
+    let left = 0;
+    for (let i = 0; i < JOBS_TABLE_COL_COUNT; i++) {
+      if (this.jobsTableStickyMode[i] === 'left') {
+        nextLeft[i] = left;
+        left += cells[i].getBoundingClientRect().width;
+      }
+    }
+    this.stickyLeftPx = nextLeft;
 
-    this.vehicleCatalogService
-      .getModelsPage(make, page, this.vehicleModelPageSize)
-      .pipe(
-        catchError(() => of(this.emptyModelsPage())),
-        finalize(() => {
-          if (append) {
-            this.vehicleModelsLoadingMore = false;
-          } else {
-            this.vehicleModelsLoading = false;
-          }
-          this.cdr.markForCheck();
-        })
-      )
-      .subscribe((res) => {
-        this.vehicleModelsTotalCount = res.totalCount;
-        this.vehicleModelsLastLoadedPage = res.page;
-        this.vehicleModelsHasMore = res.page < res.totalPages;
-        if (append) {
-          this.vehicleModels = [...this.vehicleModels, ...res.models];
+    const nextRight: (number | undefined)[] = new Array(JOBS_TABLE_COL_COUNT).fill(undefined);
+    let right = 0;
+    for (let i = JOBS_TABLE_COL_COUNT - 1; i >= 0; i--) {
+      if (this.jobsTableStickyMode[i] === 'right') {
+        nextRight[i] = right;
+        right += cells[i].getBoundingClientRect().width;
+      }
+    }
+    this.stickyRightPx = nextRight;
+    this.cdr.detectChanges();
+  }
+
+  private loadJobsTableStickyConfig(): void {
+    const raw = localStorage.getItem(JOBS_STICKY_STORAGE_KEY);
+    if (!raw) {
+      this.jobsTableStickyMode = defaultJobsTableStickyConfig();
+      return;
+    }
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (!Array.isArray(parsed) || parsed.length !== JOBS_TABLE_COL_COUNT) {
+        this.jobsTableStickyMode = defaultJobsTableStickyConfig();
+        return;
+      }
+      if (typeof parsed[0] === 'boolean') {
+        this.jobsTableStickyMode = migrateJobsTableStickyFromBooleans(parsed as boolean[]);
+        this.saveJobsTableStickyConfig();
+        return;
+      }
+      const modes: JobTableStickyPin[] = [];
+      for (let i = 0; i < JOBS_TABLE_COL_COUNT; i++) {
+        const v = parsed[i];
+        if (v === 'off' || v === 'left' || v === 'right') {
+          modes.push(v);
         } else {
-          this.vehicleModels = res.models;
+          modes.push('off');
         }
-      });
+      }
+      this.jobsTableStickyMode = modes;
+    } catch {
+      this.jobsTableStickyMode = defaultJobsTableStickyConfig();
+    }
+  }
+
+  private saveJobsTableStickyConfig(): void {
+    try {
+      localStorage.setItem(JOBS_STICKY_STORAGE_KEY, JSON.stringify(this.jobsTableStickyMode));
+    } catch {
+      // ignore quota / private mode
+    }
+  }
+
+  private resetCatalogPickers(): void {
+    this.catalogMakeSearchDraft = '';
+    this.catalogModelSearchDraft = '';
+    this.catalogMakeSuggestions = [];
+    this.catalogModelSuggestions = [];
+    this.catalogEmpty = false;
+    this.catalogModelEmpty = false;
+    this.showMakeDropdown = false;
+    this.showModelDropdown = false;
+    this.createJobForm.patchValue(
+      { vehicle: { vehicleCatalogMakeId: null } },
+      { emitEvent: false }
+    );
+  }
+
+  onMakeSearchInput(value: string): void {
+    if (this.useExistingVehicle) {
+      return;
+    }
+    this.catalogMakeSearchDraft = value;
+    this.catalogMakeSearchLoading = true;
+    this.showMakeDropdown = true;
+    this.createJobForm.patchValue(
+      { vehicle: { vehicleMake: '', vehicleCatalogMakeId: null } },
+      { emitEvent: false }
+    );
+    this.createJobForm.get('vehicle.vehicleModel')?.patchValue('', { emitEvent: false });
+    this.catalogModelSearchDraft = '';
+    this.catalogModelSuggestions = [];
+    this.makeSearch$.next(value.trim());
+  }
+
+  onMakeSearchFocus(): void {
+    if (this.useExistingVehicle) {
+      return;
+    }
+    this.showMakeDropdown = true;
+    if (!this.catalogMakeSearchDraft.trim() && this.catalogMakeSuggestions.length === 0) {
+      this.catalogMakeSearchLoading = true;
+      this.makeSearch$.next('');
+    }
+  }
+
+  onMakeSearchBlur(): void {
+    setTimeout(() => {
+      this.showMakeDropdown = false;
+      this.cdr.markForCheck();
+    }, 200);
+  }
+
+  selectCatalogMake(item: VehicleCatalogMakeItem): void {
+    this.createJobForm.patchValue({
+      vehicle: {
+        vehicleMake: item.name,
+        vehicleCatalogMakeId: item.id
+      }
+    });
+    this.catalogMakeSearchDraft = item.name;
+    this.showMakeDropdown = false;
+    this.createJobForm.get('vehicle.vehicleModel')?.patchValue('');
+    this.catalogModelSearchDraft = '';
+    this.catalogModelSuggestions = [];
+    this.triggerModelSearch(item.id, '');
+  }
+
+  onModelSearchInput(value: string): void {
+    if (this.useExistingVehicle) {
+      return;
+    }
+    const makeId = this.createJobForm.get('vehicle.vehicleCatalogMakeId')?.value;
+    if (makeId == null || typeof makeId !== 'number') {
+      return;
+    }
+    this.catalogModelSearchDraft = value;
+    this.catalogModelSearchLoading = true;
+    this.showModelDropdown = true;
+    this.createJobForm.get('vehicle.vehicleModel')?.patchValue('', { emitEvent: false });
+    this.modelSearch$.next({ makeId, q: value.trim() });
+  }
+
+  onModelSearchFocus(): void {
+    if (this.useExistingVehicle) {
+      return;
+    }
+    const makeId = this.createJobForm.get('vehicle.vehicleCatalogMakeId')?.value;
+    if (makeId == null || typeof makeId !== 'number') {
+      return;
+    }
+    this.showModelDropdown = true;
+    if (!this.catalogModelSearchDraft.trim() && this.catalogModelSuggestions.length === 0) {
+      this.catalogModelSearchLoading = true;
+      this.modelSearch$.next({ makeId, q: '' });
+    }
+  }
+
+  onModelSearchBlur(): void {
+    setTimeout(() => {
+      this.showModelDropdown = false;
+      this.cdr.markForCheck();
+    }, 200);
+  }
+
+  selectCatalogModel(item: VehicleCatalogModelItem): void {
+    this.createJobForm.patchValue({ vehicle: { vehicleModel: item.name } });
+    this.catalogModelSearchDraft = item.name;
+    this.showModelDropdown = false;
+  }
+
+  private triggerModelSearch(makeId: number, q: string): void {
+    this.catalogModelSearchLoading = true;
+    this.modelSearch$.next({ makeId, q });
   }
 
   private loadDispatchOfficeForDisplay(): void {
@@ -718,7 +1013,13 @@ export class JobsComponent implements OnInit, OnDestroy {
     
     this.jobService.getAllJobs(this.statusFilter || undefined)
       .pipe(
-        finalize(() => this.loading = false),
+        finalize(() => {
+          this.loading = false;
+          setTimeout(() => {
+            this.setupJobsStickyResizeObserver();
+            this.scheduleJobsStickyMeasure();
+          }, 0);
+        }),
         catchError(error => {
           this.error = error.error?.message || 'Failed to load jobs';
           return of([]);
@@ -811,24 +1112,30 @@ export class JobsComponent implements OnInit, OnDestroy {
     }
   }
 
-  loadClients(): void {
-    // Use dedicated clients endpoint with pagination
-    // Load all active clients (using large page size for dropdown)
-    const params = new HttpParams()
-      .set('pageNumber', '1')
-      .set('pageSize', '100')
-      .set('isActive', 'true');
-    
-    this.apiService.get<PagedResponse<User>>('users/clients', params)
-      .pipe(
-        catchError(error => {
-          console.error('Failed to load clients:', error);
-          return of({ data: [], pageNumber: 1, pageSize: 100, totalCount: 0, totalPages: 0, hasPreviousPage: false, hasNextPage: false });
-        })
-      )
-      .subscribe(response => {
-        this.clients = response.data;
-      });
+  private fetchClientsForCreateJobQuery(query: string): Observable<User[]> {
+    let params = new HttpParams().set('pageNumber', '1').set('pageSize', '100').set('isActive', 'true');
+    const trimmed = query.trim();
+    if (trimmed) {
+      params = params.set('search', trimmed);
+    }
+    return this.apiService.get<PagedResponse<User>>('users/clients', params).pipe(
+      map((r) => r.data ?? []),
+      catchError((error) => {
+        console.error('Failed to load clients:', error);
+        return of([] as User[]);
+      })
+    );
+  }
+
+  private runCreateJobClientFetch(query: string): Observable<User[]> {
+    this.createJobClientSearchLoading = true;
+    this.cdr.markForCheck();
+    return this.fetchClientsForCreateJobQuery(query).pipe(
+      finalize(() => {
+        this.createJobClientSearchLoading = false;
+        this.cdr.markForCheck();
+      })
+    );
   }
 
   loadDrivers(): void {
@@ -880,10 +1187,10 @@ export class JobsComponent implements OnInit, OnDestroy {
     this.activeCreateJobTab = 'details';
     this.useExistingClient = true;
     this.useExistingVehicle = true;
-    this.vehicleMakesError = null;
     this.invoiceServiceItems = [];
     this.createJobValidationAttempted = false;
     this.createJobForm.reset();
+    this.resetCreateJobClientSelectUi();
     this.createJobForm.patchValue({
       callType: 'New Call',
       priority: 'Normal',
@@ -904,6 +1211,7 @@ export class JobsComponent implements OnInit, OnDestroy {
     this.loadInsuranceAccountsForJob();
     this.loadServicePricingProfiles();
     this.syncVehicleOptionsForCurrentClient();
+    this.resetCatalogPickers();
   }
 
   loadInsuranceAccountsForJob(): void {
@@ -995,8 +1303,61 @@ export class JobsComponent implements OnInit, OnDestroy {
     }
     return account.name;
   }
+
+  formatCreateJobClientLabel(client: User): string {
+    const phoneOrEmail = client.phoneNumber || client.email || 'N/A';
+    return `${client.fullName} - ${phoneOrEmail}`;
+  }
+
+  openCreateJobClientSelect(): void {
+    this.createJobClientSelectOpen = true;
+    this.createJobClientInstant$.next(this.createJobClientSearch);
+  }
+
+  onCreateJobClientSearchChange(): void {
+    this.createJobClientSelectOpen = true;
+    const id = this.createJobForm.get('client.clientId')?.value?.toString().trim();
+    if (id) {
+      const cached = this.createJobSelectedClient;
+      const label =
+        cached && cached.id === id ? this.formatCreateJobClientLabel(cached) : '';
+      if (!label || this.createJobClientSearch.trim() !== label.trim()) {
+        this.createJobForm.get('client.clientId')?.patchValue('');
+        this.createJobSelectedClient = null;
+      }
+    }
+    this.createJobClientDebounced$.next(this.createJobClientSearch);
+  }
+
+  selectCreateJobClient(client: User, event?: Event): void {
+    event?.preventDefault();
+    this.createJobSelectedClient = client;
+    this.createJobForm.get('client.clientId')?.patchValue(client.id);
+    this.createJobClientSearch = this.formatCreateJobClientLabel(client);
+    this.createJobClientSelectOpen = false;
+  }
+
+  private resetCreateJobClientSelectUi(): void {
+    this.createJobClientSearch = '';
+    this.createJobClientSelectOpen = false;
+    this.createJobClientSearchResults = [];
+    this.createJobSelectedClient = null;
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClickCloseCreateJobClientSelect(event: MouseEvent): void {
+    if (!this.createJobClientSelectOpen || !this.showCreateJobModal) {
+      return;
+    }
+    const root = this.createJobClientSelectRoot?.nativeElement;
+    if (root?.contains(event.target as Node)) {
+      return;
+    }
+    this.createJobClientSelectOpen = false;
+  }
   
   onClientModeChange(): void {
+    this.resetCreateJobClientSelectUi();
     const clientGroup = this.createJobForm.get('client');
     if (clientGroup) {
       if (this.useExistingClient) {
@@ -1021,15 +1382,15 @@ export class JobsComponent implements OnInit, OnDestroy {
         vehicleGroup.patchValue({
           vehicleVin: '',
           vehicleMake: '',
+          vehicleCatalogMakeId: null,
           vehicleModel: '',
           vehicleYear: '',
           vehicleColor: ''
         });
-        this.resetVehicleModelsPagination();
+        this.resetCatalogPickers();
       } else {
         vehicleGroup.patchValue({ vehicleId: '' });
-        this.resetVehicleModelsPagination();
-        this.loadVehicleMakes();
+        this.resetCatalogPickers();
       }
     }
     this.validateVehicleGroup();
@@ -1091,6 +1452,8 @@ export class JobsComponent implements OnInit, OnDestroy {
     this.showCreateJobModal = false;
     this.activeCreateJobTab = 'details';
     this.createJobForm.reset();
+    this.resetCreateJobClientSelectUi();
+    this.resetCatalogPickers();
     this.invoiceServiceItems = [];
     this.createJobValidationAttempted = false;
     this.createJobError = null;
@@ -1531,12 +1894,11 @@ export class JobsComponent implements OnInit, OnDestroy {
           this.closeCreateJobModal();
           this.loadJobs();
           this.loadVehicles(); // Reload vehicles in case new one was created
-          this.loadClients(); // Reload clients in case new one was created
         }
       });
   }
 
-  getNextStatuses(job: Job): Job['status'][] {
+  getNextStatuses(job: Job): JobStatus[] {
     const currentIndex = this.statusProgression.indexOf(job.status);
     if (currentIndex === -1) {
       return [];
@@ -1589,12 +1951,22 @@ export class JobsComponent implements OnInit, OnDestroy {
       });
   }
 
+  /** SuperAdmin / Admin / Dispatcher — assign first driver (Waiting) or reassign (Dispatch…Loaded). */
+  canAssignOrReassignDriver(job: Job): boolean {
+    return job.status !== JOB_STATUS.Completed && job.status !== JOB_STATUS.Cancelled;
+  }
+
+  /** True when the job already had a driver assigned (re-dispatch). */
+  get assignDriverModalIsReassign(): boolean {
+    return !!this.selectedJob && this.selectedJob.status !== JOB_STATUS.Waiting;
+  }
+
   openAssignDriverModal(job: Job): void {
-    if (job.status !== 'Pending') {
-      this.error = 'Only pending jobs can be assigned to drivers';
+    if (!this.canAssignOrReassignDriver(job)) {
+      this.error = 'Completed or cancelled jobs cannot be assigned or reassigned.';
       return;
     }
-    
+
     this.selectedJob = job;
     this.showAssignDriverModal = true;
     this.assignDriverForm.patchValue({ driverId: job.driverId || '' });
@@ -1647,23 +2019,178 @@ export class JobsComponent implements OnInit, OnDestroy {
   openJobDetails(job: Job): void {
     this.selectedJob = job;
     this.showJobDetailsModal = true;
+    this.priceOverrideError = null;
+    this.priceOverrideSubmitting = false;
+    this.priceOverrideReason = '';
+    this.priceOverrideCost =
+      job.cost !== null && job.cost !== undefined && Number.isFinite(Number(job.cost))
+        ? Number(job.cost)
+        : null;
+    this.billingError = null;
+    this.billingBillingPaymentMode =
+      (job.billingPaymentMode as string) || JOB_BILLING_PAYMENT_MODE.Standard;
+    this.billingInsuranceCoveredAmount =
+      job.insuranceCoveredAmount !== undefined && job.insuranceCoveredAmount !== null
+        ? Number(job.insuranceCoveredAmount)
+        : null;
+    this.billingClientCoveredAmount =
+      job.clientCoveredAmount !== undefined && job.clientCoveredAmount !== null
+        ? Number(job.clientCoveredAmount)
+        : null;
+    this.billingInsurancePortionBilled = !!job.insurancePortionBilled;
+    this.billingClientPortionPaid = !!job.clientPortionPaid;
+    this.billingDriverCashCollectedAmount =
+      job.driverCashCollectedAmount !== undefined && job.driverCashCollectedAmount !== null
+        ? Number(job.driverCashCollectedAmount)
+        : null;
+    this.billingPayrollDeductionAmount =
+      job.payrollDeductionAmount !== undefined && job.payrollDeductionAmount !== null
+        ? Number(job.payrollDeductionAmount)
+        : null;
+    this.billingPayrollDeductionRecorded = !!job.payrollDeductionRecorded;
   }
 
   closeJobDetails(): void {
     this.showJobDetailsModal = false;
     this.selectedJob = null;
+    this.priceOverrideError = null;
+    this.priceOverrideReason = '';
+    this.priceOverrideCost = null;
+    this.billingError = null;
+  }
+
+  canEditBilling(): boolean {
+    return this.canCreatePaymentLink();
+  }
+
+  saveBillingPayment(): void {
+    if (!this.selectedJob || !this.canEditBilling()) {
+      return;
+    }
+    this.billingSubmitting = true;
+    this.billingError = null;
+    const body: UpdateJobBillingPaymentRequest = {
+      billingPaymentMode: this.billingBillingPaymentMode,
+      insuranceCoveredAmount: this.billingInsuranceCoveredAmount,
+      clientCoveredAmount: this.billingClientCoveredAmount,
+      insurancePortionBilled: this.billingInsurancePortionBilled,
+      clientPortionPaid: this.billingClientPortionPaid,
+      driverCashCollectedAmount: this.billingDriverCashCollectedAmount,
+      payrollDeductionAmount: this.billingPayrollDeductionAmount,
+      payrollDeductionRecorded: this.billingPayrollDeductionRecorded
+    };
+    this.jobService.updateJobBillingPayment(this.selectedJob.id, body).subscribe({
+      next: (updated) => {
+        this.billingSubmitting = false;
+        this.selectedJob = updated;
+        this.openJobDetails(updated);
+        this.loadJobs();
+      },
+      error: (err) => {
+        this.billingSubmitting = false;
+        this.billingError = err.error?.message || err.error?.error || 'Failed to save billing.';
+      }
+    });
+  }
+
+  formatPaymentMethodLabel(method: string | undefined | null): string {
+    const m = (method || '').trim();
+    const map: Record<string, string> = {
+      Card: 'Card',
+      PaymentLink: 'Payment link',
+      Cash: 'Cash',
+      Insurance: 'Insurance (full)',
+      CashToDriverPayroll: 'Cash to driver (payroll deduction)',
+      SplitInsuranceClient: 'Insurance + client split'
+    };
+    return map[m] || m || '—';
+  }
+
+  /** SuperAdmin and Administrator only — not dispatchers. */
+  canOverrideJobPrice(): boolean {
+    const u = this.authService.getCurrentUser();
+    if (!u) {
+      return false;
+    }
+    const rid = Number(u.roleId);
+    return rid === RoleId.SuperAdmin || rid === RoleId.Admin;
+  }
+
+  submitPriceOverride(): void {
+    if (!this.selectedJob || !this.canOverrideJobPrice()) {
+      return;
+    }
+    const cost = Number(this.priceOverrideCost);
+    if (!Number.isFinite(cost) || cost < 0.01 || cost > 999999.99) {
+      this.priceOverrideError = 'Enter a valid amount between $0.01 and $999,999.99.';
+      return;
+    }
+    const reason = (this.priceOverrideReason || '').trim();
+    if (reason.length < 5) {
+      this.priceOverrideError = 'Please enter a reason (at least 5 characters).';
+      return;
+    }
+    const payload: OverrideJobPriceRequest = { cost, reason };
+    this.priceOverrideSubmitting = true;
+    this.priceOverrideError = null;
+    this.jobService.overrideJobPrice(this.selectedJob.id, payload).subscribe({
+      next: (updated) => {
+        this.selectedJob = updated;
+        this.priceOverrideCost =
+          updated.cost !== null && updated.cost !== undefined && Number.isFinite(Number(updated.cost))
+            ? Number(updated.cost)
+            : null;
+        this.priceOverrideReason = '';
+        this.priceOverrideSubmitting = false;
+        this.loadJobs();
+      },
+      error: (error: unknown) => {
+        this.priceOverrideSubmitting = false;
+        const e = error as { error?: { message?: string } };
+        this.priceOverrideError = e?.error?.message || 'Failed to update price.';
+      }
+    });
   }
 
   getStatusBadgeClass(status: string): string {
-    const classes: Record<string, string> = {
-      'Pending': 'bg-yellow-100 text-yellow-800',
-      'Assigned': 'bg-blue-100 text-blue-800',
-      'OnRoute': 'bg-purple-100 text-purple-800',
-      'InProgress': 'bg-indigo-100 text-indigo-800',
-      'ReadyToRelease': 'bg-green-100 text-green-800',
-      'Completed': 'bg-gray-100 text-gray-800'
+    const classes: Record<JobStatus, string> = {
+      [JOB_STATUS.Waiting]: 'bg-yellow-100 text-yellow-800',
+      [JOB_STATUS.Dispatch]: 'bg-blue-100 text-blue-800',
+      [JOB_STATUS.OnRoute]: 'bg-purple-100 text-purple-800',
+      [JOB_STATUS.OnScene]: 'bg-indigo-100 text-indigo-800',
+      [JOB_STATUS.Loaded]: 'bg-green-100 text-green-800',
+      [JOB_STATUS.Completed]: 'bg-gray-100 text-gray-800',
+      [JOB_STATUS.Cancelled]: 'bg-red-100 text-red-800'
     };
-    return classes[status] || 'bg-gray-100 text-gray-800';
+    return classes[status as JobStatus] || 'bg-gray-100 text-gray-800';
+  }
+
+  /** API status string → short label for tables and badges */
+  formatJobStatus(status: string): string {
+    return formatJobStatusLabel(status);
+  }
+
+  /** Styling for each step in the full status strip (job details). */
+  jobStatusStepClass(job: Job, step: JobStatus): string {
+    const base = 'px-2 py-1 text-xs font-medium rounded-full transition-colors';
+    if (job.status === JOB_STATUS.Cancelled) {
+      if (step === JOB_STATUS.Cancelled) {
+        return `${base} bg-red-100 text-red-800 ring-2 ring-red-300`;
+      }
+      return `${base} bg-gray-100 text-gray-400 line-through opacity-60`;
+    }
+    const cur = JOB_STATUS_ORDER.indexOf(job.status);
+    const si = JOB_STATUS_ORDER.indexOf(step);
+    if (cur < 0 || si < 0) {
+      return `${base} bg-gray-100 text-gray-600`;
+    }
+    if (si < cur) {
+      return `${base} bg-emerald-50 text-emerald-800 border border-emerald-200`;
+    }
+    if (si === cur) {
+      return `${base} bg-blue-600 text-white ring-2 ring-blue-500 ring-offset-1`;
+    }
+    return `${base} bg-gray-50 text-gray-500 border border-gray-200`;
   }
 
   getVehicleDisplay(vehicle: Vehicle | undefined): string {
@@ -1752,7 +2279,7 @@ export class JobsComponent implements OnInit, OnDestroy {
       return false;
     }
     const s = String(job.status ?? '');
-    if (s === 'Completed' || s === 'Cancelled') {
+    if (s === JOB_STATUS.Completed || s === JOB_STATUS.Cancelled) {
       return false;
     }
     const ps = String(job.paymentStatus ?? 'Unpaid');

@@ -5,7 +5,13 @@ import { HttpParams } from '@angular/common/http';
 import { forkJoin, of } from 'rxjs';
 import { catchError, finalize } from 'rxjs/operators';
 import { ApiService } from '../../../../services/api.service';
-import { JobService, Job } from '../../../../services/job.service';
+import {
+  JobService,
+  Job,
+  JOB_STATUS,
+  JOB_STATUS_ACTIVE,
+  JobStatus
+} from '../../../../services/job.service';
 import { User } from '../../../../models/user.model';
 
 interface PagedResponse<T> {
@@ -45,13 +51,7 @@ export class DriverAssignmentsComponent implements OnInit {
     unassigned: 0
   };
 
-  private activeStatuses: Job['status'][] = [
-    'Pending',
-    'Assigned',
-    'OnRoute',
-    'InProgress',
-    'ReadyToRelease'
-  ];
+  private readonly activeStatuses: JobStatus[] = [...JOB_STATUS_ACTIVE];
 
   constructor(
     private apiService: ApiService,
@@ -161,20 +161,22 @@ export class DriverAssignmentsComponent implements OnInit {
     this.stats.unassigned = this.stats.total - this.stats.assigned;
   }
 
-  getJobBadgeClass(status?: Job['status']): string {
+  getJobBadgeClass(status?: JobStatus): string {
     switch (status) {
-      case 'Pending':
+      case JOB_STATUS.Waiting:
         return 'bg-yellow-100 text-yellow-800';
-      case 'Assigned':
+      case JOB_STATUS.Dispatch:
         return 'bg-blue-100 text-blue-800';
-      case 'OnRoute':
+      case JOB_STATUS.OnRoute:
         return 'bg-indigo-100 text-indigo-800';
-      case 'InProgress':
+      case JOB_STATUS.OnScene:
         return 'bg-purple-100 text-purple-800';
-      case 'ReadyToRelease':
+      case JOB_STATUS.Loaded:
         return 'bg-teal-100 text-teal-800';
-      case 'Completed':
+      case JOB_STATUS.Completed:
         return 'bg-green-100 text-green-800';
+      case JOB_STATUS.Cancelled:
+        return 'bg-red-100 text-red-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }

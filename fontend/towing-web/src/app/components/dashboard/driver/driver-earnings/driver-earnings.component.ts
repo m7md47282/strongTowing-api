@@ -18,6 +18,14 @@ export class DriverEarningsComponent implements OnInit {
 
   constructor(private driversService: DriversService) {}
 
+  /** Illustrative only: sum of job costs × current rate (not the same as payroll net). */
+  illustrativeGrossOnCompletedRevenue(): number {
+    const d = this.data;
+    if (!d) return 0;
+    const pct = d.currentDriverCommissionPercentage ?? 30;
+    return Math.round(d.completedJobsTotalRevenue * (pct / 100) * 100) / 100;
+  }
+
   ngOnInit(): void {
     this.load();
   }

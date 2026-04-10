@@ -20,6 +20,39 @@
     </dl>
   </div>
 
+  <div class="rounded-lg border border-amber-200 bg-amber-50/35 p-6 mb-8">
+    <h2 class="text-sm font-semibold text-gray-800 mb-1">Cash collected &amp; payroll</h2>
+    <p class="text-xs text-gray-600 mb-4">
+      When a customer pays you in cash (cash-to-driver), that amount is company revenue. The same amount is typically
+      withheld from your paycheck so the books stay balanced.
+    </p>
+    @if (earningsLoading) {
+      <p class="text-sm text-gray-500">Loading…</p>
+    } @else if (earningsError) {
+      <p class="text-sm text-red-700">{{ earningsError }}</p>
+    } @else if (earnings) {
+      <p class="text-sm text-gray-700 mb-4">
+        <span class="font-medium text-gray-800">Driver commission rate:</span>
+        {{ earnings.currentDriverCommissionPercentage | number: '1.0-2' }}% of job total (set in company settings).
+      </p>
+      <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm mb-4">
+        <div>
+          <dt class="text-gray-500">Cash you collected (all time)</dt>
+          <dd class="text-lg font-semibold text-gray-900">
+            {{ earnings.totalCashCollected | currency: 'USD' : 'symbol' : '1.2-2' }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-gray-500">Withheld from payroll (offset)</dt>
+          <dd class="text-lg font-semibold text-gray-900">
+            {{ earnings.totalPayrollDeductionFromCash | currency: 'USD' : 'symbol' : '1.2-2' }}
+          </dd>
+        </div>
+      </dl>
+      <a routerLink="/driver/earnings" class="text-sm font-medium text-primary hover:underline"> Open earnings &amp; history </a>
+    }
+  </div>
+
   <div class="rounded-lg border border-gray-200 p-6 mb-8">
     <h2 class="text-sm font-semibold text-gray-700 mb-2">Dispatch contact</h2>
     <p class="text-xs text-gray-500 mb-3">Call the office when you need dispatch (configure phone in API appsettings DispatchContact).</p>

@@ -7,6 +7,70 @@ import { RoleId } from '../constants/user-roles.constants';
 import { HttpParams } from '@angular/common/http';
 import { environment } from '../../environments/environment';
 
+/** Canonical job lifecycle values (matches API `JobStatus` enum names). */
+export const JOB_STATUS = {
+  Waiting: 'Waiting',
+  Dispatch: 'Dispatch',
+  OnRoute: 'OnRoute',
+  OnScene: 'OnScene',
+  Loaded: 'Loaded',
+  Completed: 'Completed',
+  Cancelled: 'Cancelled'
+} as const;
+
+export type JobStatus = (typeof JOB_STATUS)[keyof typeof JOB_STATUS];
+
+/** Human-readable labels for tables, filters, and the full status strip. */
+export const JOB_STATUS_LABELS: Record<JobStatus, string> = {
+  [JOB_STATUS.Waiting]: 'Waiting',
+  [JOB_STATUS.Dispatch]: 'Dispatch',
+  [JOB_STATUS.OnRoute]: 'On route',
+  [JOB_STATUS.OnScene]: 'On scene',
+  [JOB_STATUS.Loaded]: 'Loaded',
+  [JOB_STATUS.Completed]: 'Completed',
+  [JOB_STATUS.Cancelled]: 'Cancelled'
+};
+
+/** Display label for a status string (see {@link normalizeJobStatus}). */
+export function formatJobStatusLabel(status: string): string {
+  return JOB_STATUS_LABELS[normalizeJobStatus(status)];
+}
+
+/** DB / enum integer order (0–6) — must match backend `JobStatus` declaration order. */
+export const JOB_STATUS_ORDER: JobStatus[] = [
+  JOB_STATUS.Waiting,
+  JOB_STATUS.Dispatch,
+  JOB_STATUS.OnRoute,
+  JOB_STATUS.OnScene,
+  JOB_STATUS.Loaded,
+  JOB_STATUS.Completed,
+  JOB_STATUS.Cancelled
+];
+
+/** Forward progression for dispatch/driver (excludes terminal `Cancelled`). */
+export const JOB_STATUS_PIPELINE: JobStatus[] = [
+  JOB_STATUS.Waiting,
+  JOB_STATUS.Dispatch,
+  JOB_STATUS.OnRoute,
+  JOB_STATUS.OnScene,
+  JOB_STATUS.Loaded,
+  JOB_STATUS.Completed
+];
+
+/** Active work states before completion (Waiting → Loaded). */
+export const JOB_STATUS_ACTIVE: JobStatus[] = JOB_STATUS_PIPELINE.slice(0, -1);
+
+/** Matches API `JobBillingModes` / job `BillingPaymentMode`. */
+export const JOB_BILLING_PAYMENT_MODE = {
+  Standard: 'Standard',
+  InsuranceFull: 'InsuranceFull',
+  SplitInsuranceClient: 'SplitInsuranceClient',
+  CashToDriverPayroll: 'CashToDriverPayroll'
+} as const;
+
+export type JobBillingPaymentMode =
+  (typeof JOB_BILLING_PAYMENT_MODE)[keyof typeof JOB_BILLING_PAYMENT_MODE];
+
 /** Full URL for a path served from the API host (e.g. job photo under wwwroot). */
 export function resolvePublicAssetUrl(path: string): string {
   if (!path) return '';
@@ -23,7 +87,7 @@ export interface JobPhotoItem {
 
 export interface Job {
   id: number;
-  status: 'Pending' | 'Assigned' | 'OnRoute' | 'InProgress' | 'ReadyToRelease' | 'Completed';
+  status: JobStatus;
   vehicleId: number;
   vehicle?: {
     id: number;
@@ -81,10 +145,22 @@ export interface Job {
   
   // Financials
   cost: number;
+  /** Populated for driver responses: current commission rate from settings. */
+  driverCommissionRatePercent?: number | null;
+  /** Estimated commission (cost × rate / 100). */
+  driverCommissionEstimate?: number | null;
   /** Mirrors backend Job.PaymentStatus (e.g. Unpaid, Pending, Paid). */
   paymentStatus?: string;
   paymentMethod?: string;
   paidAt?: string | null;
+  billingPaymentMode?: string;
+  insuranceCoveredAmount?: number | null;
+  clientCoveredAmount?: number | null;
+  insurancePortionBilled?: boolean;
+  clientPortionPaid?: boolean;
+  driverCashCollectedAmount?: number | null;
+  payrollDeductionAmount?: number | null;
+  payrollDeductionRecorded?: boolean;
   notes?: string | null;
   billingNotes?: string;
   includeBillingNotesOnReceipt?: boolean;
@@ -97,6 +173,34 @@ export interface Job {
   statusUpdatedById?: string | null;
   statusUpdatedByName?: string | null;
   statusUpdatedAt?: string | null;
+}
+
+/**
+ * Maps API values to canonical {@link Job} status so UI logic (e.g. status progression) matches.
+ * Handles enum integers, optional `Status` vs `status`, and case-insensitive name matching.
+ */
+export function normalizeJobStatus(raw: string | number | undefined | null): JobStatus {
+  if (raw === undefined || raw === null) {
+    return JOB_STATUS.Waiting;
+  }
+  if (typeof raw === 'number' && Number.isInteger(raw) && raw >= 0 && raw < JOB_STATUS_ORDER.length) {
+    return JOB_STATUS_ORDER[raw];
+  }
+  const s = String(raw).trim();
+  if (!s) {
+    return JOB_STATUS.Waiting;
+  }
+  const byLower = JOB_STATUS_ORDER.find((c) => c.toLowerCase() === s.toLowerCase());
+  if (byLower) {
+    return byLower;
+  }
+  return JOB_STATUS.Waiting;
+}
+
+/** Ensures `job.status` is set from `status` or `Status` and normalized. */
+export function normalizeJob(job: Job & { Status?: string }): Job {
+  const raw = job.status ?? job.Status;
+  return { ...job, status: normalizeJobStatus(raw) };
 }
 
 export interface VehicleData {
@@ -212,6 +316,10 @@ export interface CreateJobRequest {
   cost: number;
   serviceType?: string;
   dropoffLocation?: string; // Alias for destinationAddress
+
+  billingPaymentMode?: string;
+  insuranceCoveredAmount?: number | null;
+  clientCoveredAmount?: number | null;
 }
 
 export interface AssignDriverRequest {
@@ -226,7 +334,23 @@ export interface AssignDriverResponse {
 }
 
 export interface UpdateJobStatusRequest {
-  status: 'Pending' | 'Assigned' | 'OnRoute' | 'InProgress' | 'ReadyToRelease' | 'Completed';
+  status: JobStatus;
+}
+
+export interface OverrideJobPriceRequest {
+  cost: number;
+  reason: string;
+}
+
+export interface UpdateJobBillingPaymentRequest {
+  billingPaymentMode: string;
+  insuranceCoveredAmount?: number | null;
+  clientCoveredAmount?: number | null;
+  insurancePortionBilled: boolean;
+  clientPortionPaid: boolean;
+  driverCashCollectedAmount?: number | null;
+  payrollDeductionAmount?: number | null;
+  payrollDeductionRecorded: boolean;
 }
 
 @Injectable({
@@ -250,6 +374,7 @@ export class JobService {
       params = params.set('status', status);
     }
     return this.apiService.get<Job[]>('jobs', params).pipe(
+      map((jobs) => jobs.map((j) => normalizeJob(j as Job & { Status?: string }))),
       catchError(error => {
         console.error('Get jobs error:', error);
         return throwError(() => error);
@@ -264,6 +389,7 @@ export class JobService {
       params = params.set('status', status);
     }
     return this.apiService.get<Job[]>('jobs/mine', params).pipe(
+      map((jobs) => jobs.map((j) => normalizeJob(j as Job & { Status?: string }))),
       catchError(error => {
         console.error('Get my jobs error:', error);
         return throwError(() => error);
@@ -273,6 +399,7 @@ export class JobService {
 
   getJobById(id: number): Observable<Job> {
     return this.apiService.get<Job>(`jobs/${id}`).pipe(
+      map((j) => normalizeJob(j as Job & { Status?: string })),
       catchError(error => {
         console.error('Get job error:', error);
         return throwError(() => error);
@@ -282,6 +409,7 @@ export class JobService {
 
   createJob(job: CreateJobRequest): Observable<Job> {
     return this.apiService.post<Job>('jobs', job).pipe(
+      map((j) => normalizeJob(j as Job & { Status?: string })),
       catchError(error => {
         console.error('Create job error:', error);
         return throwError(() => error);
@@ -291,6 +419,7 @@ export class JobService {
 
   assignDriver(jobId: number, driverId: string): Observable<AssignDriverResponse> {
     return this.apiService.post<AssignDriverResponse>(`jobs/${jobId}/assign`, { driverId }).pipe(
+      map((r) => ({ ...r, job: normalizeJob(r.job as Job & { Status?: string }) })),
       catchError(error => {
         console.error('Assign driver error:', error);
         return throwError(() => error);
@@ -300,8 +429,31 @@ export class JobService {
 
   updateJobStatus(jobId: number, status: UpdateJobStatusRequest): Observable<any> {
     return this.apiService.put(`jobs/${jobId}/status`, status).pipe(
+      map((r) => normalizeJob(r as Job & { Status?: string })),
       catchError(error => {
         console.error('Update job status error:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  /** SuperAdmin / Administrator only — updates stored job cost and invoice snapshot. */
+  overrideJobPrice(jobId: number, body: OverrideJobPriceRequest): Observable<Job> {
+    return this.apiService.post<Job>(`jobs/${jobId}/override-price`, body).pipe(
+      map((j) => normalizeJob(j as Job & { Status?: string })),
+      catchError(error => {
+        console.error('Override job price error:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  /** Dispatcher/admin: insurance-only, split, or cash-to-driver (payroll deduction). */
+  updateJobBillingPayment(jobId: number, body: UpdateJobBillingPaymentRequest): Observable<Job> {
+    return this.apiService.put<Job>(`jobs/${jobId}/billing-payment`, body).pipe(
+      map((j) => normalizeJob(j as Job & { Status?: string })),
+      catchError((error) => {
+        console.error('Update job billing payment error:', error);
         return throwError(() => error);
       })
     );
@@ -311,7 +463,7 @@ export class JobService {
     const formData = new FormData();
     formData.append('file', file);
     return this.apiService.uploadFile(`jobs/${jobId}/photos`, formData).pipe(
-      map((response) => response as Job),
+      map((response) => normalizeJob(response as Job & { Status?: string })),
       catchError((error) => {
         console.error('Upload job photo error:', error);
         return throwError(() => error);

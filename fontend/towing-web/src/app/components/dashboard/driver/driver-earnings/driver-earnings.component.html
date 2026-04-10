@@ -21,7 +21,7 @@
   } @else if (error) {
     <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 text-sm">{{ error }}</div>
   } @else if (data) {
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
       <div class="rounded-xl border border-gray-200 p-6 bg-gray-50/50">
         <h3 class="text-sm font-medium text-gray-600 mb-1">Completed jobs (all time)</h3>
         <p class="text-3xl font-bold text-gray-900">{{ data.completedJobsCount }}</p>
@@ -32,7 +32,87 @@
           {{ data.completedJobsTotalRevenue | currency: 'USD' : 'symbol' : '1.2-2' }}
         </p>
       </div>
+      <div class="rounded-xl border border-indigo-200/80 p-6 bg-indigo-50/50">
+        <h3 class="text-sm font-medium text-indigo-900/80 mb-1">Driver commission rate</h3>
+        <p class="text-3xl font-bold text-gray-900">{{ data.currentDriverCommissionPercentage | number: '1.0-2' }}%</p>
+        <p class="text-xs text-indigo-900/70 mt-2">Set by your company in admin settings; payroll uses this for gross pay on job totals.</p>
+      </div>
+      <div class="rounded-xl border border-violet-200/80 p-6 bg-violet-50/40">
+        <h3 class="text-sm font-medium text-violet-900/80 mb-1">Illustrative gross (completed revenue × rate)</h3>
+        <p class="text-3xl font-bold text-gray-900">
+          {{ illustrativeGrossOnCompletedRevenue() | currency: 'USD' : 'symbol' : '1.2-2' }}
+        </p>
+        <p class="text-xs text-violet-900/70 mt-2">
+          Estimate only. Actual pay is by pay period in payroll below (cash withheld and other rules apply).
+        </p>
+      </div>
+      <div class="rounded-xl border border-amber-200/80 p-6 bg-amber-50/40">
+        <h3 class="text-sm font-medium text-amber-900/80 mb-1">Cash collected (for company)</h3>
+        <p class="text-3xl font-bold text-gray-900">
+          {{ data.totalCashCollected | currency: 'USD' : 'symbol' : '1.2-2' }}
+        </p>
+        <p class="text-xs text-amber-900/70 mt-2">
+          Client paid you in cash on {{ data.cashCollectionJobsCount }} job(s). This is company revenue you turned in;
+          it is not extra pay.
+        </p>
+      </div>
+      <div class="rounded-xl border border-slate-200 p-6 bg-slate-50/80">
+        <h3 class="text-sm font-medium text-slate-600 mb-1">Payroll withholding (from cash jobs)</h3>
+        <p class="text-3xl font-bold text-gray-900">
+          {{ data.totalPayrollDeductionFromCash | currency: 'USD' : 'symbol' : '1.2-2' }}
+        </p>
+        <p class="text-xs text-slate-600 mt-2">
+          Amount deducted from your paychecks to offset cash you collected (see payroll periods below).
+        </p>
+      </div>
     </div>
+
+    @if (data.recentCashCollections.length) {
+      <h2 class="text-lg font-semibold text-gray-900 mb-3">Cash-to-driver jobs</h2>
+      <p class="text-sm text-gray-600 mb-4">
+        Jobs where the customer paid cash to you and the amount is reconciled against payroll.
+      </p>
+      <div class="overflow-x-auto rounded-lg border border-gray-200 mb-10">
+        <table class="min-w-full divide-y divide-gray-200 text-sm">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-4 py-3 text-left font-semibold text-gray-700">Job</th>
+              <th class="px-4 py-3 text-left font-semibold text-gray-700">Completed</th>
+              <th class="px-4 py-3 text-right font-semibold text-gray-700">Cash collected</th>
+              <th class="px-4 py-3 text-right font-semibold text-gray-700">Payroll deduction</th>
+              <th class="px-4 py-3 text-left font-semibold text-gray-700">Recorded</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100 bg-white">
+            @for (row of data.recentCashCollections; track row.jobId) {
+              <tr>
+                <td class="px-4 py-3 font-medium text-gray-900">#{{ row.jobId }}</td>
+                <td class="px-4 py-3 text-gray-700">
+                  @if (row.completedAt) {
+                    {{ row.completedAt | date: 'mediumDate' }}
+                  } @else {
+                    —
+                  }
+                </td>
+                <td class="px-4 py-3 text-right">{{ row.cashCollected | currency: 'USD' : 'symbol' : '1.2-2' }}</td>
+                <td class="px-4 py-3 text-right">{{ row.payrollDeductionAmount | currency: 'USD' : 'symbol' : '1.2-2' }}</td>
+                <td class="px-4 py-3">
+                  @if (row.payrollDeductionRecorded) {
+                    <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800"
+                      >Yes</span
+                    >
+                  } @else {
+                    <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-900"
+                      >Pending</span
+                    >
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
 
     <h2 class="text-lg font-semibold text-gray-900 mb-3">Payroll periods</h2>
     @if (!data.payrolls.length) {
@@ -44,6 +124,9 @@
             <tr>
               <th class="px-4 py-3 text-left font-semibold text-gray-700">Period</th>
               <th class="px-4 py-3 text-right font-semibold text-gray-700">Jobs</th>
+              <th class="px-4 py-3 text-right font-semibold text-gray-700">Revenue</th>
+              <th class="px-4 py-3 text-right font-semibold text-gray-700">%</th>
+              <th class="px-4 py-3 text-right font-semibold text-gray-700">Gross</th>
               <th class="px-4 py-3 text-right font-semibold text-gray-700">Net pay</th>
               <th class="px-4 py-3 text-left font-semibold text-gray-700">Status</th>
             </tr>
@@ -55,6 +138,13 @@
                   {{ p.payPeriodStart | date: 'mediumDate' }} – {{ p.payPeriodEnd | date: 'mediumDate' }}
                 </td>
                 <td class="px-4 py-3 text-right">{{ p.totalJobs }}</td>
+                <td class="px-4 py-3 text-right text-gray-800">
+                  {{ p.totalJobRevenue | currency: 'USD' : 'symbol' : '1.2-2' }}
+                </td>
+                <td class="px-4 py-3 text-right text-gray-700">{{ p.commissionPercentage | number: '1.0-2' }}%</td>
+                <td class="px-4 py-3 text-right text-gray-800">
+                  {{ p.grossEarnings | currency: 'USD' : 'symbol' : '1.2-2' }}
+                </td>
                 <td class="px-4 py-3 text-right font-medium">
                   {{ p.netPay | currency: 'USD' : 'symbol' : '1.2-2' }}
                 </td>

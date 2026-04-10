@@ -86,6 +86,7 @@ export interface PaymentListItem {
   driverId?: string;
   driverName?: string;
   driverCommission: number;
+  driverCommissionRatePercent?: number;
   cashCollected: boolean;
   cashCollectedBy?: string;
   cashCollectedAt?: string;
@@ -110,6 +111,7 @@ export interface PaymentStatistics {
   pendingPayments: number;
   totalCashCollected: number;
   totalDriverCommissions: number;
+  driverCommissionRatePercent?: number;
 }
 
 export interface PaymentFilters {

@@ -663,7 +663,7 @@
             },
             "message": {
               "type": "string",
-              "example": "Job must have exactly 5 photos before marking as Ready to Release"
+              "example": "Job must have exactly 10 photos before marking as Loaded"
             }
           }
         },
@@ -1177,7 +1177,7 @@
         "put": {
           "tags": ["Jobs"],
           "summary": "Update Job Status",
-          "description": "Update the status of a job (Admin/Dispatcher/Driver). ReadyToRelease requires exactly 5 photos. Drivers can only update their assigned jobs.",
+          "description": "Update the status of a job (Admin/Dispatcher/Driver). Loaded requires exactly 10 photos. Drivers can only update their assigned jobs.",
           "operationId": "updateJobStatus",
           "security": [
             {
@@ -1217,7 +1217,7 @@
               }
             },
             "400": {
-              "description": "Bad request - Job must have exactly 5 photos before ReadyToRelease",
+              "description": "Bad request - Job must have exactly 10 photos before Loaded",
               "content": {
                 "application/json": {
                   "schema": {
@@ -2242,6 +2242,97 @@
               }
             }
           }
+        }
+      },
+      "/reports/payroll": {
+        "get": {
+          "tags": ["Reports"],
+          "summary": "List driver payroll snapshots",
+          "operationId": "listDriverPayroll",
+          "security": [{ "Bearer": [] }],
+          "parameters": [
+            { "name": "startDate", "in": "query", "schema": { "type": "string", "format": "date" } },
+            { "name": "endDate", "in": "query", "schema": { "type": "string", "format": "date" } },
+            { "name": "status", "in": "query", "schema": { "type": "string" } }
+          ],
+          "responses": { "200": { "description": "OK" } }
+        }
+      },
+      "/reports/payroll/generate": {
+        "post": {
+          "tags": ["Reports"],
+          "summary": "Generate or refresh draft driver payroll for a pay period",
+          "operationId": "generateDriverPayroll",
+          "security": [{ "Bearer": [] }],
+          "requestBody": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "payPeriodStart": { "type": "string", "format": "date-time" },
+                    "payPeriodEnd": { "type": "string", "format": "date-time" }
+                  }
+                }
+              }
+            }
+          },
+          "responses": { "200": { "description": "OK" }, "400": { "description": "Bad Request" } }
+        }
+      },
+      "/reports/payroll/export": {
+        "get": {
+          "tags": ["Reports"],
+          "summary": "Export driver payroll CSV",
+          "operationId": "exportDriverPayrollCsv",
+          "security": [{ "Bearer": [] }],
+          "parameters": [
+            { "name": "startDate", "in": "query", "schema": { "type": "string", "format": "date" } },
+            { "name": "endDate", "in": "query", "schema": { "type": "string", "format": "date" } },
+            { "name": "status", "in": "query", "schema": { "type": "string" } }
+          ],
+          "responses": {
+            "200": {
+              "description": "CSV file",
+              "content": { "text/csv": { "schema": { "type": "string", "format": "binary" } } }
+            }
+          }
+        }
+      },
+      "/reports/payroll/{id}": {
+        "get": {
+          "tags": ["Reports"],
+          "summary": "Get driver payroll by id",
+          "operationId": "getDriverPayrollById",
+          "security": [{ "Bearer": [] }],
+          "parameters": [
+            { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+          ],
+          "responses": { "200": { "description": "OK" }, "404": { "description": "Not Found" } }
+        }
+      },
+      "/reports/payroll/{id}/finalize": {
+        "post": {
+          "tags": ["Reports"],
+          "summary": "Finalize draft payroll",
+          "operationId": "finalizeDriverPayroll",
+          "security": [{ "Bearer": [] }],
+          "parameters": [
+            { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+          ],
+          "responses": { "200": { "description": "OK" }, "400": { "description": "Bad Request" } }
+        }
+      },
+      "/reports/payroll/{id}/mark-paid": {
+        "post": {
+          "tags": ["Reports"],
+          "summary": "Mark finalized payroll as paid",
+          "operationId": "markDriverPayrollPaid",
+          "security": [{ "Bearer": [] }],
+          "parameters": [
+            { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+          ],
+          "responses": { "200": { "description": "OK" }, "400": { "description": "Bad Request" } }
         }
       }
     },

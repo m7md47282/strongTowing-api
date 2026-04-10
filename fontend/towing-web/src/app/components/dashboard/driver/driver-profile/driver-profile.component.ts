@@ -1,8 +1,10 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { finalize } from 'rxjs/operators';
 import { AuthService } from '../../../../services/auth.service';
+import { DriversService, DriverEarningsSummary } from '../../../../services/drivers.service';
 import { SettingsService, DispatchContact } from '../../../../services/settings.service';
 import { User } from '../../../../models/user.model';
 import { parseApiError } from '../../../../utils/api-error.util';
@@ -10,7 +12,7 @@ import { parseApiError } from '../../../../utils/api-error.util';
 @Component({
   selector: 'app-driver-profile',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink],
   templateUrl: './driver-profile.component.html',
   styleUrl: './driver-profile.component.scss'
 })
@@ -25,9 +27,14 @@ export class DriverProfileComponent implements OnInit {
   availabilitySubmitting = false;
   availabilityError: string | null = null;
 
+  earnings: DriverEarningsSummary | null = null;
+  earningsLoading = false;
+  earningsError: string | null = null;
+
   constructor(
     private auth: AuthService,
     private settings: SettingsService,
+    private drivers: DriversService,
     private fb: FormBuilder
   ) {
     this.passwordForm = this.fb.group({
@@ -43,6 +50,21 @@ export class DriverProfileComponent implements OnInit {
       next: (c) => (this.dispatchContact = c),
       error: () => (this.dispatchContact = null)
     });
+    this.loadEarnings();
+  }
+
+  loadEarnings(): void {
+    this.earningsLoading = true;
+    this.earningsError = null;
+    this.drivers
+      .getMyEarnings()
+      .pipe(finalize(() => (this.earningsLoading = false)))
+      .subscribe({
+        next: (e) => (this.earnings = e),
+        error: (err) => {
+          this.earningsError = parseApiError(err);
+        }
+      });
   }
 
   get onDuty(): boolean {

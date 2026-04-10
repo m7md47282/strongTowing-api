@@ -78,6 +78,9 @@
             <p class="text-2xl font-bold text-gray-900 mt-2">
               {{ formatCurrency(statistics.totalDriverCommissions) }}
             </p>
+            @if (statistics.driverCommissionRatePercent !== undefined && statistics.driverCommissionRatePercent !== null) {
+              <p class="text-xs text-gray-500 mt-1">At {{ statistics.driverCommissionRatePercent | number: '1.0-2' }}% of paid amounts (system setting)</p>
+            }
           </div>
           <div class="bg-purple-100 rounded-full p-3">
             <i class="fas fa-users text-purple-600 text-xl"></i>
@@ -312,6 +315,9 @@
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="text-sm font-medium text-gray-900">{{ formatCurrency(payment.driverCommission) }}</div>
+                @if (payment.driverCommissionRatePercent !== undefined && payment.driverCommissionRatePercent !== null) {
+                  <div class="text-xs text-gray-500 mt-0.5">at {{ payment.driverCommissionRatePercent | number: '1.0-2' }}%</div>
+                }
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="text-sm text-gray-600">{{ formatDate(payment.processedAt) }}</div>

@@ -4,7 +4,12 @@ import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs/operators';
 import { take } from 'rxjs';
-import { JobService, Job } from '../../../../services/job.service';
+import {
+  JobService,
+  Job,
+  JOB_STATUS,
+  JobStatus
+} from '../../../../services/job.service';
 
 @Component({
   selector: 'app-driver-jobs',
@@ -21,11 +26,13 @@ export class DriverJobsComponent implements OnInit {
 
   statusOptions = [
     { value: '', label: 'All statuses' },
-    { value: 'Assigned', label: 'Assigned' },
-    { value: 'OnRoute', label: 'On route' },
-    { value: 'InProgress', label: 'In progress' },
-    { value: 'ReadyToRelease', label: 'Ready to release' },
-    { value: 'Completed', label: 'Completed' }
+    { value: JOB_STATUS.Waiting, label: 'Waiting' },
+    { value: JOB_STATUS.Dispatch, label: 'Dispatch' },
+    { value: JOB_STATUS.OnRoute, label: 'On route' },
+    { value: JOB_STATUS.OnScene, label: 'On scene' },
+    { value: JOB_STATUS.Loaded, label: 'Loaded' },
+    { value: JOB_STATUS.Completed, label: 'Completed' },
+    { value: JOB_STATUS.Cancelled, label: 'Cancelled' }
   ];
 
   constructor(
@@ -66,25 +73,29 @@ export class DriverJobsComponent implements OnInit {
   }
 
   getStatusClass(status: string): string {
-    const map: Record<string, string> = {
-      Pending: 'bg-gray-100 text-gray-800',
-      Assigned: 'bg-blue-100 text-blue-800',
-      OnRoute: 'bg-indigo-100 text-indigo-800',
-      InProgress: 'bg-amber-100 text-amber-900',
-      ReadyToRelease: 'bg-purple-100 text-purple-800',
-      Completed: 'bg-green-100 text-green-800',
-      Cancelled: 'bg-red-100 text-red-800'
+    const map: Record<JobStatus, string> = {
+      [JOB_STATUS.Waiting]: 'bg-gray-100 text-gray-800',
+      [JOB_STATUS.Dispatch]: 'bg-blue-100 text-blue-800',
+      [JOB_STATUS.OnRoute]: 'bg-indigo-100 text-indigo-800',
+      [JOB_STATUS.OnScene]: 'bg-amber-100 text-amber-900',
+      [JOB_STATUS.Loaded]: 'bg-purple-100 text-purple-800',
+      [JOB_STATUS.Completed]: 'bg-green-100 text-green-800',
+      [JOB_STATUS.Cancelled]: 'bg-red-100 text-red-800'
     };
-    return map[status] || 'bg-gray-100 text-gray-800';
+    return map[status as JobStatus] || 'bg-gray-100 text-gray-800';
   }
 
   formatStatus(status: string): string {
-    const map: Record<string, string> = {
-      OnRoute: 'On route',
-      InProgress: 'In progress',
-      ReadyToRelease: 'Ready to release'
+    const map: Record<JobStatus, string> = {
+      [JOB_STATUS.Waiting]: 'Waiting',
+      [JOB_STATUS.Dispatch]: 'Dispatch',
+      [JOB_STATUS.OnRoute]: 'On route',
+      [JOB_STATUS.OnScene]: 'On scene',
+      [JOB_STATUS.Loaded]: 'Loaded',
+      [JOB_STATUS.Completed]: 'Completed',
+      [JOB_STATUS.Cancelled]: 'Cancelled'
     };
-    return map[status] || status;
+    return map[status as JobStatus] || status;
   }
 
   vehicleLabel(job: Job): string {

@@ -124,6 +124,12 @@ export const SIDEBAR_MENU_ITEMS: MenuItem[] = [
         roles: [RoleId.SuperAdmin, RoleId.Admin]
       },
       {
+        label: 'Driver payroll',
+        icon: 'fas fa-money-check-alt',
+        route: '/admin/reports/payroll',
+        roles: [RoleId.SuperAdmin, RoleId.Admin]
+      },
+      {
         label: 'Jobs',
         icon: 'fas fa-file-alt',
         route: '/admin/reports/jobs',

@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../../../services/auth.service';
-import { JobService, Job } from '../../../../services/job.service';
+import { JobService, Job, JOB_STATUS } from '../../../../services/job.service';
 import { PaymentService } from '../../../../services/payment.service';
 import { ApiService } from '../../../../services/api.service';
 import { User } from '../../../../models/user.model';
@@ -229,7 +229,8 @@ export class DashboardComponent implements OnInit {
             revenueByMethod: { card: 0, paymentLink: 0, cash: 0 },
             pendingPayments: 0,
             totalCashCollected: 0,
-            totalDriverCommissions: 0
+            totalDriverCommissions: 0,
+            driverCommissionRatePercent: 0
           });
         })
       ),
@@ -261,13 +262,13 @@ export class DashboardComponent implements OnInit {
   calculateStatistics(jobs: Job[], paymentStats: any, drivers: User[], today: Date): void {
     // Active requests (not completed)
     this.activeJobs = jobs.filter(job => 
-      job.status !== 'Completed'
+      job.status !== JOB_STATUS.Completed
     );
     this.stats.activeRequests = this.activeJobs.length;
 
     // Completed today
     const completedToday = jobs.filter(job => {
-      if (job.status !== 'Completed' || !job.completedAt) return false;
+      if (job.status !== JOB_STATUS.Completed || !job.completedAt) return false;
       const completedDate = new Date(job.completedAt);
       return completedDate >= today;
     });
@@ -409,15 +410,19 @@ export class DashboardComponent implements OnInit {
 
   getStatusColor(status: string): string {
     switch (status) {
-      case 'Completed':
+      case JOB_STATUS.Completed:
         return 'text-green-600';
-      case 'InProgress':
-      case 'OnRoute':
+      case JOB_STATUS.OnScene:
+      case JOB_STATUS.OnRoute:
         return 'text-primary';
-      case 'Pending':
+      case JOB_STATUS.Waiting:
         return 'text-orange-600';
-      case 'Assigned':
+      case JOB_STATUS.Dispatch:
         return 'text-blue-600';
+      case JOB_STATUS.Loaded:
+        return 'text-teal-600';
+      case JOB_STATUS.Cancelled:
+        return 'text-red-600';
       default:
         return 'text-gray-600';
     }

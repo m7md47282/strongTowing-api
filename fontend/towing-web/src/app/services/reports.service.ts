@@ -40,6 +40,38 @@ export interface FinancialReportSummary {
   period: FinancialReportPeriod;
 }
 
+/** Admin driver payroll snapshot (matches API DriverPayrollAdminDto). */
+export interface DriverPayrollAdminRow {
+  id: number;
+  driverId: string;
+  driverName: string;
+  driverEmail?: string | null;
+  payPeriodStart: string;
+  payPeriodEnd: string;
+  totalJobs: number;
+  totalJobMinutes: number;
+  totalJobRevenue: number;
+  commissionPercentage: number;
+  grossEarnings: number;
+  cashCollections: number;
+  netPay: number;
+  status: string;
+  finalizedAt?: string | null;
+  finalizedBy?: string | null;
+  paidAt?: string | null;
+  paidBy?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GenerateDriverPayrollResponse {
+  payPeriodStart: string;
+  payPeriodEnd: string;
+  rowsUpserted: number;
+  rows: DriverPayrollAdminRow[];
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -84,6 +116,80 @@ export class ReportsService {
     }).pipe(
       catchError(error => {
         console.error('Export financial CSV error:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  getPayrollList(startDate?: string, endDate?: string, status?: string): Observable<DriverPayrollAdminRow[]> {
+    let params = new HttpParams();
+    if (startDate) {
+      params = params.set('startDate', startDate);
+    }
+    if (endDate) {
+      params = params.set('endDate', endDate);
+    }
+    if (status) {
+      params = params.set('status', status);
+    }
+    return this.apiService.get<DriverPayrollAdminRow[]>('reports/payroll', params).pipe(
+      catchError(error => {
+        console.error('Get payroll list error:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  generateDriverPayroll(payPeriodStart: string, payPeriodEnd: string): Observable<GenerateDriverPayrollResponse> {
+    return this.apiService
+      .post<GenerateDriverPayrollResponse>('reports/payroll/generate', {
+        payPeriodStart,
+        payPeriodEnd
+      })
+      .pipe(
+        catchError(error => {
+          console.error('Generate payroll error:', error);
+          return throwError(() => error);
+        })
+      );
+  }
+
+  finalizePayroll(id: number): Observable<DriverPayrollAdminRow> {
+    return this.apiService.post<DriverPayrollAdminRow>(`reports/payroll/${id}/finalize`, {}).pipe(
+      catchError(error => {
+        console.error('Finalize payroll error:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  markPayrollPaid(id: number): Observable<DriverPayrollAdminRow> {
+    return this.apiService.post<DriverPayrollAdminRow>(`reports/payroll/${id}/mark-paid`, {}).pipe(
+      catchError(error => {
+        console.error('Mark payroll paid error:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  exportPayrollCsv(startDate?: string, endDate?: string, status?: string): Observable<Blob> {
+    let params = new HttpParams();
+    if (startDate) {
+      params = params.set('startDate', startDate);
+    }
+    if (endDate) {
+      params = params.set('endDate', endDate);
+    }
+    if (status) {
+      params = params.set('status', status);
+    }
+    return this.http.get(`${this.baseUrl}/reports/payroll/export`, {
+      headers: this.getAuthHeaders(),
+      params,
+      responseType: 'blob'
+    }).pipe(
+      catchError(error => {
+        console.error('Export payroll CSV error:', error);
         return throwError(() => error);
       })
     );
