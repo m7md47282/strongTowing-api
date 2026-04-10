@@ -55,10 +55,13 @@ export class AuthService {
     );
   }
 
-  // Register
-  register(userData: RegisterRequest): Observable<any> {
-    // Register endpoint is public (no authentication required)
-    return this.apiService.post('auth/signup', userData, false).pipe(
+  /** Step 1: request signup — sends email OTP (public). */
+  register(userData: RegisterRequest): Observable<{ requiresVerification?: boolean; message?: string; email?: string }> {
+    return this.apiService.post<{ requiresVerification?: boolean; message?: string; email?: string }>(
+      'auth/signup',
+      userData,
+      false
+    ).pipe(
       catchError(error => {
         console.error('Registration error:', error);
         return throwError(() => error);
@@ -66,29 +69,23 @@ export class AuthService {
     );
   }
 
-  // Forgot Password
-  forgotPassword(request: ForgotPasswordRequest): Observable<any> {
-    return this.apiService.post('auth/forgot-password', request).pipe(
-      catchError(error => {
-        console.error('Forgot password error:', error);
-        return throwError(() => error);
-      })
-    );
-  }
-
-  // Reset Password
-  resetPassword(request: ResetPasswordRequest): Observable<any> {
-    return this.apiService.post('auth/reset-password', request).pipe(
-      catchError(error => {
-        console.error('Reset password error:', error);
-        return throwError(() => error);
-      })
-    );
-  }
-
-  // Verify OTP
-  verifyOtp(request: OtpVerificationRequest): Observable<any> {
-    return this.apiService.post('auth/verify-otp', request).pipe(
+  /** Step 2: complete signup with OTP (public). */
+  verifySignupOtp(request: OtpVerificationRequest): Observable<LoginResponse> {
+    return this.apiService.post<LoginResponse>('auth/verify-otp', request, false).pipe(
+      map((response: LoginResponse) => {
+        if (response.token) {
+          localStorage.setItem('stongTowing_token', response.token);
+          localStorage.setItem('stongTowing_user', JSON.stringify(response.user));
+          if (response.expiresAt) {
+            localStorage.setItem('stongTowing_tokenExpiresAt', response.expiresAt);
+          }
+          if (response.refreshToken) {
+            localStorage.setItem('stongTowing_refreshToken', response.refreshToken);
+          }
+          this.currentUserSubject.next(response.user);
+        }
+        return response;
+      }),
       catchError(error => {
         console.error('OTP verification error:', error);
         return throwError(() => error);
@@ -96,9 +93,34 @@ export class AuthService {
     );
   }
 
-  // Resend OTP
-  resendOtp(email: string): Observable<any> {
-    return this.apiService.post('auth/resend-otp', { email }).pipe(
+  // Forgot Password
+  forgotPassword(request: ForgotPasswordRequest): Observable<{ message?: string }> {
+    return this.apiService.post<{ message?: string }>('auth/forgot-password', request, false).pipe(
+      catchError(error => {
+        console.error('Forgot password error:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  // Reset Password (email OTP + new password)
+  resetPassword(request: ResetPasswordRequest): Observable<{ message?: string }> {
+    return this.apiService.post<{ message?: string }>('auth/reset-password', request, false).pipe(
+      catchError(error => {
+        console.error('Reset password error:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  /** @deprecated use verifySignupOtp */
+  verifyOtp(request: OtpVerificationRequest): Observable<LoginResponse> {
+    return this.verifySignupOtp(request);
+  }
+
+  // Resend OTP (signup or password reset)
+  resendOtp(email: string, purpose: 'signup' | 'passwordReset' = 'signup'): Observable<{ message?: string }> {
+    return this.apiService.post<{ message?: string }>('auth/resend-otp', { email, purpose }, false).pipe(
       catchError(error => {
         console.error('Resend OTP error:', error);
         return throwError(() => error);

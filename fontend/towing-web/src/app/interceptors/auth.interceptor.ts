@@ -11,6 +11,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   // Skip token refresh for auth endpoints and public endpoints
   if (req.url.includes('/auth/login') || 
       req.url.includes('/auth/register') || 
+      req.url.includes('/auth/signup') ||
       req.url.includes('/auth/forgot-password') ||
       req.url.includes('/auth/reset-password') ||
       req.url.includes('/auth/verify-otp') ||

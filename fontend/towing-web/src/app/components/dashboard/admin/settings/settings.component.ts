@@ -9,6 +9,7 @@ import { AuthService } from '../../../../services/auth.service';
 import {
   SettingsService,
   SystemSettings,
+  TestEmailResponse,
   TestSmsResponse,
   UpdateSystemSettingsRequest
 } from '../../../../services/settings.service';
@@ -23,7 +24,7 @@ import {
   VehicleCatalogSyncStatus
 } from '../../../../services/vehicle-catalog-admin.service';
 
-type SettingsTab = 'general' | 'payments' | 'vehicleCatalog' | 'sms';
+type SettingsTab = 'general' | 'payments' | 'vehicleCatalog' | 'sms' | 'email';
 
 @Component({
   selector: 'app-settings',
@@ -43,11 +44,14 @@ export class SettingsComponent implements OnInit, OnDestroy {
   settingsForm: FormGroup;
   generalForm: FormGroup;
   smsForm: FormGroup;
+  emailForm: FormGroup;
   smsTestForm: FormGroup;
+  emailTestForm: FormGroup;
   paymentTestForm: FormGroup;
   loading = false;
   saving = false;
   savingSms = false;
+  savingEmail = false;
   savingOffice = false;
   error: string | null = null;
   successMessage: string | null = null;
@@ -62,6 +66,11 @@ export class SettingsComponent implements OnInit, OnDestroy {
   smsTestLoading = false;
   smsTestError: string | null = null;
   smsTestResult: TestSmsResponse | null = null;
+
+  showEmailTestModal = false;
+  emailTestLoading = false;
+  emailTestError: string | null = null;
+  emailTestResult: TestEmailResponse | null = null;
 
   constructor(
     private fb: FormBuilder,
@@ -110,6 +119,12 @@ export class SettingsComponent implements OnInit, OnDestroy {
       message: ['']
     });
 
+    this.emailTestForm = this.fb.group({
+      toEmail: ['', Validators.required],
+      subject: [''],
+      htmlBody: ['']
+    });
+
     this.smsForm = this.fb.group({
       smsEnabled: [true],
       smsTwilioAccountSid: [''],
@@ -130,6 +145,27 @@ export class SettingsComponent implements OnInit, OnDestroy {
       smsClientPaymentFailed: [true],
       smsClientJobCancelled: [true],
       smsClientJobCompleted: [true]
+    });
+
+    this.emailForm = this.fb.group({
+      emailEnabled: [true],
+      postmarkServerToken: [''],
+      postmarkDefaultFromEmail: [''],
+      postmarkMessageStream: [''],
+      emailDriverJobAssigned: [true],
+      emailDriverJobCompleted: [true],
+      emailDriverPayrollPaid: [true],
+      emailClientJobCreated: [true],
+      emailClientFraudUnderReview: [true],
+      emailClientDriverAssigned: [true],
+      emailClientStatusOnRoute: [true],
+      emailClientStatusOnScene: [true],
+      emailClientStatusLoaded: [true],
+      emailClientPaymentLinkCreated: [true],
+      emailClientPaymentSucceeded: [true],
+      emailClientPaymentFailed: [true],
+      emailClientJobCancelled: [true],
+      emailClientJobCompleted: [true]
     });
   }
 
@@ -329,7 +365,26 @@ export class SettingsComponent implements OnInit, OnDestroy {
       smsClientPaymentSucceeded: c.smsClientPaymentSucceeded ?? true,
       smsClientPaymentFailed: c.smsClientPaymentFailed ?? true,
       smsClientJobCancelled: c.smsClientJobCancelled ?? true,
-      smsClientJobCompleted: c.smsClientJobCompleted ?? true
+      smsClientJobCompleted: c.smsClientJobCompleted ?? true,
+
+      emailEnabled: c.emailEnabled ?? true,
+      postmarkServerToken: null,
+      postmarkDefaultFromEmail: c.postmarkDefaultFromEmail ?? null,
+      postmarkMessageStream: c.postmarkMessageStream ?? null,
+      emailDriverJobAssigned: c.emailDriverJobAssigned ?? true,
+      emailDriverJobCompleted: c.emailDriverJobCompleted ?? true,
+      emailDriverPayrollPaid: c.emailDriverPayrollPaid ?? true,
+      emailClientJobCreated: c.emailClientJobCreated ?? true,
+      emailClientFraudUnderReview: c.emailClientFraudUnderReview ?? true,
+      emailClientDriverAssigned: c.emailClientDriverAssigned ?? true,
+      emailClientStatusOnRoute: c.emailClientStatusOnRoute ?? true,
+      emailClientStatusOnScene: c.emailClientStatusOnScene ?? true,
+      emailClientStatusLoaded: c.emailClientStatusLoaded ?? true,
+      emailClientPaymentLinkCreated: c.emailClientPaymentLinkCreated ?? true,
+      emailClientPaymentSucceeded: c.emailClientPaymentSucceeded ?? true,
+      emailClientPaymentFailed: c.emailClientPaymentFailed ?? true,
+      emailClientJobCancelled: c.emailClientJobCancelled ?? true,
+      emailClientJobCompleted: c.emailClientJobCompleted ?? true
     };
   }
 
@@ -363,6 +418,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
             officeLongitude: settings.officeLongitude ?? null
           });
           this.patchSmsFormFromSettings(settings);
+          this.patchEmailFormFromSettings(settings);
         },
         error: (err) => {
           this.error = err.error?.message || err.error?.error || 'Failed to load settings.';
@@ -424,6 +480,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
             officeLatitude: settings.officeLatitude ?? null,
             officeLongitude: settings.officeLongitude ?? null
           });
+          this.patchEmailFormFromSettings(settings);
           this.successMessage = 'Office location saved.';
         },
         error: (err) => {
@@ -496,6 +553,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
             stripeLiveWebhookSecret: ''
           });
           this.patchSmsFormFromSettings(settings);
+          this.patchEmailFormFromSettings(settings);
         },
         error: (err) => {
           this.error = err.error?.message || err.error?.error || 'Failed to save settings.';
@@ -555,10 +613,73 @@ export class SettingsComponent implements OnInit, OnDestroy {
         next: (settings) => {
           this.currentSettings = settings;
           this.patchSmsFormFromSettings(settings);
+          this.patchEmailFormFromSettings(settings);
           this.successMessage = 'SMS settings saved.';
         },
         error: (err) => {
           this.error = err.error?.message || err.error?.error || 'Failed to save SMS settings.';
+        }
+      });
+  }
+
+  saveEmailSettings(): void {
+    if (!this.isSuperAdmin()) {
+      this.error = 'Only Super Admin can update settings.';
+      return;
+    }
+
+    if (!this.currentSettings) {
+      return;
+    }
+
+    this.savingEmail = true;
+    this.error = null;
+    this.successMessage = null;
+
+    const v = this.emailForm.getRawValue();
+    const token =
+      v.postmarkServerToken && String(v.postmarkServerToken).trim().length > 0
+        ? String(v.postmarkServerToken).trim()
+        : null;
+
+    const payload: UpdateSystemSettingsRequest = {
+      ...this.buildUpdateFromCurrent(),
+      emailEnabled: !!v.emailEnabled,
+      postmarkServerToken: token,
+      postmarkDefaultFromEmail: v.postmarkDefaultFromEmail || null,
+      postmarkMessageStream: v.postmarkMessageStream || null,
+      emailDriverJobAssigned: !!v.emailDriverJobAssigned,
+      emailDriverJobCompleted: !!v.emailDriverJobCompleted,
+      emailDriverPayrollPaid: !!v.emailDriverPayrollPaid,
+      emailClientJobCreated: !!v.emailClientJobCreated,
+      emailClientFraudUnderReview: !!v.emailClientFraudUnderReview,
+      emailClientDriverAssigned: !!v.emailClientDriverAssigned,
+      emailClientStatusOnRoute: !!v.emailClientStatusOnRoute,
+      emailClientStatusOnScene: !!v.emailClientStatusOnScene,
+      emailClientStatusLoaded: !!v.emailClientStatusLoaded,
+      emailClientPaymentLinkCreated: !!v.emailClientPaymentLinkCreated,
+      emailClientPaymentSucceeded: !!v.emailClientPaymentSucceeded,
+      emailClientPaymentFailed: !!v.emailClientPaymentFailed,
+      emailClientJobCancelled: !!v.emailClientJobCancelled,
+      emailClientJobCompleted: !!v.emailClientJobCompleted
+    };
+
+    this.settingsService
+      .updateSettings(payload)
+      .pipe(
+        finalize(() => {
+          this.savingEmail = false;
+        })
+      )
+      .subscribe({
+        next: (settings) => {
+          this.currentSettings = settings;
+          this.patchSmsFormFromSettings(settings);
+          this.patchEmailFormFromSettings(settings);
+          this.successMessage = 'Email settings saved.';
+        },
+        error: (err) => {
+          this.error = err.error?.message || err.error?.error || 'Failed to save email settings.';
         }
       });
   }
@@ -584,6 +705,29 @@ export class SettingsComponent implements OnInit, OnDestroy {
       smsClientPaymentFailed: settings.smsClientPaymentFailed ?? true,
       smsClientJobCancelled: settings.smsClientJobCancelled ?? true,
       smsClientJobCompleted: settings.smsClientJobCompleted ?? true
+    });
+  }
+
+  private patchEmailFormFromSettings(settings: SystemSettings): void {
+    this.emailForm.patchValue({
+      emailEnabled: settings.emailEnabled ?? true,
+      postmarkServerToken: '',
+      postmarkDefaultFromEmail: settings.postmarkDefaultFromEmail || '',
+      postmarkMessageStream: settings.postmarkMessageStream || '',
+      emailDriverJobAssigned: settings.emailDriverJobAssigned ?? true,
+      emailDriverJobCompleted: settings.emailDriverJobCompleted ?? true,
+      emailDriverPayrollPaid: settings.emailDriverPayrollPaid ?? true,
+      emailClientJobCreated: settings.emailClientJobCreated ?? true,
+      emailClientFraudUnderReview: settings.emailClientFraudUnderReview ?? true,
+      emailClientDriverAssigned: settings.emailClientDriverAssigned ?? true,
+      emailClientStatusOnRoute: settings.emailClientStatusOnRoute ?? true,
+      emailClientStatusOnScene: settings.emailClientStatusOnScene ?? true,
+      emailClientStatusLoaded: settings.emailClientStatusLoaded ?? true,
+      emailClientPaymentLinkCreated: settings.emailClientPaymentLinkCreated ?? true,
+      emailClientPaymentSucceeded: settings.emailClientPaymentSucceeded ?? true,
+      emailClientPaymentFailed: settings.emailClientPaymentFailed ?? true,
+      emailClientJobCancelled: settings.emailClientJobCancelled ?? true,
+      emailClientJobCompleted: settings.emailClientJobCompleted ?? true
     });
   }
 
@@ -641,6 +785,66 @@ export class SettingsComponent implements OnInit, OnDestroy {
             body?.message ||
             body?.error ||
             'Failed to send test SMS.';
+        }
+      });
+  }
+
+  openEmailTestModal(): void {
+    this.showEmailTestModal = true;
+    this.emailTestError = null;
+    this.emailTestResult = null;
+    this.emailTestForm.patchValue({ toEmail: '', subject: '', htmlBody: '' });
+  }
+
+  closeEmailTestModal(): void {
+    this.showEmailTestModal = false;
+    this.emailTestLoading = false;
+    this.emailTestError = null;
+    this.emailTestResult = null;
+  }
+
+  sendTestEmail(): void {
+    if (!this.isSuperAdmin()) {
+      return;
+    }
+    if (this.emailTestForm.invalid) {
+      this.emailTestForm.markAllAsTouched();
+      return;
+    }
+
+    const v = this.emailTestForm.getRawValue();
+    const subject = typeof v.subject === 'string' && v.subject.trim().length > 0 ? v.subject.trim() : undefined;
+    const htmlBody = typeof v.htmlBody === 'string' && v.htmlBody.trim().length > 0 ? v.htmlBody.trim() : undefined;
+
+    this.emailTestLoading = true;
+    this.emailTestError = null;
+    this.emailTestResult = null;
+
+    this.settingsService
+      .testEmail({
+        toEmail: String(v.toEmail).trim(),
+        subject,
+        htmlBody
+      })
+      .pipe(
+        finalize(() => {
+          this.emailTestLoading = false;
+        })
+      )
+      .subscribe({
+        next: (res) => {
+          this.emailTestResult = res;
+          if (!res.success) {
+            this.emailTestError = res.errorMessage || 'Email could not be sent.';
+          }
+        },
+        error: (err) => {
+          const body = err.error;
+          this.emailTestError =
+            body?.errorMessage ||
+            body?.message ||
+            body?.error ||
+            'Failed to send test email.';
         }
       });
   }

@@ -80,7 +80,14 @@ export class LoginComponent implements OnInit {
         },
         error: (error) => {
           this.isLoading = false;
-          this.errorMessage = error.error?.message || error.error?.error || 'Login failed. Please check your credentials and try again.';
+          if (error.error?.error === 'EmailNotVerified') {
+            this.errorMessage =
+              error.error?.message ||
+              'Verify your email before signing in. Check your inbox for the code from registration.';
+          } else {
+            this.errorMessage =
+              error.error?.message || error.error?.error || 'Login failed. Please check your credentials and try again.';
+          }
         }
       });
     } else {

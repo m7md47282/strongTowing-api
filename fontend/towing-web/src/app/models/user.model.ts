@@ -74,9 +74,9 @@ export interface ForgotPasswordRequest {
 
 export interface ResetPasswordRequest {
   email: string;
-  token: string;
+  /** Email OTP from Postmark */
+  otp: string;
   newPassword: string;
-  confirmPassword: string;
 }
 
 export interface OtpVerificationRequest {

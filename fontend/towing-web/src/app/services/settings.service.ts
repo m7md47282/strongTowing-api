@@ -58,6 +58,27 @@ export interface SystemSettings {
   smsClientJobCancelled: boolean;
   smsClientJobCompleted: boolean;
 
+  emailEnabled: boolean;
+  postmarkServerTokenConfigured: boolean;
+  postmarkDefaultFromEmail?: string | null;
+  postmarkMessageStream?: string | null;
+
+  emailDriverJobAssigned: boolean;
+  emailDriverJobCompleted: boolean;
+  emailDriverPayrollPaid: boolean;
+
+  emailClientJobCreated: boolean;
+  emailClientFraudUnderReview: boolean;
+  emailClientDriverAssigned: boolean;
+  emailClientStatusOnRoute: boolean;
+  emailClientStatusOnScene: boolean;
+  emailClientStatusLoaded: boolean;
+  emailClientPaymentLinkCreated: boolean;
+  emailClientPaymentSucceeded: boolean;
+  emailClientPaymentFailed: boolean;
+  emailClientJobCancelled: boolean;
+  emailClientJobCompleted: boolean;
+
   updatedAt: string;
   updatedBy: string;
 }
@@ -77,6 +98,19 @@ export interface TestSmsResponse {
 export interface TestSmsRequest {
   toPhone: string;
   message?: string | null;
+}
+
+export interface TestEmailResponse {
+  success: boolean;
+  toEmail?: string | null;
+  postmarkMessageId?: string | null;
+  errorMessage?: string | null;
+}
+
+export interface TestEmailRequest {
+  toEmail: string;
+  subject?: string | null;
+  htmlBody?: string | null;
 }
 
 export interface UpdateSystemSettingsRequest {
@@ -132,6 +166,27 @@ export interface UpdateSystemSettingsRequest {
   smsClientPaymentFailed: boolean;
   smsClientJobCancelled: boolean;
   smsClientJobCompleted: boolean;
+
+  emailEnabled: boolean;
+  postmarkServerToken?: string | null;
+  postmarkDefaultFromEmail?: string | null;
+  postmarkMessageStream?: string | null;
+
+  emailDriverJobAssigned: boolean;
+  emailDriverJobCompleted: boolean;
+  emailDriverPayrollPaid: boolean;
+
+  emailClientJobCreated: boolean;
+  emailClientFraudUnderReview: boolean;
+  emailClientDriverAssigned: boolean;
+  emailClientStatusOnRoute: boolean;
+  emailClientStatusOnScene: boolean;
+  emailClientStatusLoaded: boolean;
+  emailClientPaymentLinkCreated: boolean;
+  emailClientPaymentSucceeded: boolean;
+  emailClientPaymentFailed: boolean;
+  emailClientJobCancelled: boolean;
+  emailClientJobCompleted: boolean;
 }
 
 @Injectable({
@@ -151,6 +206,11 @@ export class SettingsService {
   /** SuperAdmin: send a test SMS using saved Twilio credentials. */
   testSms(payload: TestSmsRequest): Observable<TestSmsResponse> {
     return this.apiService.post<TestSmsResponse>('settings/test-sms', payload);
+  }
+
+  /** SuperAdmin: send a test email using saved Postmark credentials. */
+  testEmail(payload: TestEmailRequest): Observable<TestEmailResponse> {
+    return this.apiService.post<TestEmailResponse>('settings/test-email', payload);
   }
 
   /** Public: dispatch phone from appsettings (for driver app). */

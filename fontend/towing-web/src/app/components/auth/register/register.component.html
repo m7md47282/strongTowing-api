@@ -22,11 +22,17 @@
   <div class="auth-right-panel">
     <div class="auth-card">
       <div class="auth-header">
-        <h2>Create Your Account</h2>
-        <p>Sign up to start your journey with us</p>
+        @if (signupStep === 'form') {
+          <h2>Create Your Account</h2>
+          <p>Sign up to start your journey with us</p>
+        } @else {
+          <h2>Verify your email</h2>
+          <p>Enter the code we sent to <strong>{{ pendingEmail }}</strong></p>
+        }
       </div>
 
-      <form class="auth-form" [formGroup]="registerForm" (ngSubmit)="onSubmit()">
+      @if (signupStep === 'form') {
+      <form class="auth-form" [formGroup]="registerForm" (ngSubmit)="onSubmitRegister()">
         <div class="form-group">
           <label for="fullName" class="form-label">Full Name</label>
           <input
@@ -35,9 +41,9 @@
             class="form-control"
             formControlName="fullName"
             placeholder="Input your full name"
-            [class.is-invalid]="isFieldInvalid('fullName')"
+            [class.is-invalid]="isFieldInvalid(registerForm, 'fullName')"
           />
-          @if (isFieldInvalid('fullName')) {
+          @if (isFieldInvalid(registerForm, 'fullName')) {
             <div class="invalid-feedback">
               @if (registerForm.get('fullName')?.errors?.['required']) {
                 <span>Full name is required</span>
@@ -54,9 +60,9 @@
             class="form-control"
             formControlName="email"
             placeholder="Input your email"
-            [class.is-invalid]="isFieldInvalid('email')"
+            [class.is-invalid]="isFieldInvalid(registerForm, 'email')"
           />
-          @if (isFieldInvalid('email')) {
+          @if (isFieldInvalid(registerForm, 'email')) {
             <div class="invalid-feedback">
               @if (registerForm.get('email')?.errors?.['required']) {
                 <span>Email is required</span>
@@ -76,7 +82,7 @@
             class="form-control"
             formControlName="phoneNumber"
             placeholder="Input your phone number"
-            [class.is-invalid]="isFieldInvalid('phoneNumber')"
+            [class.is-invalid]="isFieldInvalid(registerForm, 'phoneNumber')"
           />
         </div>
 
@@ -86,13 +92,13 @@
             id="roleId"
             class="form-control"
             formControlName="roleId"
-            [class.is-invalid]="isFieldInvalid('roleId')"
+            [class.is-invalid]="isFieldInvalid(registerForm, 'roleId')"
           >
             @for (role of roles; track role.id) {
               <option [value]="role.id">{{ role.label }}</option>
             }
           </select>
-          @if (isFieldInvalid('roleId')) {
+          @if (isFieldInvalid(registerForm, 'roleId')) {
             <div class="invalid-feedback">
               @if (registerForm.get('roleId')?.errors?.['required']) {
                 <span>Role is required</span>
@@ -111,7 +117,7 @@
                 class="form-control"
                 formControlName="password"
                 placeholder="Input your password"
-                [class.is-invalid]="isFieldInvalid('password')"
+                [class.is-invalid]="isFieldInvalid(registerForm, 'password')"
               />
               <button
                 type="button"
@@ -121,13 +127,16 @@
                 <i class="fas" [class.fa-eye]="!showPassword" [class.fa-eye-slash]="showPassword"></i>
               </button>
             </div>
-            @if (isFieldInvalid('password')) {
+            @if (isFieldInvalid(registerForm, 'password')) {
               <div class="invalid-feedback">
                 @if (registerForm.get('password')?.errors?.['required']) {
                   <span>Password is required</span>
                 }
                 @if (registerForm.get('password')?.errors?.['minlength']) {
-                  <span>Password must be at least 6 characters</span>
+                  <span>Password must be at least 8 characters</span>
+                }
+                @if (registerForm.get('password')?.errors?.['pattern']) {
+                  <span>Use upper, lower, number, and a special character (!&#64;%*?&amp;)</span>
                 }
               </div>
             }
@@ -141,14 +150,14 @@
               class="form-control"
               formControlName="confirmPassword"
               placeholder="Confirm your password"
-              [class.is-invalid]="isFieldInvalid('confirmPassword')"
+              [class.is-invalid]="isFieldInvalid(registerForm, 'confirmPassword')"
             />
-            @if (isFieldInvalid('confirmPassword')) {
+            @if (isFieldInvalid(registerForm, 'confirmPassword') || registerForm.errors?.['mismatch']) {
               <div class="invalid-feedback">
                 @if (registerForm.get('confirmPassword')?.errors?.['required']) {
                   <span>Please confirm your password</span>
                 }
-                @if (registerForm.get('confirmPassword')?.errors?.['mismatch']) {
+                @if (registerForm.errors?.['mismatch'] && registerForm.get('confirmPassword')?.touched) {
                   <span>Passwords do not match</span>
                 }
               </div>
@@ -162,11 +171,11 @@
               type="checkbox"
               formControlName="agreeToTerms"
               class="checkbox-input"
-              [class.is-invalid]="isFieldInvalid('agreeToTerms')"
+              [class.is-invalid]="isFieldInvalid(registerForm, 'agreeToTerms')"
             />
             <span class="checkbox-text">I agree to the <a href="#terms" target="_blank">Terms of Service</a> and <a href="#privacy" target="_blank">Privacy Policy</a></span>
           </label>
-          @if (isFieldInvalid('agreeToTerms')) {
+          @if (isFieldInvalid(registerForm, 'agreeToTerms')) {
             <div class="invalid-feedback">
               @if (registerForm.get('agreeToTerms')?.errors?.['required']) {
                 <span>You must agree to the terms and conditions</span>
@@ -200,6 +209,46 @@
           </div>
         }
       </form>
+      } @else {
+      <form class="auth-form" [formGroup]="otpForm" (ngSubmit)="onSubmitOtp()">
+        <div class="form-group">
+          <label class="form-label" for="otp">Verification code</label>
+          <input
+            id="otp"
+            type="text"
+            class="form-control"
+            formControlName="otp"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            placeholder="6-digit code"
+            [class.is-invalid]="isFieldInvalid(otpForm, 'otp')"
+          />
+          @if (isFieldInvalid(otpForm, 'otp')) {
+            <div class="invalid-feedback">Enter the code from your email</div>
+          }
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" [disabled]="otpForm.invalid || isLoading">
+          @if (!isLoading) {
+            <span>Verify &amp; continue</span>
+          }
+          @if (isLoading) {
+            <span class="spinner"></span>
+          }
+        </button>
+        <div class="form-group" style="margin-top: 1rem;">
+          <button type="button" class="btn btn-link" (click)="resendOtp()" [disabled]="isResending || isLoading">
+            {{ isResending ? 'Sending…' : 'Resend code' }}
+          </button>
+          <button type="button" class="btn btn-link" (click)="backToForm()">Edit registration</button>
+        </div>
+        @if (errorMessage) {
+          <div class="alert alert-danger">{{ errorMessage }}</div>
+        }
+        @if (successMessage) {
+          <div class="alert alert-success">{{ successMessage }}</div>
+        }
+      </form>
+      }
 
       <div class="auth-footer">
         <p>Already have an account? <a routerLink="/login">Sign in here</a></p>
