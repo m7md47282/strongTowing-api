@@ -18,7 +18,7 @@ public class DriverPayrollServiceTests
         ctx.SystemSettings.Add(new SystemSettings { DriverCommissionPercentage = 30m });
         await ctx.SaveChangesAsync();
 
-        var svc = new DriverPayrollService(ctx, new NoOpSmsNotificationService());
+        var svc = new DriverPayrollService(ctx, new NoOpSmsNotificationService(), new NoOpEmailNotificationService());
         var result = await svc.GenerateOrRefreshAsync(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), new DateTime(2026, 1, 14, 0, 0, 0, DateTimeKind.Utc));
 
         Assert.Equal(0, result.RowsUpserted);
@@ -50,7 +50,7 @@ public class DriverPayrollServiceTests
         });
         await ctx.SaveChangesAsync();
 
-        var svc = new DriverPayrollService(ctx, new NoOpSmsNotificationService());
+        var svc = new DriverPayrollService(ctx, new NoOpSmsNotificationService(), new NoOpEmailNotificationService());
         var dto = await svc.FinalizeAsync(1, "admin-1", CancellationToken.None);
 
         Assert.Equal(DriverPayrollStatuses.Finalized, dto.Status);
@@ -85,7 +85,7 @@ public class DriverPayrollServiceTests
         });
         await ctx.SaveChangesAsync();
 
-        var svc = new DriverPayrollService(ctx, new NoOpSmsNotificationService());
+        var svc = new DriverPayrollService(ctx, new NoOpSmsNotificationService(), new NoOpEmailNotificationService());
         var result = await svc.GenerateOrRefreshAsync(
             new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
             new DateTime(2026, 1, 31, 0, 0, 0, DateTimeKind.Utc));
@@ -128,7 +128,7 @@ public class DriverPayrollServiceTests
         });
         await ctx.SaveChangesAsync();
 
-        var svc = new DriverPayrollService(ctx, new NoOpSmsNotificationService());
+        var svc = new DriverPayrollService(ctx, new NoOpSmsNotificationService(), new NoOpEmailNotificationService());
         var result = await svc.GenerateOrRefreshAsync(
             new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc),
             new DateTime(2026, 2, 28, 0, 0, 0, DateTimeKind.Utc));

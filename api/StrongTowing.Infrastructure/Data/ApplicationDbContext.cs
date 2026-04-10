@@ -25,6 +25,8 @@ namespace StrongTowing.Infrastructure.Data
         public DbSet<VehicleCatalogMake> VehicleCatalogMakes { get; set; }
         public DbSet<VehicleCatalogModel> VehicleCatalogModels { get; set; }
         public DbSet<VehicleCatalogSyncState> VehicleCatalogSyncStates { get; set; }
+        public DbSet<PendingDriverSignup> PendingDriverSignups { get; set; }
+        public DbSet<AuthOtpRecord> AuthOtpRecords { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -190,6 +192,25 @@ namespace StrongTowing.Infrastructure.Data
             builder.Entity<VehicleCatalogSyncState>()
                 .Property(s => s.Id)
                 .ValueGeneratedOnAdd();
+
+            builder.Entity<PendingDriverSignup>(e =>
+            {
+                e.HasKey(x => x.NormalizedEmail);
+                e.Property(x => x.NormalizedEmail).HasMaxLength(256);
+                e.Property(x => x.Email).HasMaxLength(256).IsRequired();
+                e.Property(x => x.ProtectedPassword).IsRequired();
+                e.Property(x => x.FullName).HasMaxLength(256);
+                e.Property(x => x.PhoneNumber).HasMaxLength(32);
+                e.Property(x => x.RoleId).HasMaxLength(450).IsRequired();
+            });
+
+            builder.Entity<AuthOtpRecord>(e =>
+            {
+                e.HasIndex(x => new { x.NormalizedEmail, x.Purpose, x.Used });
+                e.Property(x => x.NormalizedEmail).HasMaxLength(256);
+                e.Property(x => x.Email).HasMaxLength(256);
+                e.Property(x => x.OtpHash).HasMaxLength(512);
+            });
         }
         
     }

@@ -100,6 +100,30 @@ namespace StrongTowing.Core.Entities
         public bool SmsClientPaymentFailed { get; set; } = true;
         public bool SmsClientJobCancelled { get; set; } = true;
         public bool SmsClientJobCompleted { get; set; } = true;
+
+        // Postmark email (Server API token encrypted like Twilio Auth Token)
+        public bool EmailEnabled { get; set; } = true;
+        public string? PostmarkServerToken { get; set; }
+        /// <summary>Must be a verified sender or domain in Postmark.</summary>
+        public string? PostmarkDefaultFromEmail { get; set; }
+        /// <summary>Optional; default transactional stream is "outbound".</summary>
+        public string? PostmarkMessageStream { get; set; }
+
+        public bool EmailDriverJobAssigned { get; set; } = true;
+        public bool EmailDriverJobCompleted { get; set; } = true;
+        public bool EmailDriverPayrollPaid { get; set; } = true;
+
+        public bool EmailClientJobCreated { get; set; } = true;
+        public bool EmailClientFraudUnderReview { get; set; } = true;
+        public bool EmailClientDriverAssigned { get; set; } = true;
+        public bool EmailClientStatusOnRoute { get; set; } = true;
+        public bool EmailClientStatusOnScene { get; set; } = true;
+        public bool EmailClientStatusLoaded { get; set; } = true;
+        public bool EmailClientPaymentLinkCreated { get; set; } = true;
+        public bool EmailClientPaymentSucceeded { get; set; } = true;
+        public bool EmailClientPaymentFailed { get; set; } = true;
+        public bool EmailClientJobCancelled { get; set; } = true;
+        public bool EmailClientJobCompleted { get; set; } = true;
         
         // Metadata
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

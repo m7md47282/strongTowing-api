@@ -26,19 +26,22 @@ public class PaymentsController : ControllerBase
     private readonly ILogger<PaymentsController> _logger;
     private readonly IPaymentProvider _paymentProvider;
     private readonly ISmsNotificationService _smsNotificationService;
+    private readonly IEmailNotificationService _emailNotificationService;
 
     public PaymentsController(
         ApplicationDbContext context,
         UserManager<ApplicationUser> userManager,
         ILogger<PaymentsController> logger,
         IPaymentProvider paymentProvider,
-        ISmsNotificationService smsNotificationService)
+        ISmsNotificationService smsNotificationService,
+        IEmailNotificationService emailNotificationService)
     {
         _context = context;
         _userManager = userManager;
         _logger = logger;
         _paymentProvider = paymentProvider;
         _smsNotificationService = smsNotificationService;
+        _emailNotificationService = emailNotificationService;
     }
 
     /// <summary>
@@ -567,6 +570,12 @@ public class PaymentsController : ControllerBase
                 result.Url,
                 job.ContactPhoneNumber,
                 job.Vehicle?.Owner?.PhoneNumber);
+            await _emailNotificationService.NotifyClientPaymentLinkCreatedAsync(
+                job.Id,
+                request.Amount,
+                result.Url,
+                null,
+                job.Vehicle?.Owner?.Email);
 
             return Ok(new CreateStripePaymentLinkResponse
             {
@@ -979,6 +988,11 @@ public class PaymentsController : ControllerBase
                 payment.Amount,
                 payment.Job.ContactPhoneNumber,
                 payment.Job.Vehicle?.Owner?.PhoneNumber);
+            await _emailNotificationService.NotifyClientPaymentSucceededAsync(
+                payment.JobId,
+                payment.Amount,
+                null,
+                payment.Job.Vehicle?.Owner?.Email);
         }
     }
 
@@ -1065,6 +1079,10 @@ public class PaymentsController : ControllerBase
                 payment.JobId,
                 payment.Job.ContactPhoneNumber,
                 payment.Job.Vehicle?.Owner?.PhoneNumber);
+            await _emailNotificationService.NotifyClientPaymentFailedAsync(
+                payment.JobId,
+                null,
+                payment.Job.Vehicle?.Owner?.Email);
         }
     }
 
@@ -1170,6 +1188,11 @@ public class PaymentsController : ControllerBase
                 payment.Amount,
                 payment.Job.ContactPhoneNumber,
                 payment.Job.Vehicle?.Owner?.PhoneNumber);
+            await _emailNotificationService.NotifyClientPaymentSucceededAsync(
+                payment.JobId,
+                payment.Amount,
+                null,
+                payment.Job.Vehicle?.Owner?.Email);
         }
     }
 

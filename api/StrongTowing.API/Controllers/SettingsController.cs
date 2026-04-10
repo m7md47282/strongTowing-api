@@ -22,17 +22,20 @@ public class SettingsController : ControllerBase
     private readonly ApplicationDbContext _context;
     private readonly IEncryptionService _encryptionService;
     private readonly ISmsSender _smsSender;
+    private readonly IEmailSender _emailSender;
     private readonly ILogger<SettingsController> _logger;
 
     public SettingsController(
         ApplicationDbContext context,
         IEncryptionService encryptionService,
         ISmsSender smsSender,
+        IEmailSender emailSender,
         ILogger<SettingsController> logger)
     {
         _context = context;
         _encryptionService = encryptionService;
         _smsSender = smsSender;
+        _emailSender = emailSender;
         _logger = logger;
     }
 
@@ -263,6 +266,30 @@ public class SettingsController : ControllerBase
             settings.SmsClientJobCancelled = request.SmsClientJobCancelled;
             settings.SmsClientJobCompleted = request.SmsClientJobCompleted;
 
+            settings.EmailEnabled = request.EmailEnabled;
+            if (!string.IsNullOrWhiteSpace(request.PostmarkServerToken))
+            {
+                settings.PostmarkServerToken = _encryptionService.Encrypt(request.PostmarkServerToken);
+            }
+
+            settings.PostmarkDefaultFromEmail = request.PostmarkDefaultFromEmail;
+            settings.PostmarkMessageStream = request.PostmarkMessageStream;
+
+            settings.EmailDriverJobAssigned = request.EmailDriverJobAssigned;
+            settings.EmailDriverJobCompleted = request.EmailDriverJobCompleted;
+            settings.EmailDriverPayrollPaid = request.EmailDriverPayrollPaid;
+            settings.EmailClientJobCreated = request.EmailClientJobCreated;
+            settings.EmailClientFraudUnderReview = request.EmailClientFraudUnderReview;
+            settings.EmailClientDriverAssigned = request.EmailClientDriverAssigned;
+            settings.EmailClientStatusOnRoute = request.EmailClientStatusOnRoute;
+            settings.EmailClientStatusOnScene = request.EmailClientStatusOnScene;
+            settings.EmailClientStatusLoaded = request.EmailClientStatusLoaded;
+            settings.EmailClientPaymentLinkCreated = request.EmailClientPaymentLinkCreated;
+            settings.EmailClientPaymentSucceeded = request.EmailClientPaymentSucceeded;
+            settings.EmailClientPaymentFailed = request.EmailClientPaymentFailed;
+            settings.EmailClientJobCancelled = request.EmailClientJobCancelled;
+            settings.EmailClientJobCompleted = request.EmailClientJobCompleted;
+
             await _context.SaveChangesAsync();
 
             return Ok(MapToSystemSettingsDto(settings));
@@ -404,6 +431,123 @@ public class SettingsController : ControllerBase
         });
     }
 
+    /// <summary>
+    /// Send a one-off test email using Postmark credentials stored in system settings (SuperAdmin only).
+    /// </summary>
+    [HttpPost("test-email")]
+    [Authorize(Roles = UserRoles.SuperAdmin)]
+    public async Task<ActionResult<TestEmailResponse>> TestEmail([FromBody] TestEmailRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.ToEmail))
+        {
+            return BadRequest(new TestEmailResponse
+            {
+                Success = false,
+                ErrorMessage = "Email address is required."
+            });
+        }
+
+        var settings = await _context.SystemSettings.AsNoTracking().FirstOrDefaultAsync();
+        if (settings == null)
+        {
+            return BadRequest(new TestEmailResponse
+            {
+                Success = false,
+                ErrorMessage = "System settings not found. Save Postmark credentials first."
+            });
+        }
+
+        if (!settings.EmailEnabled)
+        {
+            return BadRequest(new TestEmailResponse
+            {
+                Success = false,
+                ErrorMessage = "Email is disabled in settings. Enable email or use this check after enabling."
+            });
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.PostmarkServerToken))
+        {
+            return BadRequest(new TestEmailResponse
+            {
+                Success = false,
+                ErrorMessage = "Postmark Server API token must be saved in settings."
+            });
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.PostmarkDefaultFromEmail))
+        {
+            return BadRequest(new TestEmailResponse
+            {
+                Success = false,
+                ErrorMessage = "Default From email must be saved in settings (verified sender in Postmark)."
+            });
+        }
+
+        string serverToken;
+        try
+        {
+            serverToken = _encryptionService.Decrypt(settings.PostmarkServerToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Test email: failed to decrypt Postmark server token.");
+            return BadRequest(new TestEmailResponse
+            {
+                Success = false,
+                ErrorMessage = "Could not read stored Postmark token. Re-save the token in settings."
+            });
+        }
+
+        if (string.IsNullOrWhiteSpace(serverToken))
+        {
+            return BadRequest(new TestEmailResponse
+            {
+                Success = false,
+                ErrorMessage = "Postmark token is empty after decrypt."
+            });
+        }
+
+        var to = request.ToEmail.Trim();
+        var subject = string.IsNullOrWhiteSpace(request.Subject)
+            ? "Strong Towing: Test email from System Settings"
+            : request.Subject!.Trim();
+        var html = string.IsNullOrWhiteSpace(request.HtmlBody)
+            ? "<html><body><p>This is a test email from Strong Towing System Settings.</p></body></html>"
+            : request.HtmlBody!.Trim();
+
+        var stream = string.IsNullOrWhiteSpace(settings.PostmarkMessageStream) ? null : settings.PostmarkMessageStream;
+
+        var result = await _emailSender.SendAsync(
+            serverToken,
+            settings.PostmarkDefaultFromEmail.Trim(),
+            stream,
+            to,
+            subject,
+            html,
+            null,
+            HttpContext.RequestAborted);
+
+        if (!result.Success)
+        {
+            _logger.LogWarning("Test email failed: {Error}", result.ErrorMessage);
+            return Ok(new TestEmailResponse
+            {
+                Success = false,
+                ToEmail = to,
+                ErrorMessage = result.ErrorMessage
+            });
+        }
+
+        _logger.LogInformation("Test email sent to {To} MessageId={Id}", to, result.PostmarkMessageId);
+        return Ok(new TestEmailResponse
+        {
+            Success = true,
+            ToEmail = to,
+            PostmarkMessageId = result.PostmarkMessageId
+        });
+    }
+
     private SystemSettingsDto MapToSystemSettingsDto(SystemSettings settings)
     {
         return new SystemSettingsDto
@@ -459,6 +603,24 @@ public class SettingsController : ControllerBase
             SmsClientPaymentFailed = settings.SmsClientPaymentFailed,
             SmsClientJobCancelled = settings.SmsClientJobCancelled,
             SmsClientJobCompleted = settings.SmsClientJobCompleted,
+            EmailEnabled = settings.EmailEnabled,
+            PostmarkServerTokenConfigured = !string.IsNullOrEmpty(settings.PostmarkServerToken),
+            PostmarkDefaultFromEmail = settings.PostmarkDefaultFromEmail,
+            PostmarkMessageStream = settings.PostmarkMessageStream,
+            EmailDriverJobAssigned = settings.EmailDriverJobAssigned,
+            EmailDriverJobCompleted = settings.EmailDriverJobCompleted,
+            EmailDriverPayrollPaid = settings.EmailDriverPayrollPaid,
+            EmailClientJobCreated = settings.EmailClientJobCreated,
+            EmailClientFraudUnderReview = settings.EmailClientFraudUnderReview,
+            EmailClientDriverAssigned = settings.EmailClientDriverAssigned,
+            EmailClientStatusOnRoute = settings.EmailClientStatusOnRoute,
+            EmailClientStatusOnScene = settings.EmailClientStatusOnScene,
+            EmailClientStatusLoaded = settings.EmailClientStatusLoaded,
+            EmailClientPaymentLinkCreated = settings.EmailClientPaymentLinkCreated,
+            EmailClientPaymentSucceeded = settings.EmailClientPaymentSucceeded,
+            EmailClientPaymentFailed = settings.EmailClientPaymentFailed,
+            EmailClientJobCancelled = settings.EmailClientJobCancelled,
+            EmailClientJobCompleted = settings.EmailClientJobCompleted,
             UpdatedAt = settings.UpdatedAt,
             UpdatedBy = settings.UpdatedBy
         };

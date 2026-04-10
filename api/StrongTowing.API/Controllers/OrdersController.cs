@@ -23,6 +23,7 @@ public class OrdersController : ControllerBase
     private readonly RoleManager<IdentityRole> _roleManager;
     private readonly IPaymentProvider _paymentProvider;
     private readonly ISmsNotificationService _smsNotificationService;
+    private readonly IEmailNotificationService _emailNotificationService;
     private readonly ILogger<OrdersController> _logger;
 
     public OrdersController(
@@ -31,6 +32,7 @@ public class OrdersController : ControllerBase
         RoleManager<IdentityRole> roleManager,
         IPaymentProvider paymentProvider,
         ISmsNotificationService smsNotificationService,
+        IEmailNotificationService emailNotificationService,
         ILogger<OrdersController> logger)
     {
         _context = context;
@@ -38,6 +40,7 @@ public class OrdersController : ControllerBase
         _roleManager = roleManager;
         _paymentProvider = paymentProvider;
         _smsNotificationService = smsNotificationService;
+        _emailNotificationService = emailNotificationService;
         _logger = logger;
     }
 
@@ -122,7 +125,10 @@ public class OrdersController : ControllerBase
                 await _context.Entry(job.Vehicle).Reference(v => v.Owner).LoadAsync();
             var contactPhone = job.ContactPhoneNumber;
             var ownerPhone = job.Vehicle?.Owner?.PhoneNumber;
+            var contactEmail = customer.Email;
+            var ownerEmail = job.Vehicle?.Owner?.Email;
             await _smsNotificationService.NotifyClientJobCreatedAsync(job.Id, contactPhone, ownerPhone);
+            await _emailNotificationService.NotifyClientJobCreatedAsync(job.Id, contactEmail, ownerEmail);
 
             // If risk score is too high, queue for review before payment action.
             if (fraud.UnderReview)
@@ -132,6 +138,7 @@ public class OrdersController : ControllerBase
                 await _context.SaveChangesAsync();
 
                 await _smsNotificationService.NotifyClientFraudUnderReviewAsync(job.Id, contactPhone, ownerPhone);
+                await _emailNotificationService.NotifyClientFraudUnderReviewAsync(job.Id, contactEmail, ownerEmail);
 
                 return Ok(new CreateOrderResponse
                 {

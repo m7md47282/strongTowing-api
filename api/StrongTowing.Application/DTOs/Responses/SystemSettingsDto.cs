@@ -57,6 +57,27 @@ namespace StrongTowing.Application.DTOs.Responses
         public bool SmsClientJobCancelled { get; set; }
         public bool SmsClientJobCompleted { get; set; }
 
+        public bool EmailEnabled { get; set; }
+        public bool PostmarkServerTokenConfigured { get; set; }
+        public string? PostmarkDefaultFromEmail { get; set; }
+        public string? PostmarkMessageStream { get; set; }
+
+        public bool EmailDriverJobAssigned { get; set; }
+        public bool EmailDriverJobCompleted { get; set; }
+        public bool EmailDriverPayrollPaid { get; set; }
+
+        public bool EmailClientJobCreated { get; set; }
+        public bool EmailClientFraudUnderReview { get; set; }
+        public bool EmailClientDriverAssigned { get; set; }
+        public bool EmailClientStatusOnRoute { get; set; }
+        public bool EmailClientStatusOnScene { get; set; }
+        public bool EmailClientStatusLoaded { get; set; }
+        public bool EmailClientPaymentLinkCreated { get; set; }
+        public bool EmailClientPaymentSucceeded { get; set; }
+        public bool EmailClientPaymentFailed { get; set; }
+        public bool EmailClientJobCancelled { get; set; }
+        public bool EmailClientJobCompleted { get; set; }
+
         public DateTime UpdatedAt { get; set; }
         public string UpdatedBy { get; set; } = string.Empty;
     }

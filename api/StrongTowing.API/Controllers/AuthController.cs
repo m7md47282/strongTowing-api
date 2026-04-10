@@ -1,13 +1,19 @@
+using System.Globalization;
+using System.Text;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using StrongTowing.Application.DTOs.Requests;
 using StrongTowing.Application.DTOs.Responses;
+using StrongTowing.API.Options;
 using StrongTowing.API.Services;
 using StrongTowing.Core.Entities;
 using StrongTowing.Core.Constants;
+using StrongTowing.Core.Enums;
 using StrongTowing.Infrastructure.Data;
 
 namespace StrongTowing.API.Controllers;
@@ -23,6 +29,9 @@ public class AuthController : ControllerBase
     private readonly IJwtService _jwtService;
     private readonly ILogger<AuthController> _logger;
     private readonly IWebHostEnvironment _environment;
+    private readonly IDataProtectionProvider _dataProtectionProvider;
+    private readonly IOptions<AuthOtpOptions> _otpOptions;
+    private readonly IAuthOtpEmailService _authOtpEmailService;
 
     public AuthController(
         UserManager<ApplicationUser> userManager,
@@ -31,7 +40,10 @@ public class AuthController : ControllerBase
         ApplicationDbContext context,
         IJwtService jwtService,
         ILogger<AuthController> logger,
-        IWebHostEnvironment environment)
+        IWebHostEnvironment environment,
+        IDataProtectionProvider dataProtectionProvider,
+        IOptions<AuthOtpOptions> otpOptions,
+        IAuthOtpEmailService authOtpEmailService)
     {
         _userManager = userManager;
         _signInManager = signInManager;
@@ -40,6 +52,9 @@ public class AuthController : ControllerBase
         _jwtService = jwtService;
         _logger = logger;
         _environment = environment;
+        _dataProtectionProvider = dataProtectionProvider;
+        _otpOptions = otpOptions;
+        _authOtpEmailService = authOtpEmailService;
     }
     
     /// <summary>
@@ -138,6 +153,15 @@ public class AuthController : ControllerBase
                 return Unauthorized(new { error = "Unauthorized", message = "Invalid credentials" });
             }
 
+            if (!user.EmailConfirmed)
+            {
+                return Unauthorized(new
+                {
+                    error = "EmailNotVerified",
+                    message = "Please verify your email before signing in. Check your inbox for the code or register again."
+                });
+            }
+
             var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, lockoutOnFailure: false);
             
             if (!result.Succeeded)
@@ -222,16 +246,12 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Public User Signup
+    /// Public driver self-signup: stores pending registration and sends an email OTP (Postmark).
     /// </summary>
-    /// <remarks>
-    /// Public endpoint for users to create their own account. All users sign up as Drivers by default.
-    /// </remarks>
     [HttpPost("signup")]
     [AllowAnonymous]
-    public async Task<ActionResult<LoginResponse>> Signup([FromBody] SignupRequest request)
+    public async Task<IActionResult> Signup([FromBody] SignupRequest request)
     {
-        // Validate model state
         if (!ModelState.IsValid)
         {
             var errors = ModelState
@@ -239,8 +259,8 @@ public class AuthController : ControllerBase
                 .SelectMany(x => x.Value!.Errors.Select(e => new { Field = x.Key, Message = e.ErrorMessage }))
                 .ToList();
 
-            return BadRequest(new 
-            { 
+            return BadRequest(new
+            {
                 error = "Validation Error",
                 message = "One or more validation errors occurred",
                 errors = errors
@@ -249,30 +269,12 @@ public class AuthController : ControllerBase
 
         try
         {
-            // Validate required fields manually (additional check)
-            if (string.IsNullOrWhiteSpace(request.Email))
-            {
-                return BadRequest(new { error = "Validation Error", message = "Email is required", field = "email" });
-            }
-
-            if (string.IsNullOrWhiteSpace(request.Password))
-            {
-                return BadRequest(new { error = "Validation Error", message = "Password is required", field = "password" });
-            }
-
-            if (string.IsNullOrWhiteSpace(request.FullName))
-            {
-                return BadRequest(new { error = "Validation Error", message = "Full name is required", field = "fullName" });
-            }
-
-            // Check if user already exists
             var existingUser = await _userManager.FindByEmailAsync(request.Email);
             if (existingUser != null)
             {
                 return Conflict(new { error = "Conflict", message = "A user with this email already exists", field = "email" });
             }
 
-            // Ensure the Driver role exists and get its ID
             var defaultRole = UserRoles.Driver;
             var role = await EnsureRoleExistsAsync(defaultRole);
             if (role == null)
@@ -280,92 +282,404 @@ public class AuthController : ControllerBase
                 return StatusCode(500, new { error = "Server Error", message = "Failed to create or retrieve role" });
             }
 
-            // Create new user with RoleId set
-            var newUser = new ApplicationUser
-            {
-                UserName = request.Email,
-                Email = request.Email,
-                FullName = request.FullName,
-                PhoneNumber = request.PhoneNumber,
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow,
-                RoleId = role.Id // Set the RoleId foreign key
-            };
+            var norm = _userManager.NormalizeEmail(request.Email) ?? request.Email.Trim().ToUpperInvariant();
+            var protector = _dataProtectionProvider.CreateProtector("StrongTowing.PendingSignup.v1");
+            var protectedPw = Convert.ToBase64String(protector.Protect(Encoding.UTF8.GetBytes(request.Password)));
 
-            var createResult = await _userManager.CreateAsync(newUser, request.Password);
-            
-            if (!createResult.Succeeded)
+            var pending = await _context.PendingDriverSignups.FirstOrDefaultAsync(x => x.NormalizedEmail == norm);
+            if (pending != null)
             {
-                // Map Identity errors to user-friendly messages
-                var errorMessages = createResult.Errors.Select(e => 
+                _context.PendingDriverSignups.Remove(pending);
+            }
+
+            _context.PendingDriverSignups.Add(new PendingDriverSignup
+            {
+                NormalizedEmail = norm,
+                Email = request.Email.Trim(),
+                ProtectedPassword = protectedPw,
+                FullName = request.FullName.Trim(),
+                PhoneNumber = string.IsNullOrWhiteSpace(request.PhoneNumber) ? null : request.PhoneNumber.Trim(),
+                RoleId = role.Id,
+                CreatedAtUtc = DateTime.UtcNow
+            });
+
+            await InvalidateOtpsAsync(norm, AuthOtpPurpose.Signup, CancellationToken.None);
+
+            var otp = GenerateOtpCode(_otpOptions.Value.CodeLength);
+            var pepper = _otpOptions.Value.Pepper;
+            var hash = AuthOtpHasher.HashOtp(norm, otp, pepper);
+            var expiry = DateTime.UtcNow.AddMinutes(Math.Clamp(_otpOptions.Value.ExpiryMinutes, 1, 60));
+
+            _context.AuthOtpRecords.Add(new AuthOtpRecord
+            {
+                NormalizedEmail = norm,
+                Email = request.Email.Trim(),
+                Purpose = AuthOtpPurpose.Signup,
+                OtpHash = hash,
+                ExpiresAtUtc = expiry,
+                Used = false,
+                FailedAttemptCount = 0,
+                CreatedAtUtc = DateTime.UtcNow
+            });
+
+            await _context.SaveChangesAsync();
+
+            var plain = $"Your Strong Towing verification code is: {otp}\n\nIt expires in {_otpOptions.Value.ExpiryMinutes} minutes.";
+            var html = AuthOtpEmailService.ToSimpleHtml("Verify your email", plain);
+            var send = await _authOtpEmailService.SendAsync(request.Email.Trim(), "Verify your Strong Towing account", html, plain, HttpContext.RequestAborted);
+            if (!send.Success)
+            {
+                _logger.LogWarning("Signup OTP email could not be sent: {Err}", send.ErrorMessage);
+                return StatusCode(503, new
                 {
-                    var field = e.Code switch
-                    {
-                        "DuplicateUserName" or "DuplicateEmail" => "email",
-                        "PasswordTooShort" or "PasswordRequiresDigit" or "PasswordRequiresLower" or 
-                        "PasswordRequiresUpper" or "PasswordRequiresNonAlphanumeric" => "password",
-                        _ => "general"
-                    };
-                    return new { field = field, message = e.Description };
-                }).ToList();
-
-                return BadRequest(new 
-                { 
-                    error = "Validation Error",
-                    message = "Failed to create user account",
-                    errors = errorMessages
+                    error = "EmailUnavailable",
+                    message = send.ErrorMessage ?? "Could not send verification email. Try again later or contact support."
                 });
             }
 
-            // Also add to Identity role system for compatibility
-            var roleResult = await _userManager.AddToRoleAsync(newUser, defaultRole);
-            if (!roleResult.Succeeded)
+            return Ok(new
             {
-                // If role assignment fails, delete the user
-                await _userManager.DeleteAsync(newUser);
-                var errors = roleResult.Errors.Select(e => new { field = "role", message = e.Description }).ToList();
-                return StatusCode(500, new 
-                { 
-                    error = "Server Error",
-                    message = "Failed to assign user role",
-                    errors = errors
-                });
-            }
-
-            // Always use RoleId as source of truth - get role name from RoleId
-            var roleName = await GetRoleNameFromRoleIdAsync(newUser.RoleId);
-            if (string.IsNullOrEmpty(roleName))
-            {
-                roleName = defaultRole; // Fallback to default role
-            }
-
-            // Use role from RoleId for token generation
-            var roles = new List<string> { roleName };
-
-            // Generate JWT token for immediate login
-            var token = _jwtService.GenerateToken(newUser, roles);
-            var expiresAt = _jwtService.GetExpirationTime();
-
-            var response = new LoginResponse
-            {
-                Token = token,
-                User = MapToUserDto(newUser, roleName),
-                ExpiresAt = expiresAt
-            };
-
-            return Ok(response);
+                requiresVerification = true,
+                message = "We sent a verification code to your email. Enter it to complete registration.",
+                email = request.Email.Trim()
+            });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error during signup for email: {Email}. Exception: {Exception}", 
-                request?.Email ?? "unknown", ex.ToString());
-            
-            return StatusCode(500, new 
-            { 
-                error = "Internal Server Error", 
+            _logger.LogError(ex, "Error during signup request for email: {Email}", request?.Email ?? "unknown");
+            return StatusCode(500, new
+            {
+                error = "Internal Server Error",
                 message = "An error occurred during signup. Please try again later.",
-                details = ex.Message // Include exception message for debugging
+                details = _environment.IsDevelopment() ? ex.Message : null
             });
+        }
+    }
+
+    /// <summary>Completes driver self-signup after the user enters the email OTP.</summary>
+    [HttpPost("verify-otp")]
+    [AllowAnonymous]
+    public async Task<ActionResult<LoginResponse>> VerifySignup([FromBody] VerifySignupRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(new { error = "Validation Error", message = "Invalid request" });
+
+        try
+        {
+            var norm = _userManager.NormalizeEmail(request.Email) ?? request.Email.Trim().ToUpperInvariant();
+            var pending = await _context.PendingDriverSignups.FirstOrDefaultAsync(x => x.NormalizedEmail == norm);
+            if (pending == null)
+            {
+                return BadRequest(new { error = "InvalidRequest", message = "No pending registration found. Start signup again." });
+            }
+
+            var otpRow = await _context.AuthOtpRecords
+                .Where(x => x.NormalizedEmail == norm && x.Purpose == AuthOtpPurpose.Signup && !x.Used && x.ExpiresAtUtc > DateTime.UtcNow)
+                .OrderByDescending(x => x.Id)
+                .FirstOrDefaultAsync();
+
+            if (otpRow == null)
+            {
+                return BadRequest(new { error = "InvalidOrExpired", message = "Code expired or not found. Request a new code." });
+            }
+
+            var pepper = _otpOptions.Value.Pepper;
+            if (!AuthOtpHasher.Verify(norm, request.Otp, pepper, otpRow.OtpHash))
+            {
+                otpRow.FailedAttemptCount++;
+                await _context.SaveChangesAsync();
+                if (otpRow.FailedAttemptCount >= _otpOptions.Value.MaxFailedAttempts)
+                {
+                    otpRow.Used = true;
+                    await _context.SaveChangesAsync();
+                }
+
+                return BadRequest(new { error = "InvalidCode", message = "Invalid verification code." });
+            }
+
+            var existingUser = await _userManager.FindByEmailAsync(pending.Email);
+            if (existingUser != null)
+            {
+                _context.PendingDriverSignups.Remove(pending);
+                otpRow.Used = true;
+                await _context.SaveChangesAsync();
+                return Conflict(new { error = "Conflict", message = "An account with this email already exists." });
+            }
+
+            var protector = _dataProtectionProvider.CreateProtector("StrongTowing.PendingSignup.v1");
+            string password;
+            try
+            {
+                password = Encoding.UTF8.GetString(protector.Unprotect(Convert.FromBase64String(pending.ProtectedPassword)));
+            }
+            catch
+            {
+                return BadRequest(new { error = "InvalidRequest", message = "Registration data expired. Please sign up again." });
+            }
+
+            var defaultRole = UserRoles.Driver;
+            var newUser = new ApplicationUser
+            {
+                UserName = pending.Email,
+                Email = pending.Email,
+                EmailConfirmed = true,
+                FullName = pending.FullName,
+                PhoneNumber = pending.PhoneNumber,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                RoleId = pending.RoleId
+            };
+
+            var createResult = await _userManager.CreateAsync(newUser, password);
+            if (!createResult.Succeeded)
+            {
+                var errorMessages = createResult.Errors.Select(e => new { field = "general", message = e.Description }).ToList();
+                return BadRequest(new { error = "Validation Error", message = "Failed to create account", errors = errorMessages });
+            }
+
+            var roleResult = await _userManager.AddToRoleAsync(newUser, defaultRole);
+            if (!roleResult.Succeeded)
+            {
+                await _userManager.DeleteAsync(newUser);
+                return StatusCode(500, new { error = "Server Error", message = "Failed to assign role" });
+            }
+
+            _context.PendingDriverSignups.Remove(pending);
+            otpRow.Used = true;
+            await _context.SaveChangesAsync();
+
+            var roleName = await GetRoleNameFromRoleIdAsync(newUser.RoleId) ?? defaultRole;
+            var roles = new List<string> { roleName };
+            var token = _jwtService.GenerateToken(newUser, roles);
+            var expiresAt = _jwtService.GetExpirationTime();
+
+            var refreshTokenValue = _jwtService.GenerateRefreshToken();
+            var refreshTokenExpiresAt = _jwtService.GetRefreshTokenExpirationTime();
+            var refreshToken = new RefreshToken
+            {
+                Token = refreshTokenValue,
+                UserId = newUser.Id,
+                ExpiresAt = refreshTokenExpiresAt,
+                CreatedAt = DateTime.UtcNow
+            };
+            _context.RefreshTokens.Add(refreshToken);
+            await _context.SaveChangesAsync();
+
+            return Ok(new LoginResponse
+            {
+                Token = token,
+                RefreshToken = refreshTokenValue,
+                User = MapToUserDto(newUser, roleName),
+                ExpiresAt = expiresAt
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "verify-signup failed");
+            return StatusCode(500, new { error = "Internal Server Error", message = "Could not complete verification." });
+        }
+    }
+
+    /// <summary>Request a password reset code by email.</summary>
+    [HttpPost("forgot-password")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(new { error = "Validation Error", message = "Invalid email" });
+
+        var message =
+            "If an account exists for that email, we sent a verification code. Check your inbox and spam folder.";
+
+        try
+        {
+            var user = await _userManager.FindByEmailAsync(request.Email);
+            if (user == null || !user.IsActive)
+            {
+                return Ok(new { message });
+            }
+
+            var norm = user.NormalizedEmail ?? _userManager.NormalizeEmail(request.Email) ?? request.Email.Trim().ToUpperInvariant();
+            await InvalidateOtpsAsync(norm, AuthOtpPurpose.PasswordReset, CancellationToken.None);
+
+            var otp = GenerateOtpCode(_otpOptions.Value.CodeLength);
+            var hash = AuthOtpHasher.HashOtp(norm, otp, _otpOptions.Value.Pepper);
+            var expiry = DateTime.UtcNow.AddMinutes(Math.Clamp(_otpOptions.Value.ExpiryMinutes, 1, 60));
+
+            _context.AuthOtpRecords.Add(new AuthOtpRecord
+            {
+                NormalizedEmail = norm,
+                Email = user.Email ?? request.Email.Trim(),
+                Purpose = AuthOtpPurpose.PasswordReset,
+                OtpHash = hash,
+                ExpiresAtUtc = expiry,
+                Used = false,
+                FailedAttemptCount = 0,
+                CreatedAtUtc = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+
+            var plain = $"Your Strong Towing password reset code is: {otp}\n\nIt expires in {_otpOptions.Value.ExpiryMinutes} minutes.";
+            var html = AuthOtpEmailService.ToSimpleHtml("Reset your password", plain);
+            await _authOtpEmailService.SendAsync(user.Email!, "Reset your Strong Towing password", html, plain, HttpContext.RequestAborted);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "forgot-password failed");
+        }
+
+        return Ok(new { message });
+    }
+
+    /// <summary>Reset password using the email OTP.</summary>
+    [HttpPost("reset-password")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordWithOtpRequest request)
+    {
+        if (!ModelState.IsValid)
+        {
+            var errors = ModelState
+                .Where(x => x.Value?.Errors.Count > 0)
+                .SelectMany(x => x.Value!.Errors.Select(e => new { Field = x.Key, Message = e.ErrorMessage }))
+                .ToList();
+            return BadRequest(new { error = "Validation Error", errors });
+        }
+
+        try
+        {
+            var user = await _userManager.FindByEmailAsync(request.Email);
+            if (user == null || !user.IsActive)
+            {
+                return BadRequest(new { error = "InvalidRequest", message = "Invalid email or code." });
+            }
+
+            var norm = user.NormalizedEmail ?? _userManager.NormalizeEmail(request.Email) ?? request.Email.Trim().ToUpperInvariant();
+            var otpRow = await _context.AuthOtpRecords
+                .Where(x => x.NormalizedEmail == norm && x.Purpose == AuthOtpPurpose.PasswordReset && !x.Used && x.ExpiresAtUtc > DateTime.UtcNow)
+                .OrderByDescending(x => x.Id)
+                .FirstOrDefaultAsync();
+
+            if (otpRow == null)
+            {
+                return BadRequest(new { error = "InvalidOrExpired", message = "Code expired or not found. Request a new code." });
+            }
+
+            if (!AuthOtpHasher.Verify(norm, request.Otp, _otpOptions.Value.Pepper, otpRow.OtpHash))
+            {
+                otpRow.FailedAttemptCount++;
+                if (otpRow.FailedAttemptCount >= _otpOptions.Value.MaxFailedAttempts)
+                    otpRow.Used = true;
+                await _context.SaveChangesAsync();
+                return BadRequest(new { error = "InvalidCode", message = "Invalid verification code." });
+            }
+
+            var identityToken = await _userManager.GeneratePasswordResetTokenAsync(user);
+            var reset = await _userManager.ResetPasswordAsync(user, identityToken, request.NewPassword);
+            if (!reset.Succeeded)
+            {
+                return BadRequest(new
+                {
+                    error = "Validation Error",
+                    message = string.Join(" ", reset.Errors.Select(e => e.Description))
+                });
+            }
+
+            user.HasChangedPassword = true;
+            user.PasswordChangedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.UtcNow;
+            await _userManager.UpdateAsync(user);
+
+            otpRow.Used = true;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Password updated. You can sign in with your new password." });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "reset-password failed");
+            return StatusCode(500, new { error = "Internal Server Error", message = "Could not reset password." });
+        }
+    }
+
+    /// <summary>Resend signup or password-reset OTP.</summary>
+    [HttpPost("resend-otp")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ResendOtp([FromBody] ResendOtpRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(new { error = "Validation Error", message = "Invalid request" });
+
+        var purpose = ParseOtpPurpose(request.Purpose);
+        if (purpose == null)
+            return BadRequest(new { error = "Validation Error", message = "Purpose must be signup or passwordReset." });
+
+        try
+        {
+            var norm = _userManager.NormalizeEmail(request.Email) ?? request.Email.Trim().ToUpperInvariant();
+
+            if (purpose == AuthOtpPurpose.Signup)
+            {
+                var pending = await _context.PendingDriverSignups.FirstOrDefaultAsync(x => x.NormalizedEmail == norm);
+                if (pending == null)
+                    return BadRequest(new { error = "InvalidRequest", message = "No pending registration for this email." });
+
+                await InvalidateOtpsAsync(norm, AuthOtpPurpose.Signup, CancellationToken.None);
+                var otp = GenerateOtpCode(_otpOptions.Value.CodeLength);
+                var hash = AuthOtpHasher.HashOtp(norm, otp, _otpOptions.Value.Pepper);
+                _context.AuthOtpRecords.Add(new AuthOtpRecord
+                {
+                    NormalizedEmail = norm,
+                    Email = pending.Email,
+                    Purpose = AuthOtpPurpose.Signup,
+                    OtpHash = hash,
+                    ExpiresAtUtc = DateTime.UtcNow.AddMinutes(Math.Clamp(_otpOptions.Value.ExpiryMinutes, 1, 60)),
+                    Used = false,
+                    FailedAttemptCount = 0,
+                    CreatedAtUtc = DateTime.UtcNow
+                });
+                await _context.SaveChangesAsync();
+
+                var plain = $"Your Strong Towing verification code is: {otp}\n\nIt expires in {_otpOptions.Value.ExpiryMinutes} minutes.";
+                var html = AuthOtpEmailService.ToSimpleHtml("Verify your email", plain);
+                var send = await _authOtpEmailService.SendAsync(pending.Email, "Verify your Strong Towing account", html, plain, HttpContext.RequestAborted);
+                if (!send.Success)
+                    return StatusCode(503, new { error = "EmailUnavailable", message = send.ErrorMessage });
+
+                return Ok(new { message = "A new code was sent to your email." });
+            }
+
+            var user = await _userManager.FindByEmailAsync(request.Email);
+            if (user == null || !user.IsActive)
+            {
+                return Ok(new { message = "If an account exists, a new code was sent." });
+            }
+
+            norm = user.NormalizedEmail ?? norm;
+            await InvalidateOtpsAsync(norm, AuthOtpPurpose.PasswordReset, CancellationToken.None);
+            var otp2 = GenerateOtpCode(_otpOptions.Value.CodeLength);
+            var hash2 = AuthOtpHasher.HashOtp(norm, otp2, _otpOptions.Value.Pepper);
+            _context.AuthOtpRecords.Add(new AuthOtpRecord
+            {
+                NormalizedEmail = norm,
+                Email = user.Email!,
+                Purpose = AuthOtpPurpose.PasswordReset,
+                OtpHash = hash2,
+                ExpiresAtUtc = DateTime.UtcNow.AddMinutes(Math.Clamp(_otpOptions.Value.ExpiryMinutes, 1, 60)),
+                Used = false,
+                FailedAttemptCount = 0,
+                CreatedAtUtc = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+
+            var plain2 = $"Your Strong Towing password reset code is: {otp2}\n\nIt expires in {_otpOptions.Value.ExpiryMinutes} minutes.";
+            var html2 = AuthOtpEmailService.ToSimpleHtml("Reset your password", plain2);
+            await _authOtpEmailService.SendAsync(user.Email!, "Reset your Strong Towing password", html2, plain2, HttpContext.RequestAborted);
+            return Ok(new { message = "If an account exists, a new code was sent." });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "resend-otp failed");
+            return StatusCode(500, new { error = "Internal Server Error", message = "Could not resend code." });
         }
     }
 
@@ -449,6 +763,7 @@ public class AuthController : ControllerBase
             {
                 UserName = request.Email,
                 Email = request.Email,
+                EmailConfirmed = true,
                 FullName = request.FullName,
                 PhoneNumber = request.PhoneNumber,
                 IsActive = true,
@@ -665,6 +980,34 @@ public class AuthController : ControllerBase
             _logger.LogError(ex, "Error refreshing token");
             return StatusCode(500, new { error = "Internal Server Error", message = "An error occurred while refreshing token" });
         }
+    }
+
+    private async Task InvalidateOtpsAsync(string normalizedEmail, AuthOtpPurpose purpose, CancellationToken cancellationToken)
+    {
+        var old = await _context.AuthOtpRecords
+            .Where(x => x.NormalizedEmail == normalizedEmail && x.Purpose == purpose && !x.Used)
+            .ToListAsync(cancellationToken);
+        foreach (var o in old)
+            o.Used = true;
+        if (old.Count > 0)
+            await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    private string GenerateOtpCode(int length)
+    {
+        length = Math.Clamp(length, 4, 8);
+        var min = (int)Math.Pow(10, length - 1);
+        var max = (int)Math.Pow(10, length) - 1;
+        return Random.Shared.Next(min, max + 1).ToString(CultureInfo.InvariantCulture);
+    }
+
+    private static AuthOtpPurpose? ParseOtpPurpose(string? p)
+    {
+        if (string.Equals(p, "signup", StringComparison.OrdinalIgnoreCase))
+            return AuthOtpPurpose.Signup;
+        if (string.Equals(p, "passwordReset", StringComparison.OrdinalIgnoreCase))
+            return AuthOtpPurpose.PasswordReset;
+        return null;
     }
 
     private static UserDto MapToUserDto(ApplicationUser user, string roleName)

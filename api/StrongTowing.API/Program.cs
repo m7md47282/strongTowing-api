@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -28,6 +29,9 @@ builder.Services.Configure<GoogleMapsOptions>(builder.Configuration.GetSection(G
 builder.Services.Configure<OfficeLocationOptions>(builder.Configuration.GetSection(OfficeLocationOptions.SectionName));
 builder.Services.Configure<DispatchContactOptions>(builder.Configuration.GetSection(DispatchContactOptions.SectionName));
 builder.Services.Configure<FirebaseOptions>(builder.Configuration.GetSection(FirebaseOptions.SectionName));
+builder.Services.Configure<AuthOtpOptions>(builder.Configuration.GetSection(AuthOtpOptions.SectionName));
+builder.Services.AddDataProtection();
+builder.Services.AddScoped<IAuthOtpEmailService, AuthOtpEmailService>();
 builder.Services.AddHttpClient(); // IHttpClientFactory + default client (e.g. NHTSA vPIC sync)
 builder.Services.AddHttpClient<IGoogleRoutesService, GoogleRoutesService>();
 builder.Services.AddScoped<IOfficeLocationResolver, OfficeLocationResolver>();
@@ -116,7 +120,9 @@ builder.Services.AddScoped<IEncryptionService, EncryptionService>();
 builder.Services.AddScoped<IPaymentProvider, StripePaymentProvider>();
 builder.Services.AddScoped<IFcmNotificationService, FcmNotificationService>();
 builder.Services.AddScoped<ISmsSender, TwilioSmsSender>();
+builder.Services.AddHttpClient<IEmailSender, PostmarkEmailSender>();
 builder.Services.AddScoped<ISmsNotificationService, SmsNotificationService>();
+builder.Services.AddScoped<IEmailNotificationService, EmailNotificationService>();
 builder.Services.AddScoped<IPricingCalculatorService, PricingCalculatorService>();
 builder.Services.AddScoped<IDriverPayrollService, DriverPayrollService>();
 builder.Services.AddSingleton<INhtsaVehicleCatalogSyncService, NhtsaVehicleCatalogSyncService>();

@@ -30,6 +30,7 @@ public class JobsController : ControllerBase
     private readonly IPaymentProvider _paymentProvider;
     private readonly IFcmNotificationService _fcmNotificationService;
     private readonly ISmsNotificationService _smsNotificationService;
+    private readonly IEmailNotificationService _emailNotificationService;
     private readonly IWebHostEnvironment _environment;
     private readonly IPricingCalculatorService _pricingCalculatorService;
 
@@ -41,6 +42,7 @@ public class JobsController : ControllerBase
         IPaymentProvider paymentProvider,
         IFcmNotificationService fcmNotificationService,
         ISmsNotificationService smsNotificationService,
+        IEmailNotificationService emailNotificationService,
         IWebHostEnvironment environment,
         IPricingCalculatorService pricingCalculatorService)
     {
@@ -51,6 +53,7 @@ public class JobsController : ControllerBase
         _paymentProvider = paymentProvider;
         _fcmNotificationService = fcmNotificationService;
         _smsNotificationService = smsNotificationService;
+        _emailNotificationService = emailNotificationService;
         _environment = environment;
         _pricingCalculatorService = pricingCalculatorService;
     }
@@ -424,7 +427,10 @@ public class JobsController : ControllerBase
 
             var contactPhone = job.ContactPhoneNumber;
             var ownerPhone = job.Vehicle?.Owner?.PhoneNumber;
+            var contactEmail = (string?)null;
+            var ownerEmail = job.Vehicle?.Owner?.Email;
             await _smsNotificationService.NotifyClientJobCreatedAsync(job.Id, contactPhone, ownerPhone);
+            await _emailNotificationService.NotifyClientJobCreatedAsync(job.Id, contactEmail, ownerEmail);
             if (job.DriverId != null)
             {
                 var pickupSms = string.IsNullOrWhiteSpace(job.PickupLocation) ? "Pickup TBD" : job.PickupLocation;
@@ -432,6 +438,8 @@ public class JobsController : ControllerBase
                     pickupSms = pickupSms[..117] + "...";
                 await _smsNotificationService.NotifyDriverJobAssignedAsync(job.Id, pickupSms, job.DriverId);
                 await _smsNotificationService.NotifyClientDriverAssignedAsync(job.Id, contactPhone, ownerPhone);
+                await _emailNotificationService.NotifyDriverJobAssignedAsync(job.Id, pickupSms, job.DriverId);
+                await _emailNotificationService.NotifyClientDriverAssignedAsync(job.Id, contactEmail, ownerEmail);
             }
 
             var jobDto = MapToJobDto(job);
@@ -743,6 +751,11 @@ public class JobsController : ControllerBase
                 job.Id,
                 job.ContactPhoneNumber,
                 job.Vehicle?.Owner?.PhoneNumber);
+            await _emailNotificationService.NotifyDriverJobAssignedAsync(job.Id, pickup, driver.Id);
+            await _emailNotificationService.NotifyClientDriverAssignedAsync(
+                job.Id,
+                null,
+                job.Vehicle?.Owner?.Email);
 
             var jobDto = MapToJobDto(job);
             return Ok(new AssignDriverResponseDto
@@ -915,15 +928,21 @@ public class JobsController : ControllerBase
             {
                 var c = job.ContactPhoneNumber;
                 var o = job.Vehicle?.Owner?.PhoneNumber;
+                var ce = (string?)null;
+                var oe = job.Vehicle?.Owner?.Email;
                 if (status == JobStatus.Completed)
                 {
                     if (!string.IsNullOrEmpty(job.DriverId))
                         await _smsNotificationService.NotifyDriverJobCompletedAsync(job.Id, job.DriverId);
                     await _smsNotificationService.NotifyClientJobCompletedAsync(job.Id, c, o);
+                    if (!string.IsNullOrEmpty(job.DriverId))
+                        await _emailNotificationService.NotifyDriverJobCompletedAsync(job.Id, job.DriverId);
+                    await _emailNotificationService.NotifyClientJobCompletedAsync(job.Id, ce, oe);
                 }
                 else if (status is JobStatus.OnRoute or JobStatus.OnScene or JobStatus.Loaded)
                 {
                     await _smsNotificationService.NotifyClientJobStatusAsync(job.Id, status, c, o);
+                    await _emailNotificationService.NotifyClientJobStatusAsync(job.Id, status, ce, oe);
                 }
             }
 
@@ -989,6 +1008,12 @@ public class JobsController : ControllerBase
                     job.Id,
                     job.ContactPhoneNumber,
                     job.Vehicle?.Owner?.PhoneNumber);
+                if (!string.IsNullOrEmpty(job.DriverId))
+                    await _emailNotificationService.NotifyDriverJobCompletedAsync(job.Id, job.DriverId);
+                await _emailNotificationService.NotifyClientJobCompletedAsync(
+                    job.Id,
+                    null,
+                    job.Vehicle?.Owner?.Email);
             }
 
             var jobDto = MapToJobDto(job);
@@ -1156,6 +1181,11 @@ public class JobsController : ControllerBase
                 feeAmount > 0 ? feeAmount : null,
                 job.ContactPhoneNumber,
                 job.Vehicle?.Owner?.PhoneNumber);
+            await _emailNotificationService.NotifyClientJobCancelledAsync(
+                job.Id,
+                feeAmount > 0 ? feeAmount : null,
+                null,
+                job.Vehicle?.Owner?.Email);
 
             return Ok(MapToJobDto(job));
         }
