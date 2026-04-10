@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using StrongTowing.Application.DTOs.Requests;
 using StrongTowing.Application.DTOs.Responses;
+using StrongTowing.Application.Abstractions;
 using StrongTowing.Core.Constants;
 using StrongTowing.Core.Entities;
 using StrongTowing.Infrastructure.Data;
@@ -20,15 +21,18 @@ public class SettingsController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
     private readonly IEncryptionService _encryptionService;
+    private readonly ISmsSender _smsSender;
     private readonly ILogger<SettingsController> _logger;
 
     public SettingsController(
         ApplicationDbContext context,
         IEncryptionService encryptionService,
+        ISmsSender smsSender,
         ILogger<SettingsController> logger)
     {
         _context = context;
         _encryptionService = encryptionService;
+        _smsSender = smsSender;
         _logger = logger;
     }
 
@@ -268,6 +272,136 @@ public class SettingsController : ControllerBase
             _logger.LogError(ex, "Error updating settings");
             return StatusCode(500, new { error = "Internal Server Error", message = "An error occurred while updating settings." });
         }
+    }
+
+    /// <summary>
+    /// Send a one-off test SMS using Twilio credentials stored in system settings (SuperAdmin only).
+    /// </summary>
+    [HttpPost("test-sms")]
+    [Authorize(Roles = UserRoles.SuperAdmin)]
+    public async Task<ActionResult<TestSmsResponse>> TestSms([FromBody] TestSmsRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.ToPhone))
+        {
+            return BadRequest(new TestSmsResponse
+            {
+                Success = false,
+                ErrorMessage = "Phone number is required."
+            });
+        }
+
+        var settings = await _context.SystemSettings.AsNoTracking().FirstOrDefaultAsync();
+        if (settings == null)
+        {
+            return BadRequest(new TestSmsResponse
+            {
+                Success = false,
+                ErrorMessage = "System settings not found. Save Twilio credentials first."
+            });
+        }
+
+        if (!settings.SmsEnabled)
+        {
+            return BadRequest(new TestSmsResponse
+            {
+                Success = false,
+                ErrorMessage = "SMS is disabled in settings. Enable SMS or use this check after enabling."
+            });
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.SmsTwilioAccountSid) || string.IsNullOrWhiteSpace(settings.SmsTwilioAuthToken))
+        {
+            return BadRequest(new TestSmsResponse
+            {
+                Success = false,
+                ErrorMessage = "Twilio Account SID and Auth Token must be saved in settings."
+            });
+        }
+
+        var hasFrom = !string.IsNullOrWhiteSpace(settings.SmsTwilioFromNumber);
+        var hasMs = !string.IsNullOrWhiteSpace(settings.SmsTwilioMessagingServiceSid);
+        if (!hasFrom && !hasMs)
+        {
+            return BadRequest(new TestSmsResponse
+            {
+                Success = false,
+                ErrorMessage = "Configure either From number (E.164) or Messaging Service SID."
+            });
+        }
+
+        var toE164 = SmsPhoneNormalizer.ToE164Us(request.ToPhone.Trim());
+        if (string.IsNullOrEmpty(toE164))
+        {
+            return BadRequest(new TestSmsResponse
+            {
+                Success = false,
+                ErrorMessage = "Could not normalize phone number. Use 10 digits or E.164 (+1...)."
+            });
+        }
+
+        string authToken;
+        try
+        {
+            authToken = _encryptionService.Decrypt(settings.SmsTwilioAuthToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Test SMS: failed to decrypt Twilio auth token.");
+            return BadRequest(new TestSmsResponse
+            {
+                Success = false,
+                ErrorMessage = "Could not read stored Auth Token. Re-save the token in settings."
+            });
+        }
+
+        if (string.IsNullOrWhiteSpace(authToken))
+        {
+            return BadRequest(new TestSmsResponse
+            {
+                Success = false,
+                ErrorMessage = "Twilio Auth Token is empty after decrypt."
+            });
+        }
+
+        var body = string.IsNullOrWhiteSpace(request.Message)
+            ? "Strong Towing: This is a test SMS from System Settings."
+            : request.Message!.Trim();
+        if (body.Length > 1600)
+        {
+            return BadRequest(new TestSmsResponse
+            {
+                Success = false,
+                ErrorMessage = "Message is too long (max 1600 characters)."
+            });
+        }
+
+        var result = await _smsSender.SendAsync(
+            settings.SmsTwilioAccountSid,
+            authToken,
+            settings.SmsTwilioFromNumber,
+            settings.SmsTwilioMessagingServiceSid,
+            toE164,
+            body,
+            HttpContext.RequestAborted);
+
+        if (!result.Success)
+        {
+            _logger.LogWarning("Test SMS failed: {Error}", result.ErrorMessage);
+            return Ok(new TestSmsResponse
+            {
+                Success = false,
+                ToE164 = toE164,
+                ErrorMessage = result.ErrorMessage
+            });
+        }
+
+        _logger.LogInformation("Test SMS sent to {To} Sid={Sid}", toE164, result.TwilioMessageSid);
+        return Ok(new TestSmsResponse
+        {
+            Success = true,
+            ToE164 = toE164,
+            TwilioMessageSid = result.TwilioMessageSid
+        });
     }
 
     private SystemSettingsDto MapToSystemSettingsDto(SystemSettings settings)
