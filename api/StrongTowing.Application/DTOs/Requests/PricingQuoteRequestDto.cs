@@ -4,6 +4,13 @@ public class PricingQuoteRequestDto
 {
     public int? AccountId { get; set; }
     public string? AccountName { get; set; }
+
+    /// <summary>Optional: resolve account-specific service rates when combined with <see cref="AccountId"/>.</summary>
+    public int? ServicePricingProfileId { get; set; }
+
+    /// <summary>Optional: match service by name when profile id not set.</summary>
+    public string? ServiceName { get; set; }
+
     public decimal MilesAB { get; set; }
     public decimal MilesBC { get; set; }
     public decimal MilesCA { get; set; }

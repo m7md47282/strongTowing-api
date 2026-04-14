@@ -84,6 +84,7 @@ public class SettingsController : ControllerBase
                     DefaultPricingTaxPercent = 10.00m,
                     DefaultPricingServiceChargePercent = 0.00m,
                     DefaultPricingHookupFee = 75.00m,
+                    PricingFreeMiles = 0m,
                     MaxDiscountPercent = 100.00m,
                     AllowManualTotalOverride = false,
                     ManualOverrideRequiresReason = true,
@@ -126,9 +127,9 @@ public class SettingsController : ControllerBase
                 return BadRequest(new { error = "Bad Request", message = "Pricing percentages must be between 0 and 100." });
             }
 
-            if (request.DefaultPricingHookupFee < 0 || request.PricingMismatchTolerance < 0)
+            if (request.DefaultPricingHookupFee < 0 || request.PricingMismatchTolerance < 0 || request.PricingFreeMiles < 0)
             {
-                return BadRequest(new { error = "Bad Request", message = "Hookup fee and mismatch tolerance cannot be negative." });
+                return BadRequest(new { error = "Bad Request", message = "Hookup fee, free miles, and mismatch tolerance cannot be negative." });
             }
 
             if (!string.IsNullOrWhiteSpace(request.PricingRoundingMode) &&
@@ -186,6 +187,7 @@ public class SettingsController : ControllerBase
             settings.DefaultPricingTaxPercent = request.DefaultPricingTaxPercent;
             settings.DefaultPricingServiceChargePercent = request.DefaultPricingServiceChargePercent;
             settings.DefaultPricingHookupFee = request.DefaultPricingHookupFee;
+            settings.PricingFreeMiles = request.PricingFreeMiles;
             settings.MaxDiscountPercent = request.MaxDiscountPercent;
             settings.AllowManualTotalOverride = request.AllowManualTotalOverride;
             settings.ManualOverrideRequiresReason = request.ManualOverrideRequiresReason;
@@ -577,6 +579,7 @@ public class SettingsController : ControllerBase
             DefaultPricingTaxPercent = settings.DefaultPricingTaxPercent,
             DefaultPricingServiceChargePercent = settings.DefaultPricingServiceChargePercent,
             DefaultPricingHookupFee = settings.DefaultPricingHookupFee,
+            PricingFreeMiles = settings.PricingFreeMiles,
             MaxDiscountPercent = settings.MaxDiscountPercent,
             AllowManualTotalOverride = settings.AllowManualTotalOverride,
             ManualOverrideRequiresReason = settings.ManualOverrideRequiresReason,

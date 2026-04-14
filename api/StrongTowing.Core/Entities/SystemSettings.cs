@@ -61,6 +61,10 @@ namespace StrongTowing.Core.Entities
         [Column(TypeName = "decimal(18,2)")]
         public decimal DefaultPricingHookupFee { get; set; } = 75.00m;
 
+        /// <summary>First N loaded miles (pickup → drop-off) are free before per-mile charges apply.</summary>
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal PricingFreeMiles { get; set; } = 0m;
+
         // Pricing policy guardrails
         [Column(TypeName = "decimal(5,2)")]
         public decimal MaxDiscountPercent { get; set; } = 100.00m;

@@ -9,6 +9,17 @@ public class PricingQuoteResponseDto
     public decimal MilesBC { get; set; }
     public decimal MilesCA { get; set; }
 
+    /// <summary>Loaded miles after free allowance (for display).</summary>
+    public decimal BillableMiles { get; set; }
+
+    public decimal FreeMilesApplied { get; set; }
+
+    /// <summary>Configured free loaded miles from system settings (for UI previews).</summary>
+    public decimal PricingFreeMilesAllowance { get; set; }
+
+    /// <summary>Fixed service base from profile/account row.</summary>
+    public decimal ServiceBasePrice { get; set; }
+
     public decimal HookupFee { get; set; }
     public decimal RateAB { get; set; }
     public decimal RateBC { get; set; }

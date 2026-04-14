@@ -19,6 +19,7 @@ namespace StrongTowing.Infrastructure.Data
         public DbSet<SystemSettings> SystemSettings { get; set; }
         public DbSet<InsuranceAccount> InsuranceAccounts { get; set; }
         public DbSet<ServicePricingProfile> ServicePricingProfiles { get; set; }
+        public DbSet<InsuranceAccountServiceRate> InsuranceAccountServiceRates { get; set; }
         public DbSet<DriverPayroll> DriverPayrolls { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<UserFcmToken> UserFcmTokens { get; set; }
@@ -137,6 +138,22 @@ namespace StrongTowing.Infrastructure.Data
                 .Property(s => s.Name)
                 .IsRequired()
                 .HasMaxLength(100);
+
+            builder.Entity<InsuranceAccountServiceRate>()
+                .HasIndex(x => new { x.InsuranceAccountId, x.ServicePricingProfileId })
+                .IsUnique();
+
+            builder.Entity<InsuranceAccountServiceRate>()
+                .HasOne(x => x.InsuranceAccount)
+                .WithMany()
+                .HasForeignKey(x => x.InsuranceAccountId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<InsuranceAccountServiceRate>()
+                .HasOne(x => x.ServicePricingProfile)
+                .WithMany()
+                .HasForeignKey(x => x.ServicePricingProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
             
             // RefreshToken configuration
             builder.Entity<RefreshToken>()

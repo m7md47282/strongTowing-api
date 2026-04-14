@@ -47,7 +47,8 @@ public class DriversController : ControllerBase
 
         var payrolls = await _context.DriverPayrolls
             .AsNoTracking()
-            .Where(p => p.DriverId == userId)
+            .Where(p => p.DriverId == userId
+                && (p.Status == DriverPayrollStatuses.Finalized || p.Status == DriverPayrollStatuses.Paid))
             .OrderByDescending(p => p.PayPeriodEnd)
             .Take(36)
             .Select(p => new DriverPayrollListItemDto

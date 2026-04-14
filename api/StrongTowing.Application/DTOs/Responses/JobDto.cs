@@ -62,6 +62,9 @@ public class JobDto
     /// <summary>Estimated commission for this job (Cost × rate / 100). Set with <see cref="DriverCommissionRatePercent"/>.</summary>
     public decimal? DriverCommissionEstimate { get; set; }
 
+    /// <summary>When true, driver API includes commission fields; otherwise withheld until admin approves pricing.</summary>
+    public bool CommissionVisibleToDriver { get; set; }
+
     /// <summary>Job-level payment state (synced when Stripe/cash flows update).</summary>
     public string PaymentStatus { get; set; } = "Unpaid";
     public string? PaymentMethod { get; set; }

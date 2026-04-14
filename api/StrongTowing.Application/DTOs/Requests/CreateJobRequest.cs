@@ -60,6 +60,9 @@ public class CreateJobRequest
     public string? DropoffLocation { get; set; } // Alias for DestinationAddress
     public string? ServiceType { get; set; }
 
+    /// <summary>Optional: service catalog id for pricing (account + service matrix).</summary>
+    public int? ServicePricingProfileId { get; set; }
+
     /// <summary>Optional: Standard, InsuranceFull, SplitInsuranceClient, CashToDriverPayroll.</summary>
     public string? BillingPaymentMode { get; set; }
     public decimal? InsuranceCoveredAmount { get; set; }

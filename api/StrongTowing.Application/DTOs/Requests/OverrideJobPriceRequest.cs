@@ -11,4 +11,7 @@ public class OverrideJobPriceRequest
     [Required(ErrorMessage = "Override reason is required.")]
     [MinLength(5, ErrorMessage = "Override reason must be at least 5 characters.")]
     public string Reason { get; set; } = string.Empty;
+
+    /// <summary>When true, drivers may see commission estimate for this job.</summary>
+    public bool CommissionVisibleToDriver { get; set; }
 }

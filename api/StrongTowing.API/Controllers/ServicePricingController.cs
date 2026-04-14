@@ -70,8 +70,10 @@ public class ServicePricingController : ControllerBase
         var row = new ServicePricingProfile
         {
             Name = normalizedName,
-            LoadedPrice = request.LoadedPrice,
-            DeadHeadPrice = request.DeadHeadPrice,
+            BasePrice = request.BasePrice,
+            PricePerMile = request.PricePerMile,
+            HookFeeEnabled = request.HookFeeEnabled,
+            HookFeeAmount = request.HookFeeAmount,
             IsAvailable = request.IsAvailable,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
@@ -103,8 +105,10 @@ public class ServicePricingController : ControllerBase
         }
 
         row.Name = normalizedName;
-        row.LoadedPrice = request.LoadedPrice;
-        row.DeadHeadPrice = request.DeadHeadPrice;
+        row.BasePrice = request.BasePrice;
+        row.PricePerMile = request.PricePerMile;
+        row.HookFeeEnabled = request.HookFeeEnabled;
+        row.HookFeeAmount = request.HookFeeAmount;
         row.IsAvailable = request.IsAvailable;
         row.UpdatedAt = DateTime.UtcNow;
 
@@ -149,8 +153,10 @@ public class ServicePricingController : ControllerBase
         {
             Id = row.Id,
             Name = row.Name,
-            LoadedPrice = row.LoadedPrice,
-            DeadHeadPrice = row.DeadHeadPrice,
+            BasePrice = row.BasePrice,
+            PricePerMile = row.PricePerMile,
+            HookFeeEnabled = row.HookFeeEnabled,
+            HookFeeAmount = row.HookFeeAmount,
             IsAvailable = row.IsAvailable,
             CreatedAt = row.CreatedAt,
             UpdatedAt = row.UpdatedAt

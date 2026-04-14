@@ -3,19 +3,20 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace StrongTowing.Core.Entities;
 
-public class ServicePricingProfile
+/// <summary>Per-account overrides for a specific service (motor club / insurance contract pricing).</summary>
+public class InsuranceAccountServiceRate
 {
     public int Id { get; set; }
 
-    [Required]
-    [MaxLength(100)]
-    public string Name { get; set; } = string.Empty;
+    public int InsuranceAccountId { get; set; }
+    public InsuranceAccount InsuranceAccount { get; set; } = null!;
 
-    /// <summary>Fixed base price for the service (before mileage).</summary>
+    public int ServicePricingProfileId { get; set; }
+    public ServicePricingProfile ServicePricingProfile { get; set; } = null!;
+
     [Column(TypeName = "decimal(18,2)")]
     public decimal BasePrice { get; set; }
 
-    /// <summary>Price per loaded mile (pickup → drop-off).</summary>
     [Column(TypeName = "decimal(18,2)")]
     public decimal PricePerMile { get; set; }
 
@@ -23,8 +24,6 @@ public class ServicePricingProfile
 
     [Column(TypeName = "decimal(18,2)")]
     public decimal HookFeeAmount { get; set; }
-
-    public bool IsAvailable { get; set; } = true;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

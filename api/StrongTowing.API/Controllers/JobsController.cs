@@ -347,6 +347,7 @@ public class JobsController : ControllerBase
             {
                 VehicleId = vehicle.Id,
                 Cost = pricingQuote.GrandTotal,
+                CommissionVisibleToDriver = false,
                 Notes = request.Notes,
                 Status = JobStatus.Waiting,
                 CreatedAt = DateTime.UtcNow,
@@ -1077,6 +1078,11 @@ public class JobsController : ControllerBase
 
             var previousCost = job.Cost;
             job.Cost = request.Cost;
+            if (request.CommissionVisibleToDriver)
+            {
+                job.CommissionVisibleToDriver = true;
+            }
+
             invoiceCharges.ManualTotalOverride = request.Cost;
             invoiceCharges.ManualOverrideReason = request.Reason;
             invoiceCharges.GrandTotal = request.Cost;
@@ -1293,10 +1299,14 @@ public class JobsController : ControllerBase
             }
         }
 
+        var serviceName = string.IsNullOrWhiteSpace(request.ServiceType) ? null : request.ServiceType.Trim();
+
         return new PricingQuoteRequestDto
         {
             AccountId = accountId,
             AccountName = accountName,
+            ServicePricingProfileId = request.ServicePricingProfileId,
+            ServiceName = serviceName,
             MilesAB = charges?.UnloadedEnrouteMileage?.Quantity ?? 0m,
             MilesBC = charges?.LoadedHookedMileage?.Quantity ?? 0m,
             MilesCA = charges?.DeadHeadMileage?.Quantity ?? 0m,
@@ -1409,8 +1419,11 @@ public class JobsController : ControllerBase
             
             // Financials
             Cost = job.Cost,
-            DriverCommissionRatePercent = driverCommissionPct,
-            DriverCommissionEstimate = driverCommissionPct.HasValue
+            CommissionVisibleToDriver = job.CommissionVisibleToDriver,
+            DriverCommissionRatePercent = driverCommissionPct.HasValue && job.CommissionVisibleToDriver
+                ? driverCommissionPct
+                : null,
+            DriverCommissionEstimate = driverCommissionPct.HasValue && job.CommissionVisibleToDriver
                 ? decimal.Round(job.Cost * (driverCommissionPct.Value / 100m), 2, MidpointRounding.AwayFromZero)
                 : null,
             PaymentStatus = string.IsNullOrWhiteSpace(job.PaymentStatus) ? "Unpaid" : job.PaymentStatus,

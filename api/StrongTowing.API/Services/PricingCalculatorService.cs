@@ -31,18 +31,78 @@ public class PricingCalculatorService : IPricingCalculatorService
         var milesCA = EnsureNonNegative(request.MilesCA, nameof(request.MilesCA));
         var extraItemsTotal = EnsureNonNegative(request.ExtraItemsTotal, nameof(request.ExtraItemsTotal));
 
-        var hookupFee = request.HookupFee
-            ?? account?.HookupFee
-            ?? settings.DefaultPricingHookupFee;
-        var rateAB = request.RateAB
-            ?? account?.RateAB
-            ?? 0m;
-        var rateBC = request.RateBC
-            ?? account?.RateBC
-            ?? 0m;
-        var rateCA = request.RateCA
-            ?? account?.RateCA
-            ?? 0m;
+        var freeMiles = EnsureNonNegative(settings.PricingFreeMiles, nameof(settings.PricingFreeMiles));
+        var billableMiles = RoundMoney(Math.Max(0m, milesBC - freeMiles), roundingMode);
+        var freeMilesApplied = RoundMoney(Math.Min(freeMiles, milesBC), roundingMode);
+
+        var serviceProfile = await ResolveServiceProfileAsync(request, cancellationToken);
+        InsuranceAccountServiceRate? accountServiceRow = null;
+        if (account != null && serviceProfile != null)
+        {
+            accountServiceRow = await _context.InsuranceAccountServiceRates.AsNoTracking()
+                .FirstOrDefaultAsync(
+                    x => x.InsuranceAccountId == account.Id && x.ServicePricingProfileId == serviceProfile.Id,
+                    cancellationToken);
+        }
+
+        decimal basePrice;
+        decimal pricePerMile;
+        var hookEnabled = false;
+        decimal hookAmount;
+
+        if (accountServiceRow != null)
+        {
+            basePrice = accountServiceRow.BasePrice;
+            pricePerMile = accountServiceRow.PricePerMile;
+            hookEnabled = accountServiceRow.HookFeeEnabled;
+            hookAmount = accountServiceRow.HookFeeAmount;
+        }
+        else if (serviceProfile != null)
+        {
+            basePrice = serviceProfile.BasePrice;
+            pricePerMile = serviceProfile.PricePerMile;
+            hookEnabled = serviceProfile.HookFeeEnabled;
+            hookAmount = serviceProfile.HookFeeAmount;
+        }
+        else
+        {
+            // Legacy: account-level BC rate + default/account hookup when no service catalog match
+            basePrice = 0m;
+            pricePerMile = account?.RateBC ?? 0m;
+            hookAmount = account?.HookupFee ?? settings.DefaultPricingHookupFee;
+            hookEnabled = hookAmount > 0m;
+        }
+
+        // Dispatcher overrides (explicit line items from UI)
+        if (request.RateBC.HasValue)
+        {
+            pricePerMile = EnsureNonNegative(request.RateBC.Value, nameof(request.RateBC));
+        }
+
+        if (request.HookupFee.HasValue)
+        {
+            hookAmount = EnsureNonNegative(request.HookupFee.Value, nameof(request.HookupFee));
+            hookEnabled = hookAmount > 0m;
+        }
+
+        basePrice = EnsureNonNegative(basePrice, nameof(basePrice));
+        pricePerMile = EnsureNonNegative(pricePerMile, nameof(pricePerMile));
+        hookAmount = EnsureNonNegative(hookAmount, nameof(hookAmount));
+
+        var hookCharge = hookEnabled ? hookAmount : 0m;
+        hookCharge = RoundMoney(hookCharge, roundingMode);
+
+        // Customer pays loaded miles only; enroute and deadhead are not billed
+        var chargeAB = 0m;
+        var chargeCA = 0m;
+        var rateAB = 0m;
+        var rateCA = 0m;
+
+        var chargeBC = RoundMoney(billableMiles * pricePerMile, roundingMode);
+        var rateBC = RoundMoney(pricePerMile, roundingMode);
+
+        var hookupFeeTotal = hookCharge;
+
         var serviceChargePercent = request.ServiceChargePercent
             ?? account?.ServiceChargePercent
             ?? settings.DefaultPricingServiceChargePercent;
@@ -50,18 +110,10 @@ public class PricingCalculatorService : IPricingCalculatorService
             ?? account?.TaxPercent
             ?? settings.DefaultPricingTaxPercent;
 
-        hookupFee = EnsureNonNegative(hookupFee, nameof(request.HookupFee));
-        rateAB = EnsureNonNegative(rateAB, nameof(request.RateAB));
-        rateBC = EnsureNonNegative(rateBC, nameof(request.RateBC));
-        rateCA = EnsureNonNegative(rateCA, nameof(request.RateCA));
         serviceChargePercent = EnsurePercent(serviceChargePercent, nameof(request.ServiceChargePercent));
         taxPercent = EnsurePercent(taxPercent, nameof(request.TaxPercent));
 
-        var chargeAB = RoundMoney(milesAB * rateAB, roundingMode);
-        var chargeBC = RoundMoney(milesBC * rateBC, roundingMode);
-        var chargeCA = RoundMoney(milesCA * rateCA, roundingMode);
-
-        var baseSubtotal = RoundMoney(hookupFee + chargeAB + chargeBC + chargeCA + extraItemsTotal, roundingMode);
+        var baseSubtotal = RoundMoney(basePrice + chargeBC + hookupFeeTotal + extraItemsTotal, roundingMode);
 
         var discountAmount = ResolveDiscountAmount(request, baseSubtotal, settings.MaxDiscountPercent, roundingMode);
         var afterDiscount = RoundMoney(Math.Max(0m, baseSubtotal - discountAmount), roundingMode);
@@ -99,10 +151,14 @@ public class PricingCalculatorService : IPricingCalculatorService
             MilesAB = milesAB,
             MilesBC = milesBC,
             MilesCA = milesCA,
-            HookupFee = RoundMoney(hookupFee, roundingMode),
-            RateAB = RoundMoney(rateAB, roundingMode),
-            RateBC = RoundMoney(rateBC, roundingMode),
-            RateCA = RoundMoney(rateCA, roundingMode),
+            BillableMiles = billableMiles,
+            FreeMilesApplied = freeMilesApplied,
+            PricingFreeMilesAllowance = freeMiles,
+            ServiceBasePrice = RoundMoney(basePrice, roundingMode),
+            HookupFee = hookupFeeTotal,
+            RateAB = rateAB,
+            RateBC = rateBC,
+            RateCA = rateCA,
             ChargeAB = chargeAB,
             ChargeBC = chargeBC,
             ChargeCA = chargeCA,
@@ -141,6 +197,28 @@ public class PricingCalculatorService : IPricingCalculatorService
             var normalized = request.AccountName.Trim();
             return await _context.InsuranceAccounts.AsNoTracking()
                 .FirstOrDefaultAsync(a => a.Name == normalized, cancellationToken);
+        }
+
+        return null;
+    }
+
+    private async Task<ServicePricingProfile?> ResolveServiceProfileAsync(
+        PricingQuoteRequestDto request,
+        CancellationToken cancellationToken)
+    {
+        if (request.ServicePricingProfileId.HasValue)
+        {
+            return await _context.ServicePricingProfiles.AsNoTracking()
+                .FirstOrDefaultAsync(s => s.Id == request.ServicePricingProfileId.Value, cancellationToken);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.ServiceName))
+        {
+            var n = request.ServiceName.Trim();
+            return await _context.ServicePricingProfiles.AsNoTracking()
+                .FirstOrDefaultAsync(
+                    s => s.Name.ToLower() == n.ToLower(),
+                    cancellationToken);
         }
 
         return null;

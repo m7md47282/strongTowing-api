@@ -25,6 +25,7 @@ namespace StrongTowing.Application.DTOs.Requests
         public decimal DefaultPricingTaxPercent { get; set; } = 10.00m;
         public decimal DefaultPricingServiceChargePercent { get; set; } = 0.00m;
         public decimal DefaultPricingHookupFee { get; set; } = 75.00m;
+        public decimal PricingFreeMiles { get; set; } = 0m;
         public decimal MaxDiscountPercent { get; set; } = 100.00m;
         public bool AllowManualTotalOverride { get; set; } = false;
         public bool ManualOverrideRequiresReason { get; set; } = true;

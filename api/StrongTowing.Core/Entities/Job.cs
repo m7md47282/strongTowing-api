@@ -58,6 +58,9 @@ namespace StrongTowing.Core.Entities
         // Financials
         [Column(TypeName = "decimal(18,2)")]
         public decimal Cost { get; set; }
+
+        /// <summary>When false, driver API omits commission estimate until an admin approves pricing.</summary>
+        public bool CommissionVisibleToDriver { get; set; }
         public string? Notes { get; set; }
         public string? BillingNotes { get; set; }
         public bool IncludeBillingNotesOnReceipt { get; set; }

@@ -42,16 +42,17 @@ public class PricingCalculatorServiceTests
             DiscountAmount = 10m
         });
 
+        // BC-only mileage: RateBC $/mi from account; AB/CA not billed; hook from account.
         Assert.Equal(2m, result.MilesAB);
-        Assert.Equal(10m, result.ChargeAB);
+        Assert.Equal(0m, result.ChargeAB);
         Assert.Equal(30m, result.ChargeBC);
-        Assert.Equal(12m, result.ChargeCA);
-        Assert.Equal(132m, result.BaseSubtotal);
+        Assert.Equal(0m, result.ChargeCA);
+        Assert.Equal(110m, result.BaseSubtotal);
         Assert.Equal(10m, result.DiscountAmount);
-        Assert.Equal(122m, result.AfterDiscount);
-        Assert.Equal(6.10m, result.ServiceChargeAmount);
-        Assert.Equal(10.25m, result.TaxAmount);
-        Assert.Equal(138.35m, result.GrandTotal);
+        Assert.Equal(100m, result.AfterDiscount);
+        Assert.Equal(5m, result.ServiceChargeAmount);
+        Assert.Equal(8.40m, result.TaxAmount);
+        Assert.Equal(113.40m, result.GrandTotal);
     }
 
     [Fact]
@@ -70,8 +71,8 @@ public class PricingCalculatorServiceTests
         var service = new PricingCalculatorService(context);
         var result = await service.CalculateAsync(new PricingQuoteRequestDto
         {
-            MilesAB = 10m,
-            RateAB = 10m,
+            MilesBC = 10m,
+            RateBC = 10m,
             DiscountAmount = 80m
         });
 
@@ -95,8 +96,8 @@ public class PricingCalculatorServiceTests
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => service.CalculateAsync(new PricingQuoteRequestDto
         {
-            MilesAB = 1m,
-            RateAB = 10m,
+            MilesBC = 1m,
+            RateBC = 10m,
             ManualTotalOverride = 1m
         }));
 
