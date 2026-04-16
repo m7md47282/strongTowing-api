@@ -59,12 +59,19 @@ public class ServicePricingController : ControllerBase
     public async Task<ActionResult<ServicePricingProfileDto>> Create([FromBody] CreateServicePricingProfileRequest request)
     {
         var normalizedName = request.Name.Trim();
-        var duplicate = await _context.ServicePricingProfiles
-            .AnyAsync(x => x.Name.ToLower() == normalizedName.ToLower());
+        var existingByName = await _context.ServicePricingProfiles
+            .FirstOrDefaultAsync(x => x.Name.ToLower() == normalizedName.ToLower());
 
-        if (duplicate)
+        if (existingByName != null)
         {
-            return Conflict(new { error = "Conflict", message = "A service with this name already exists." });
+            if (existingByName.IsAvailable)
+            {
+                return Conflict(new { error = "Conflict", message = "A service with this name already exists." });
+            }
+
+            // Unavailable rows are hidden from the default list but still reserve the name.
+            // Hard-delete the placeholder so admins can recreate an active service with the same name.
+            _context.ServicePricingProfiles.Remove(existingByName);
         }
 
         var row = new ServicePricingProfile
@@ -96,12 +103,17 @@ public class ServicePricingController : ControllerBase
         }
 
         var normalizedName = request.Name.Trim();
-        var duplicate = await _context.ServicePricingProfiles
-            .AnyAsync(x => x.Id != id && x.Name.ToLower() == normalizedName.ToLower());
+        var conflicting = await _context.ServicePricingProfiles
+            .FirstOrDefaultAsync(x => x.Id != id && x.Name.ToLower() == normalizedName.ToLower());
 
-        if (duplicate)
+        if (conflicting != null)
         {
-            return Conflict(new { error = "Conflict", message = "A service with this name already exists." });
+            if (conflicting.IsAvailable)
+            {
+                return Conflict(new { error = "Conflict", message = "A service with this name already exists." });
+            }
+
+            _context.ServicePricingProfiles.Remove(conflicting);
         }
 
         row.Name = normalizedName;

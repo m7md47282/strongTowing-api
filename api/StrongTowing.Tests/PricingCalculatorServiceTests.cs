@@ -25,9 +25,7 @@ public class PricingCalculatorServiceTests
             HookupFee = 60m,
             RateAB = 5m,
             RateBC = 10m,
-            RateCA = 3m,
-            ServiceChargePercent = 5m,
-            TaxPercent = 8m
+            RateCA = 3m
         });
         await context.SaveChangesAsync();
 
@@ -43,6 +41,7 @@ public class PricingCalculatorServiceTests
         });
 
         // BC-only mileage: RateBC $/mi from account; AB/CA not billed; hook from account.
+        // Tax/service use SystemSettings defaults (10% tax, 0% service charge), not the insurance account.
         Assert.Equal(2m, result.MilesAB);
         Assert.Equal(0m, result.ChargeAB);
         Assert.Equal(30m, result.ChargeBC);
@@ -50,9 +49,9 @@ public class PricingCalculatorServiceTests
         Assert.Equal(110m, result.BaseSubtotal);
         Assert.Equal(10m, result.DiscountAmount);
         Assert.Equal(100m, result.AfterDiscount);
-        Assert.Equal(5m, result.ServiceChargeAmount);
-        Assert.Equal(8.40m, result.TaxAmount);
-        Assert.Equal(113.40m, result.GrandTotal);
+        Assert.Equal(0m, result.ServiceChargeAmount);
+        Assert.Equal(10m, result.TaxAmount);
+        Assert.Equal(110m, result.GrandTotal);
     }
 
     [Fact]

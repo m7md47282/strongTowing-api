@@ -19,9 +19,6 @@ public class InsuranceAccountDto
     public decimal RateAB { get; set; }
     public decimal RateBC { get; set; }
     public decimal RateCA { get; set; }
-    public decimal ServiceChargePercent { get; set; }
-    public decimal TaxPercent { get; set; }
-    public bool IsTaxExemptByDefault { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }

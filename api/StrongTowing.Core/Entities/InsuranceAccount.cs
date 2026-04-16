@@ -55,14 +55,6 @@ public class InsuranceAccount
     [Column(TypeName = "decimal(18,2)")]
     public decimal RateCA { get; set; } = 0m;
 
-    [Column(TypeName = "decimal(5,2)")]
-    public decimal ServiceChargePercent { get; set; } = 0m;
-
-    [Column(TypeName = "decimal(5,2)")]
-    public decimal TaxPercent { get; set; } = 0m;
-
-    public bool IsTaxExemptByDefault { get; set; } = false;
-
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }

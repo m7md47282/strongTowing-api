@@ -104,10 +104,8 @@ public class PricingCalculatorService : IPricingCalculatorService
         var hookupFeeTotal = hookCharge;
 
         var serviceChargePercent = request.ServiceChargePercent
-            ?? account?.ServiceChargePercent
             ?? settings.DefaultPricingServiceChargePercent;
         var taxPercent = request.TaxPercent
-            ?? account?.TaxPercent
             ?? settings.DefaultPricingTaxPercent;
 
         serviceChargePercent = EnsurePercent(serviceChargePercent, nameof(request.ServiceChargePercent));
@@ -121,7 +119,7 @@ public class PricingCalculatorService : IPricingCalculatorService
         var serviceChargeAmount = RoundMoney(afterDiscount * (serviceChargePercent / 100m), roundingMode);
         var taxableAmount = RoundMoney(afterDiscount + serviceChargeAmount, roundingMode);
 
-        var taxExempt = request.TaxExempt ?? account?.IsTaxExemptByDefault ?? false;
+        var taxExempt = request.TaxExempt ?? false;
         var taxAmount = taxExempt ? 0m : RoundMoney(taxableAmount * (taxPercent / 100m), roundingMode);
         var computedGrandTotal = RoundMoney(taxableAmount + taxAmount, roundingMode);
 
