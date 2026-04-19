@@ -28,6 +28,8 @@ namespace StrongTowing.Infrastructure.Data
         public DbSet<VehicleCatalogSyncState> VehicleCatalogSyncStates { get; set; }
         public DbSet<PendingDriverSignup> PendingDriverSignups { get; set; }
         public DbSet<AuthOtpRecord> AuthOtpRecords { get; set; }
+        public DbSet<TruckType> TruckTypes { get; set; }
+        public DbSet<Truck> Trucks { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -228,6 +230,26 @@ namespace StrongTowing.Infrastructure.Data
                 e.Property(x => x.Email).HasMaxLength(256);
                 e.Property(x => x.OtpHash).HasMaxLength(512);
             });
+
+            builder.Entity<TruckType>()
+                .HasIndex(t => t.Name)
+                .IsUnique();
+
+            builder.Entity<Truck>()
+                .HasOne(t => t.TruckType)
+                .WithMany(tt => tt.Trucks)
+                .HasForeignKey(t => t.TruckTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<Truck>()
+                .HasIndex(t => new { t.TruckTypeId, t.UnitLabel })
+                .IsUnique();
+
+            builder.Entity<Job>()
+                .HasOne(j => j.Truck)
+                .WithMany(t => t.Jobs)
+                .HasForeignKey(j => j.TruckId)
+                .OnDelete(DeleteBehavior.SetNull);
         }
         
     }

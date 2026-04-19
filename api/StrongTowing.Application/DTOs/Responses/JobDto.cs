@@ -51,7 +51,8 @@ public class JobDto
     // Assignment
     public string? DriverId { get; set; }
     public string? DriverName { get; set; }
-    public string? TruckId { get; set; }
+    public int? TruckId { get; set; }
+    public TruckSummaryDto? Truck { get; set; }
     
     // Financials
     public decimal Cost { get; set; }

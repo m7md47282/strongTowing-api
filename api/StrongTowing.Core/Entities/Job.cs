@@ -53,7 +53,9 @@ namespace StrongTowing.Core.Entities
         // Assignment
         public string? DriverId { get; set; }
         public ApplicationUser? Driver { get; set; }
-        public string? TruckId { get; set; }
+
+        public int? TruckId { get; set; }
+        public Truck? Truck { get; set; }
 
         // Financials
         [Column(TypeName = "decimal(18,2)")]

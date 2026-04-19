@@ -111,7 +111,10 @@ public class PricingCalculatorService : IPricingCalculatorService
         serviceChargePercent = EnsurePercent(serviceChargePercent, nameof(request.ServiceChargePercent));
         taxPercent = EnsurePercent(taxPercent, nameof(request.TaxPercent));
 
-        var baseSubtotal = RoundMoney(basePrice + chargeBC + hookupFeeTotal + extraItemsTotal, roundingMode);
+        // Match dispatcher UI: fixed "best" price is carried as invoice line items (ExtraItemsTotal, e.g. "Name (base)").
+        // Do not also add catalog BasePrice when those lines already subsume it.
+        var monetaryBaseComponent = ComputeMonetaryBaseComponent(basePrice, extraItemsTotal, roundingMode);
+        var baseSubtotal = RoundMoney(monetaryBaseComponent + chargeBC + hookupFeeTotal, roundingMode);
 
         var discountAmount = ResolveDiscountAmount(request, baseSubtotal, settings.MaxDiscountPercent, roundingMode);
         var afterDiscount = RoundMoney(Math.Max(0m, baseSubtotal - discountAmount), roundingMode);
@@ -220,6 +223,27 @@ public class PricingCalculatorService : IPricingCalculatorService
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Single monetary base for subtotal: catalog fixed price and/or line-item extras, without double-counting
+    /// when the UI sends the catalog base again as part of <see cref="PricingQuoteRequestDto.ExtraItemsTotal"/>.
+    /// </summary>
+    private static decimal ComputeMonetaryBaseComponent(
+        decimal catalogBasePrice,
+        decimal extraItemsTotal,
+        MidpointRounding roundingMode)
+    {
+        catalogBasePrice = RoundMoney(EnsureNonNegative(catalogBasePrice, nameof(catalogBasePrice)), roundingMode);
+        extraItemsTotal = RoundMoney(EnsureNonNegative(extraItemsTotal, nameof(extraItemsTotal)), roundingMode);
+
+        const decimal tolerance = 0.01m;
+        if (catalogBasePrice > 0m && extraItemsTotal + tolerance >= catalogBasePrice)
+        {
+            return extraItemsTotal;
+        }
+
+        return RoundMoney(catalogBasePrice + extraItemsTotal, roundingMode);
     }
 
     private static decimal ResolveDiscountAmount(

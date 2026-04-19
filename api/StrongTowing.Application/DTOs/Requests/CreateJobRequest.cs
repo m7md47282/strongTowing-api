@@ -42,7 +42,7 @@ public class CreateJobRequest
     
     // Assignment
     public string? DriverId { get; set; }
-    public string? TruckId { get; set; }
+    public int? TruckId { get; set; }
     
     // Notes
     public string? Notes { get; set; }

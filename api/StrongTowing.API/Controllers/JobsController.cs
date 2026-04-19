@@ -71,6 +71,8 @@ public class JobsController : ControllerBase
                 .Include(j => j.Vehicle)
                     .ThenInclude(v => v.Owner)
                 .Include(j => j.Driver)
+                .Include(j => j.Truck)
+                    .ThenInclude(t => t!.TruckType)
                 .AsQueryable();
 
             if (!string.IsNullOrEmpty(status))
@@ -287,6 +289,16 @@ public class JobsController : ControllerBase
                 }
             }
 
+            if (request.TruckId.HasValue)
+            {
+                var truckOk = await _context.Trucks
+                    .AnyAsync(t => t.Id == request.TruckId.Value && t.IsActive);
+                if (!truckOk)
+                {
+                    return BadRequest(new { error = "Bad Request", message = "Invalid or inactive truck id." });
+                }
+            }
+
             // Step 4: Calculate pricing server-side (authoritative).
             var pricingRequest = BuildPricingQuoteRequest(request);
             var pricingQuote = await _pricingCalculatorService.CalculateAsync(pricingRequest);
@@ -426,6 +438,15 @@ public class JobsController : ControllerBase
                 .Reference(v => v.Owner)
                 .LoadAsync();
 
+            if (job.TruckId.HasValue)
+            {
+                await _context.Entry(job).Reference(j => j.Truck).LoadAsync();
+                if (job.Truck != null)
+                {
+                    await _context.Entry(job.Truck).Reference(t => t.TruckType).LoadAsync();
+                }
+            }
+
             var contactPhone = job.ContactPhoneNumber;
             var ownerPhone = job.Vehicle?.Owner?.PhoneNumber;
             var contactEmail = (string?)null;
@@ -473,6 +494,8 @@ public class JobsController : ControllerBase
                 .Include(j => j.Vehicle)
                     .ThenInclude(v => v.Owner)
                 .Include(j => j.Driver)
+                .Include(j => j.Truck)
+                    .ThenInclude(t => t!.TruckType)
                 .Include(j => j.Photos)
                 .Where(j => j.DriverId == currentUserId)
                 .AsQueryable();
@@ -512,6 +535,8 @@ public class JobsController : ControllerBase
                 .Include(j => j.Vehicle)
                     .ThenInclude(v => v.Owner)
                 .Include(j => j.Driver)
+                .Include(j => j.Truck)
+                    .ThenInclude(t => t!.TruckType)
                 .Include(j => j.Photos)
                 .FirstOrDefaultAsync(j => j.Id == id);
 
@@ -580,6 +605,8 @@ public class JobsController : ControllerBase
                 .Include(j => j.Vehicle)
                     .ThenInclude(v => v.Owner)
                 .Include(j => j.Driver)
+                .Include(j => j.Truck)
+                    .ThenInclude(t => t!.TruckType)
                 .Include(j => j.Photos)
                 .FirstOrDefaultAsync(j => j.Id == id);
 
@@ -641,6 +668,8 @@ public class JobsController : ControllerBase
                 .Include(j => j.Vehicle)
                     .ThenInclude(v => v.Owner)
                 .Include(j => j.Driver)
+                .Include(j => j.Truck)
+                    .ThenInclude(t => t!.TruckType)
                 .Include(j => j.Photos)
                 .Include(j => j.StatusUpdatedBy)
                 .FirstAsync(j => j.Id == id);
@@ -651,6 +680,62 @@ public class JobsController : ControllerBase
         {
             _logger.LogError(ex, "Error uploading photo for job {JobId}", id);
             return StatusCode(500, new { error = "Internal Server Error", message = "An error occurred while uploading the photo." });
+        }
+    }
+
+    /// <summary>
+    /// Set or clear the truck assigned to a job (SuperAdmin / Admin / Dispatcher).
+    /// </summary>
+    [HttpPut("{id}/truck")]
+    [Authorize(Roles = $"{UserRoles.SuperAdmin},{UserRoles.Administrator},{UserRoles.Dispatcher}")]
+    public async Task<ActionResult<JobDto>> UpdateJobTruck(int id, [FromBody] UpdateJobTruckRequest request)
+    {
+        try
+        {
+            var job = await _context.Jobs
+                .Include(j => j.Vehicle)
+                    .ThenInclude(v => v.Owner)
+                .Include(j => j.Driver)
+                .Include(j => j.Truck)
+                    .ThenInclude(t => t!.TruckType)
+                .Include(j => j.Photos)
+                .FirstOrDefaultAsync(j => j.Id == id);
+
+            if (job == null)
+            {
+                return NotFound(new { error = "Not Found", message = $"Job with ID {id} was not found." });
+            }
+
+            if (job.Status == JobStatus.Completed || job.Status == JobStatus.Cancelled)
+            {
+                return BadRequest(new { error = "Bad Request", message = "Cannot change truck on a completed or cancelled job." });
+            }
+
+            if (request.TruckId.HasValue)
+            {
+                var truckOk = await _context.Trucks
+                    .AnyAsync(t => t.Id == request.TruckId.Value && t.IsActive);
+                if (!truckOk)
+                {
+                    return BadRequest(new { error = "Bad Request", message = "Invalid or inactive truck id." });
+                }
+            }
+
+            job.TruckId = request.TruckId;
+            await _context.SaveChangesAsync();
+
+            await _context.Entry(job).Reference(j => j.Truck).LoadAsync();
+            if (job.Truck != null)
+            {
+                await _context.Entry(job.Truck).Reference(t => t.TruckType).LoadAsync();
+            }
+
+            return Ok(MapToJobDto(job));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating truck for job {JobId}", id);
+            return StatusCode(500, new { error = "Internal Server Error", message = "An error occurred while updating the job truck." });
         }
     }
 
@@ -668,6 +753,8 @@ public class JobsController : ControllerBase
                 .Include(j => j.Vehicle)
                     .ThenInclude(v => v.Owner)
                 .Include(j => j.Driver)
+                .Include(j => j.Truck)
+                    .ThenInclude(t => t!.TruckType)
                 .Include(j => j.Photos)
                 .FirstOrDefaultAsync(j => j.Id == id);
 
@@ -791,6 +878,8 @@ public class JobsController : ControllerBase
                 .Include(j => j.Vehicle)
                     .ThenInclude(v => v.Owner)
                 .Include(j => j.Driver)
+                .Include(j => j.Truck)
+                    .ThenInclude(t => t!.TruckType)
                 .Include(j => j.Photos)
                 .Include(j => j.StatusUpdatedBy)
                 .FirstOrDefaultAsync(j => j.Id == id);
@@ -869,6 +958,8 @@ public class JobsController : ControllerBase
                 .Include(j => j.Vehicle)
                     .ThenInclude(v => v.Owner)
                 .Include(j => j.Driver)
+                .Include(j => j.Truck)
+                    .ThenInclude(t => t!.TruckType)
                 .Include(j => j.Photos)
                 .FirstOrDefaultAsync(j => j.Id == id);
 
@@ -970,6 +1061,8 @@ public class JobsController : ControllerBase
                 .Include(j => j.Vehicle)
                     .ThenInclude(v => v.Owner)
                 .Include(j => j.Driver)
+                .Include(j => j.Truck)
+                    .ThenInclude(t => t!.TruckType)
                 .Include(j => j.Photos)
                 .FirstOrDefaultAsync(j => j.Id == id);
 
@@ -1040,6 +1133,8 @@ public class JobsController : ControllerBase
                 .Include(j => j.Vehicle)
                     .ThenInclude(v => v.Owner)
                 .Include(j => j.Driver)
+                .Include(j => j.Truck)
+                    .ThenInclude(t => t!.TruckType)
                 .Include(j => j.Photos)
                 .FirstOrDefaultAsync(j => j.Id == id);
 
@@ -1124,6 +1219,8 @@ public class JobsController : ControllerBase
                 .Include(j => j.Vehicle)
                     .ThenInclude(v => v.Owner)
                 .Include(j => j.Driver)
+                .Include(j => j.Truck)
+                    .ThenInclude(t => t!.TruckType)
                 .Include(j => j.Photos)
                 .FirstOrDefaultAsync(j => j.Id == id);
 
@@ -1416,7 +1513,16 @@ public class JobsController : ControllerBase
             DriverId = job.DriverId,
             DriverName = job.Driver?.FullName,
             TruckId = job.TruckId,
-            
+            Truck = job.Truck == null
+                ? null
+                : new TruckSummaryDto
+                {
+                    Id = job.Truck.Id,
+                    UnitLabel = job.Truck.UnitLabel,
+                    TruckTypeId = job.Truck.TruckTypeId,
+                    TruckTypeName = job.Truck.TruckType?.Name ?? string.Empty
+                },
+
             // Financials
             Cost = job.Cost,
             CommissionVisibleToDriver = job.CommissionVisibleToDriver,
