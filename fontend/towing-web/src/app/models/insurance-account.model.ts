@@ -16,9 +16,6 @@ export interface InsuranceAccount {
   rateAB: number;
   rateBC: number;
   rateCA: number;
-  serviceChargePercent: number;
-  taxPercent: number;
-  isTaxExemptByDefault: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -40,9 +37,6 @@ export interface CreateInsuranceAccountPayload {
   rateAB?: number;
   rateBC?: number;
   rateCA?: number;
-  serviceChargePercent?: number;
-  taxPercent?: number;
-  isTaxExemptByDefault?: boolean;
 }
 
 export type UpdateInsuranceAccountPayload = CreateInsuranceAccountPayload;

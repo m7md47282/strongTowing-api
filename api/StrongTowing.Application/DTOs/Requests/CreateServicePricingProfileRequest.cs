@@ -14,10 +14,5 @@ public class CreateServicePricingProfileRequest
     [Range(0, 999999.99, ErrorMessage = "Price per mile must be greater than or equal to zero.")]
     public decimal PricePerMile { get; set; }
 
-    public bool HookFeeEnabled { get; set; }
-
-    [Range(0, 999999.99, ErrorMessage = "Hook fee must be greater than or equal to zero.")]
-    public decimal HookFeeAmount { get; set; }
-
     public bool IsAvailable { get; set; } = true;
 }

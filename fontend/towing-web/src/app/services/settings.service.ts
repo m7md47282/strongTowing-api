@@ -28,6 +28,7 @@ export interface SystemSettings {
   defaultPricingTaxPercent: number;
   defaultPricingServiceChargePercent: number;
   defaultPricingHookupFee: number;
+  pricingFreeMiles: number;
   maxDiscountPercent: number;
   allowManualTotalOverride: boolean;
   manualOverrideRequiresReason: boolean;
@@ -137,6 +138,7 @@ export interface UpdateSystemSettingsRequest {
   defaultPricingTaxPercent: number;
   defaultPricingServiceChargePercent: number;
   defaultPricingHookupFee: number;
+  pricingFreeMiles: number;
   maxDiscountPercent: number;
   allowManualTotalOverride: boolean;
   manualOverrideRequiresReason: boolean;

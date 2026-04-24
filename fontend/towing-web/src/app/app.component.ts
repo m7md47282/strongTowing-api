@@ -51,7 +51,8 @@ export class AppComponent implements OnInit, OnDestroy {
       .pipe(filter(event => event instanceof NavigationEnd))
       .subscribe((event: any) => {
         this.currentRoute = event.urlAfterRedirects;
-        
+        this.updateHeaderFooterVisibility();
+
         if (typeof gtag !== 'undefined') {
           gtag('config', 'G-TDTV6MTD42', {
             page_path: event.urlAfterRedirects
@@ -61,6 +62,17 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   private updateHeaderFooterVisibility(): void {
+    const path = this.router.url.split('?')[0];
+    const legalPaths = [
+      '/sms-consent',
+      '/privacy-policy',
+      '/terms-of-service',
+      '/cancellation-policy',
+    ];
+    if (legalPaths.includes(path)) {
+      this.showHeaderFooter = true;
+      return;
+    }
     // Hide header and footer when user is logged in
     this.showHeaderFooter = !this.authService.isAuthenticated();
   }

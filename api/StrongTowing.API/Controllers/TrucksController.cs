@@ -11,7 +11,7 @@ using StrongTowing.Infrastructure.Data;
 namespace StrongTowing.API.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/trucks")]
 [Authorize]
 public class TrucksController : ControllerBase
 {

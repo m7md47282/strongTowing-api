@@ -79,8 +79,6 @@ public class ServicePricingController : ControllerBase
             Name = normalizedName,
             BasePrice = request.BasePrice,
             PricePerMile = request.PricePerMile,
-            HookFeeEnabled = request.HookFeeEnabled,
-            HookFeeAmount = request.HookFeeAmount,
             IsAvailable = request.IsAvailable,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
@@ -119,8 +117,6 @@ public class ServicePricingController : ControllerBase
         row.Name = normalizedName;
         row.BasePrice = request.BasePrice;
         row.PricePerMile = request.PricePerMile;
-        row.HookFeeEnabled = request.HookFeeEnabled;
-        row.HookFeeAmount = request.HookFeeAmount;
         row.IsAvailable = request.IsAvailable;
         row.UpdatedAt = DateTime.UtcNow;
 
@@ -167,8 +163,6 @@ public class ServicePricingController : ControllerBase
             Name = row.Name,
             BasePrice = row.BasePrice,
             PricePerMile = row.PricePerMile,
-            HookFeeEnabled = row.HookFeeEnabled,
-            HookFeeAmount = row.HookFeeAmount,
             IsAvailable = row.IsAvailable,
             CreatedAt = row.CreatedAt,
             UpdatedAt = row.UpdatedAt

@@ -9,6 +9,7 @@ import { UsersComponent } from './components/dashboard/admin/users/users.compone
 import { DispatcherComponent } from './components/dashboard/dispatcher/dispatcher.component';
 import { JobsComponent } from './components/dashboard/dispatcher/jobs/jobs.component';
 import { VehiclesComponent } from './components/dashboard/dispatcher/vehicles/vehicles.component';
+import { TrucksComponent } from './components/dashboard/dispatcher/trucks/trucks.component';
 import { PaymentsComponent } from './components/dashboard/dispatcher/payments/payments.component';
 import { DriverComponent } from './components/dashboard/driver/driver.component';
 import { DriverHomeComponent } from './components/dashboard/driver/driver-home/driver-home.component';
@@ -31,6 +32,7 @@ import { PayrollReportComponent } from './components/dashboard/admin/reports/pay
 import { AccountsComponent } from './components/dashboard/admin/accounts/accounts.component';
 import { ServicesComponent as AdminServicesComponent } from './components/dashboard/admin/services/services.component';
 import { LocationPickerComponent } from './components/shared/location-picker/location-picker.component';
+import { LegalDocumentComponent } from './components/legal/legal-document.component';
 
 export const routes: Routes = [
   { 
@@ -83,9 +85,15 @@ export const routes: Routes = [
         canActivate: [roleGuard, authGuard],
         data: { roles: [RoleId.SuperAdmin, RoleId.Admin] }
       },
-      { 
+      {
         path: 'vehicles',
         component: VehiclesComponent,
+        canActivate: [roleGuard, authGuard],
+        data: { roles: [RoleId.SuperAdmin, RoleId.Admin] }
+      },
+      {
+        path: 'trucks',
+        component: TrucksComponent,
         canActivate: [roleGuard, authGuard],
         data: { roles: [RoleId.SuperAdmin, RoleId.Admin] }
       },
@@ -130,6 +138,7 @@ export const routes: Routes = [
       { path: 'jobs', component: JobsComponent },
       { path: 'drivers', component: DriverAssignmentsComponent },
       { path: 'vehicles', component: VehiclesComponent },
+      { path: 'trucks', component: TrucksComponent },
       { path: 'payments', component: PaymentsComponent }
     ]
   },
@@ -158,5 +167,25 @@ export const routes: Routes = [
     component: RequestServiceComponent
   },
   { path: 'map-calculator', component: LocationPickerComponent },
+  {
+    path: 'sms-consent',
+    component: LegalDocumentComponent,
+    data: { legalPageId: 'sms-consent' },
+  },
+  {
+    path: 'privacy-policy',
+    component: LegalDocumentComponent,
+    data: { legalPageId: 'privacy-policy' },
+  },
+  {
+    path: 'terms-of-service',
+    component: LegalDocumentComponent,
+    data: { legalPageId: 'terms-of-service' },
+  },
+  {
+    path: 'cancellation-policy',
+    component: LegalDocumentComponent,
+    data: { legalPageId: 'cancellation-policy' },
+  },
   { path: '**', redirectTo: '' }
 ];

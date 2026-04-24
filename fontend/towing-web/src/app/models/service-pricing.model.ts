@@ -1,8 +1,8 @@
 export interface ServicePricingProfile {
   id: number;
   name: string;
-  loadedPrice: number;
-  deadHeadPrice: number;
+  basePrice: number;
+  pricePerMile: number;
   isAvailable: boolean;
   createdAt: string;
   updatedAt: string;
@@ -10,8 +10,8 @@ export interface ServicePricingProfile {
 
 export interface CreateServicePricingProfilePayload {
   name: string;
-  loadedPrice: number;
-  deadHeadPrice: number;
+  basePrice: number;
+  pricePerMile: number;
   isAvailable: boolean;
 }
 

@@ -19,11 +19,6 @@ public class ServicePricingProfile
     [Column(TypeName = "decimal(18,2)")]
     public decimal PricePerMile { get; set; }
 
-    public bool HookFeeEnabled { get; set; }
-
-    [Column(TypeName = "decimal(18,2)")]
-    public decimal HookFeeAmount { get; set; }
-
     public bool IsAvailable { get; set; } = true;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

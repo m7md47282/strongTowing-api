@@ -2,9 +2,8 @@
   <div class="container">
     <div class="footer-content">
       <div class="footer-section">
-        <div class="footer-logo">
+        <div class="footer-logo bg-white p-2 rounded-lg">
           <img src="/images/logo.svg" alt="Strong Towing Services" class="logo-img" />
-          <h3>Strong Towing Services</h3>
         </div>
         <p class="footer-description">
           Your trusted partner for reliable towing and roadside assistance services. 
@@ -43,10 +42,12 @@
         <ul class="footer-links">
           <li><a routerLink="/about">About Us</a></li>
           <li><a routerLink="/request-service">Contact</a></li>
-          <li><a href="#careers">Careers</a></li>
-          <li><a href="#privacy">Privacy Policy</a></li>
-          <li><a href="#terms">Terms of Service</a></li>
-          <li><a href="#faq">FAQ</a></li>
+          <!-- <li><a href="#careers">Careers</a></li> -->
+          <li><a routerLink="/privacy-policy">Privacy Policy</a></li>
+          <li><a routerLink="/terms-of-service">Terms of Service</a></li>
+          <li><a routerLink="/sms-consent">SMS Consent</a></li>
+          <li><a routerLink="/cancellation-policy">Cancellation Policy</a></li>
+          <!-- <li><a href="#faq">FAQ</a></li> -->
         </ul>
       </div>
 
@@ -89,8 +90,10 @@
       <div class="footer-bottom-content">
         <p>&copy; 2024 Strong Towing Services. All rights reserved.</p>
         <div class="footer-bottom-links">
-          <a href="#privacy">Privacy</a>
-          <a href="#terms">Terms</a>
+          <a routerLink="/privacy-policy">Privacy</a>
+          <a routerLink="/terms-of-service">Terms</a>
+          <a routerLink="/sms-consent">SMS consent</a>
+          <a routerLink="/cancellation-policy">Cancellation</a>
           <a href="#cookies">Cookies</a>
         </div>
       </div>

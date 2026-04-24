@@ -120,8 +120,6 @@ public class PricingCalculatorServiceTests
             Name = "Standard Tow",
             BasePrice = 120m,
             PricePerMile = 6m,
-            HookFeeEnabled = false,
-            HookFeeAmount = 0m,
             IsAvailable = true
         });
         await context.SaveChangesAsync();
@@ -159,8 +157,6 @@ public class PricingCalculatorServiceTests
             Name = "Flat Tow",
             BasePrice = 120m,
             PricePerMile = 0m,
-            HookFeeEnabled = false,
-            HookFeeAmount = 0m,
             IsAvailable = true
         });
         await context.SaveChangesAsync();
@@ -196,8 +192,6 @@ public class PricingCalculatorServiceTests
             Name = "Mixed",
             BasePrice = 120m,
             PricePerMile = 6m,
-            HookFeeEnabled = false,
-            HookFeeAmount = 0m,
             IsAvailable = true
         });
         await context.SaveChangesAsync();
@@ -237,8 +231,6 @@ public class PricingCalculatorServiceTests
             Name = "Tow",
             BasePrice = 120m,
             PricePerMile = 6m,
-            HookFeeEnabled = false,
-            HookFeeAmount = 0m,
             IsAvailable = true
         });
         await context.SaveChangesAsync();

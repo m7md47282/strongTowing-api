@@ -5,6 +5,8 @@ import { ApiService } from './api.service';
 export interface PricingQuoteRequest {
   accountId?: number;
   accountName?: string;
+  servicePricingProfileId?: number;
+  serviceName?: string;
   milesAB: number;
   milesBC: number;
   milesCA: number;
@@ -28,6 +30,10 @@ export interface PricingQuoteResponse {
   milesAB: number;
   milesBC: number;
   milesCA: number;
+  billableMiles: number;
+  freeMilesApplied: number;
+  pricingFreeMilesAllowance: number;
+  serviceBasePrice: number;
   hookupFee: number;
   rateAB: number;
   rateBC: number;

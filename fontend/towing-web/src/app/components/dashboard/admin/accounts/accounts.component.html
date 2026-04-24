@@ -121,13 +121,8 @@
                 </td>
                 <td class="py-4 px-6 text-sm text-gray-600">
                   <div class="space-y-1">
-                    <div>Hookup: {{ account.hookupFee | number:'1.2-2' }}</div>
-                    <div class="space-y-0.5 text-xs">
-                      <div>Office→pickup: {{ account.rateAB | number:'1.2-2' }}</div>
-                      <div>Pickup→drop: {{ account.rateBC | number:'1.2-2' }}</div>
-                      <div>Drop→office: {{ account.rateCA | number:'1.2-2' }}</div>
-                    </div>
-                    <div>Tax/Service: {{ account.taxPercent | number:'1.2-2' }}% / {{ account.serviceChargePercent | number:'1.2-2' }}%</div>
+                    <div>Default hook: {{ account.hookupFee | number:'1.2-2' }}</div>
+                    <div class="text-xs">Fallback $/mi (loaded): {{ account.rateBC | number:'1.2-2' }}</div>
                   </div>
                 </td>
                 <td class="py-4 px-6">
@@ -144,6 +139,13 @@
                 <td class="py-4 px-6 text-sm text-gray-600">{{ formatDate(account.updatedAt) }}</td>
                 <td class="py-4 px-6">
                   <div class="flex items-center gap-2">
+                    <button
+                      type="button"
+                      (click)="openServiceRatesModal(account)"
+                      class="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-50 text-slate-800 hover:bg-slate-100"
+                    >
+                      <i class="fas fa-tags mr-1"></i> Services
+                    </button>
                     <button
                       type="button"
                       (click)="openEditModal(account)"
@@ -251,37 +253,20 @@
           ></textarea>
         </div>
         <div class="border rounded-lg p-4">
-          <h3 class="text-sm font-semibold text-gray-900 mb-3">Pricing profile</h3>
-          <div class="grid grid-cols-2 gap-4">
+          <div class="grid grid-cols-2 gap-4 items-end">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Hookup Fee</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Default hookup fee</label>
               <input type="number" min="0" step="0.01" formControlName="hookupFee" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary" />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">$/mi, office → pickup</label>
-              <input type="number" min="0" step="0.01" formControlName="rateAB" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary" />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">$/mi, pickup → drop-off</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1">$/mi (pickup → drop-off)</label>
               <input type="number" min="0" step="0.01" formControlName="rateBC" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary" />
             </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">$/mi, drop-off → office</label>
-              <input type="number" min="0" step="0.01" formControlName="rateCA" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary" />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Service Charge %</label>
-              <input type="number" min="0" max="100" step="0.01" formControlName="serviceChargePercent" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary" />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Tax %</label>
-              <input type="number" min="0" max="100" step="0.01" formControlName="taxPercent" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary" />
+            <div class="hidden">
+              <input type="number" formControlName="rateAB" />
+              <input type="number" formControlName="rateCA" />
             </div>
           </div>
-          <label class="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer mt-3">
-            <input type="checkbox" formControlName="isTaxExemptByDefault" class="rounded border-gray-300 text-primary focus:ring-primary" />
-            Tax exempt by default
-          </label>
         </div>
         <label class="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
           <input type="checkbox" formControlName="isActive" class="rounded border-gray-300 text-primary focus:ring-primary" />
@@ -306,6 +291,109 @@
           </button>
         </div>
       </form>
+    </div>
+  </div>
+}
+
+@if (showServiceRatesModal && serviceRatesAccount) {
+  <div class="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/40" (click)="closeServiceRatesModal()">
+    <div
+      class="bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="p-6 border-b border-gray-200 flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-semibold text-gray-900">Service pricing — {{ serviceRatesAccount.name }}</h2>
+          <p class="text-sm text-gray-600 mt-1">Override base price and per-mile rate for each service on this account.</p>
+        </div>
+        <button type="button" (click)="closeServiceRatesModal()" class="text-gray-500 hover:text-gray-700">
+          <i class="fas fa-times text-xl"></i>
+        </button>
+      </div>
+
+      <div class="p-6 space-y-6">
+        @if (serviceRatesLoading) {
+          <div class="flex justify-center py-8 text-gray-600">
+            <i class="fas fa-spinner fa-spin text-2xl"></i>
+          </div>
+        } @else {
+          <div class="overflow-x-auto rounded-lg border border-gray-200">
+            <table class="min-w-full text-sm">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="text-left py-2 px-3 font-semibold text-gray-700">Service</th>
+                  <th class="text-left py-2 px-3 font-semibold text-gray-700">Base</th>
+                  <th class="text-left py-2 px-3 font-semibold text-gray-700">$/mi</th>
+                  <th class="text-right py-2 px-3 font-semibold text-gray-700">Actions</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100">
+                @for (row of serviceRates; track row.id) {
+                  <tr>
+                    <td class="py-2 px-3 font-medium">{{ row.serviceName }}</td>
+                    <td class="py-2 px-3">{{ row.basePrice | number:'1.2-2' }}</td>
+                    <td class="py-2 px-3">{{ row.pricePerMile | number:'1.2-2' }}</td>
+                    <td class="py-2 px-3 text-right space-x-2">
+                      <button type="button" class="text-primary text-xs font-medium" (click)="startEditServiceRate(row)">Edit</button>
+                      <button type="button" class="text-red-600 text-xs font-medium" (click)="deleteServiceRate(row)">Remove</button>
+                    </td>
+                  </tr>
+                }
+                @if (serviceRates.length === 0) {
+                  <tr>
+                    <td colspan="4" class="py-6 px-3 text-center text-gray-500">No per-service overrides yet.</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+
+        <form [formGroup]="serviceRateForm" (ngSubmit)="saveServiceRate()" class="border rounded-lg p-4 bg-gray-50/80">
+          <h3 class="text-sm font-semibold text-gray-900 mb-3">{{ editingRateId === null ? 'Add service pricing' : 'Update service pricing' }}</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium text-gray-700 mb-1">Service</label>
+              <select
+                formControlName="servicePricingProfileId"
+                class="w-full px-3 py-2 border rounded-lg bg-white"
+                [disabled]="editingRateId !== null"
+              >
+                <option [ngValue]="null">Select service…</option>
+                @for (p of (editingRateId !== null ? serviceCatalog : availableServiceProfilesForAdd()); track p.id) {
+                  <option [ngValue]="p.id">{{ p.name }}</option>
+                }
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Base price</label>
+              <input type="number" min="0" step="0.01" formControlName="basePrice" class="w-full px-3 py-2 border rounded-lg bg-white" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Price per mile (loaded)</label>
+              <input type="number" min="0" step="0.01" formControlName="pricePerMile" class="w-full px-3 py-2 border rounded-lg bg-white" />
+            </div>
+          </div>
+          @if (error) {
+            <p class="text-sm text-red-600 mt-3">{{ error }}</p>
+          }
+          <div class="flex justify-end gap-2 mt-4">
+            @if (editingRateId !== null) {
+              <button type="button" (click)="cancelEditServiceRate()" class="px-4 py-2 rounded-lg border border-gray-300 text-sm">Cancel edit</button>
+            }
+            <button
+              type="submit"
+              [disabled]="serviceRateSubmitting"
+              class="px-4 py-2 rounded-lg bg-primary text-white text-sm disabled:opacity-50"
+            >
+              @if (serviceRateSubmitting) {
+                <i class="fas fa-spinner fa-spin mr-2"></i>
+              }
+              {{ editingRateId === null ? 'Add' : 'Save' }}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
 }

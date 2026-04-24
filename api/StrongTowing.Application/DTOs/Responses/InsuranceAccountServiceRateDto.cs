@@ -8,8 +8,6 @@ public class InsuranceAccountServiceRateDto
     public string ServiceName { get; set; } = string.Empty;
     public decimal BasePrice { get; set; }
     public decimal PricePerMile { get; set; }
-    public bool HookFeeEnabled { get; set; }
-    public decimal HookFeeAmount { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }

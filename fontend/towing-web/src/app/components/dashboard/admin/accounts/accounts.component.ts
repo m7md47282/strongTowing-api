@@ -4,10 +4,16 @@ import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } 
 import { HttpErrorResponse } from '@angular/common/http';
 import { finalize } from 'rxjs/operators';
 import { AccountsService } from '../../../../services/accounts.service';
+import { ServicePricingService } from '../../../../services/service-pricing.service';
 import {
   CreateInsuranceAccountPayload,
   InsuranceAccount
 } from '../../../../models/insurance-account.model';
+import {
+  InsuranceAccountServiceRate,
+  UpsertInsuranceAccountServiceRatePayload
+} from '../../../../models/insurance-account-service-rate.model';
+import { ServicePricingProfile } from '../../../../models/service-pricing.model';
 
 @Component({
   selector: 'app-accounts',
@@ -33,10 +39,26 @@ export class AccountsComponent implements OnInit {
 
   deleteConfirmId: number | null = null;
 
+  showServiceRatesModal = false;
+  serviceRatesAccount: InsuranceAccount | null = null;
+  serviceRates: InsuranceAccountServiceRate[] = [];
+  serviceRatesLoading = false;
+  serviceCatalog: ServicePricingProfile[] = [];
+  serviceRateSubmitting = false;
+  editingRateId: number | null = null;
+  serviceRateForm: FormGroup;
+
   constructor(
     private accountsService: AccountsService,
+    private servicePricingService: ServicePricingService,
     private fb: FormBuilder
   ) {
+    this.serviceRateForm = this.fb.group({
+      servicePricingProfileId: [null as number | null, [Validators.required]],
+      basePrice: [0, [Validators.min(0)]],
+      pricePerMile: [0, [Validators.min(0)]]
+    });
+
     this.accountForm = this.fb.group({
       name: ['', [Validators.required, Validators.maxLength(200)]],
       accountNumber: [''],
@@ -53,10 +75,7 @@ export class AccountsComponent implements OnInit {
       hookupFee: [0, [Validators.min(0)]],
       rateAB: [0, [Validators.min(0)]],
       rateBC: [0, [Validators.min(0)]],
-      rateCA: [0, [Validators.min(0)]],
-      serviceChargePercent: [0, [Validators.min(0), Validators.max(100)]],
-      taxPercent: [0, [Validators.min(0), Validators.max(100)]],
-      isTaxExemptByDefault: [false]
+      rateCA: [0, [Validators.min(0)]]
     });
   }
 
@@ -122,10 +141,7 @@ export class AccountsComponent implements OnInit {
       hookupFee: 0,
       rateAB: 0,
       rateBC: 0,
-      rateCA: 0,
-      serviceChargePercent: 0,
-      taxPercent: 0,
-      isTaxExemptByDefault: false
+      rateCA: 0
     });
     this.showModal = true;
     this.error = null;
@@ -150,10 +166,7 @@ export class AccountsComponent implements OnInit {
       hookupFee: account.hookupFee ?? 0,
       rateAB: account.rateAB ?? 0,
       rateBC: account.rateBC ?? 0,
-      rateCA: account.rateCA ?? 0,
-      serviceChargePercent: account.serviceChargePercent ?? 0,
-      taxPercent: account.taxPercent ?? 0,
-      isTaxExemptByDefault: account.isTaxExemptByDefault ?? false
+      rateCA: account.rateCA ?? 0
     });
     this.showModal = true;
     this.error = null;
@@ -188,10 +201,7 @@ export class AccountsComponent implements OnInit {
       hookupFee: Number(raw.hookupFee ?? 0),
       rateAB: Number(raw.rateAB ?? 0),
       rateBC: Number(raw.rateBC ?? 0),
-      rateCA: Number(raw.rateCA ?? 0),
-      serviceChargePercent: Number(raw.serviceChargePercent ?? 0),
-      taxPercent: Number(raw.taxPercent ?? 0),
-      isTaxExemptByDefault: Boolean(raw.isTaxExemptByDefault)
+      rateCA: Number(raw.rateCA ?? 0)
     };
 
     this.submitting = true;
@@ -269,5 +279,130 @@ export class AccountsComponent implements OnInit {
     }
     if (typeof e === 'string' && e.length > 0) return e;
     return err.message || 'Request failed.';
+  }
+
+  openServiceRatesModal(account: InsuranceAccount): void {
+    this.serviceRatesAccount = account;
+    this.showServiceRatesModal = true;
+    this.editingRateId = null;
+    this.error = null;
+    this.serviceRates = [];
+    this.serviceRateForm.reset({
+      servicePricingProfileId: null,
+      basePrice: 0,
+      pricePerMile: 0
+    });
+    this.loadServiceCatalog();
+    this.loadServiceRates(account.id);
+  }
+
+  closeServiceRatesModal(): void {
+    this.showServiceRatesModal = false;
+    this.serviceRatesAccount = null;
+    this.editingRateId = null;
+  }
+
+  private loadServiceCatalog(): void {
+    this.servicePricingService.getAll(true).subscribe({
+      next: (rows) => (this.serviceCatalog = rows),
+      error: () => (this.serviceCatalog = [])
+    });
+  }
+
+  private loadServiceRates(accountId: number): void {
+    this.serviceRatesLoading = true;
+    this.accountsService
+      .listServiceRates(accountId)
+      .pipe(finalize(() => (this.serviceRatesLoading = false)))
+      .subscribe({
+        next: (rows) => (this.serviceRates = rows),
+        error: (err: HttpErrorResponse) => {
+          this.error = this.httpErrorMessage(err);
+        }
+      });
+  }
+
+  startEditServiceRate(row: InsuranceAccountServiceRate): void {
+    this.editingRateId = row.id;
+    this.serviceRateForm.patchValue({
+      servicePricingProfileId: row.servicePricingProfileId,
+      basePrice: row.basePrice,
+      pricePerMile: row.pricePerMile
+    });
+  }
+
+  cancelEditServiceRate(): void {
+    this.editingRateId = null;
+    this.serviceRateForm.reset({
+      servicePricingProfileId: null,
+      basePrice: 0,
+      pricePerMile: 0
+    });
+  }
+
+  saveServiceRate(): void {
+    if (!this.serviceRatesAccount || this.serviceRateForm.invalid) {
+      this.serviceRateForm.markAllAsTouched();
+      return;
+    }
+
+    const raw = this.serviceRateForm.getRawValue();
+    const payload: UpsertInsuranceAccountServiceRatePayload = {
+      servicePricingProfileId: Number(raw.servicePricingProfileId),
+      basePrice: Number(raw.basePrice ?? 0),
+      pricePerMile: Number(raw.pricePerMile ?? 0)
+    };
+
+    this.serviceRateSubmitting = true;
+    this.error = null;
+    const accountId = this.serviceRatesAccount.id;
+
+    const req =
+      this.editingRateId == null
+        ? this.accountsService.createServiceRate(accountId, payload)
+        : this.accountsService.updateServiceRate(accountId, this.editingRateId, payload);
+
+    req.pipe(finalize(() => (this.serviceRateSubmitting = false))).subscribe({
+      next: () => {
+        this.successMessage = 'Service pricing saved.';
+        this.cancelEditServiceRate();
+        this.loadServiceRates(accountId);
+        setTimeout(() => (this.successMessage = null), 3000);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.error = this.httpErrorMessage(err);
+      }
+    });
+  }
+
+  deleteServiceRate(row: InsuranceAccountServiceRate): void {
+    if (!this.serviceRatesAccount || !confirm(`Remove ${row.serviceName} pricing for this account?`)) {
+      return;
+    }
+    this.serviceRateSubmitting = true;
+    this.accountsService
+      .deleteServiceRate(this.serviceRatesAccount.id, row.id)
+      .pipe(finalize(() => (this.serviceRateSubmitting = false)))
+      .subscribe({
+        next: () => {
+          this.successMessage = 'Removed.';
+          this.loadServiceRates(this.serviceRatesAccount!.id);
+          setTimeout(() => (this.successMessage = null), 3000);
+        },
+        error: (err: HttpErrorResponse) => {
+          this.error = this.httpErrorMessage(err);
+        }
+      });
+  }
+
+  availableServiceProfilesForAdd(): ServicePricingProfile[] {
+    const used = new Set(this.serviceRates.map((r) => r.servicePricingProfileId));
+    if (this.editingRateId != null) {
+      const cur = this.serviceRates.find((r) => r.id === this.editingRateId);
+      if (cur) {
+        used.delete(cur.servicePricingProfileId);
+      }
+    }
+    return this.serviceCatalog.filter((p) => !used.has(p.id));
   }
 }

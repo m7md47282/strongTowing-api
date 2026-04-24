@@ -1,0 +1,29 @@
+@if (content) {
+  <article class="legal-document">
+    <div class="legal-document__inner">
+      <h1 class="legal-document__title">{{ content.documentTitle }}</h1>
+
+      @for (section of content.sections; track $index) {
+        <section class="legal-document__section">
+          @if (hasHeading(section)) {
+            <h2 class="legal-document__heading">{{ section.heading }}</h2>
+          }
+          @for (p of section.paragraphs; track $index) {
+            <p class="legal-document__p">{{ p }}</p>
+          }
+          @if (section.bullets?.length) {
+            <ul class="legal-document__list">
+              @for (item of section.bullets; track $index) {
+                <li>{{ item }}</li>
+              }
+            </ul>
+          }
+        </section>
+      }
+
+      <p class="legal-document__back">
+        <a routerLink="/" class="legal-document__back-link">Back to home</a>
+      </p>
+    </div>
+  </article>
+}

@@ -8,6 +8,10 @@ import {
   InsuranceAccount,
   UpdateInsuranceAccountPayload
 } from '../models/insurance-account.model';
+import {
+  InsuranceAccountServiceRate,
+  UpsertInsuranceAccountServiceRatePayload
+} from '../models/insurance-account-service-rate.model';
 
 function s(raw: Record<string, unknown>, camel: string, pascal: string): string | null {
   const v = (raw[camel] ?? raw[pascal]) as string | null | undefined;
@@ -35,9 +39,6 @@ function mapAccountDto(raw: Record<string, unknown>): InsuranceAccount {
     rateAB: Number(raw['rateAB'] ?? raw['RateAB'] ?? 0),
     rateBC: Number(raw['rateBC'] ?? raw['RateBC'] ?? 0),
     rateCA: Number(raw['rateCA'] ?? raw['RateCA'] ?? 0),
-    serviceChargePercent: Number(raw['serviceChargePercent'] ?? raw['ServiceChargePercent'] ?? 0),
-    taxPercent: Number(raw['taxPercent'] ?? raw['TaxPercent'] ?? 0),
-    isTaxExemptByDefault: Boolean(raw['isTaxExemptByDefault'] ?? raw['IsTaxExemptByDefault']),
     createdAt: (raw['createdAt'] ?? raw['CreatedAt']) as string,
     updatedAt: (raw['updatedAt'] ?? raw['UpdatedAt']) as string
   };
@@ -80,4 +81,46 @@ export class AccountsService {
   delete(id: number): Observable<void> {
     return this.api.delete<void>(`accounts/${id}`);
   }
+
+  listServiceRates(accountId: number): Observable<InsuranceAccountServiceRate[]> {
+    return this.api
+      .get<Record<string, unknown>[]>(`accounts/${accountId}/service-rates`)
+      .pipe(map((rows) => rows.map((r) => mapServiceRateDto(r))));
+  }
+
+  createServiceRate(
+    accountId: number,
+    body: UpsertInsuranceAccountServiceRatePayload
+  ): Observable<InsuranceAccountServiceRate> {
+    return this.api
+      .post<Record<string, unknown>>(`accounts/${accountId}/service-rates`, body)
+      .pipe(map((r) => mapServiceRateDto(r)));
+  }
+
+  updateServiceRate(
+    accountId: number,
+    rateId: number,
+    body: UpsertInsuranceAccountServiceRatePayload
+  ): Observable<InsuranceAccountServiceRate> {
+    return this.api
+      .put<Record<string, unknown>>(`accounts/${accountId}/service-rates/${rateId}`, body)
+      .pipe(map((r) => mapServiceRateDto(r)));
+  }
+
+  deleteServiceRate(accountId: number, rateId: number): Observable<void> {
+    return this.api.delete<void>(`accounts/${accountId}/service-rates/${rateId}`);
+  }
+}
+
+function mapServiceRateDto(raw: Record<string, unknown>): InsuranceAccountServiceRate {
+  return {
+    id: Number(raw['id'] ?? raw['Id']),
+    insuranceAccountId: Number(raw['insuranceAccountId'] ?? raw['InsuranceAccountId']),
+    servicePricingProfileId: Number(raw['servicePricingProfileId'] ?? raw['ServicePricingProfileId']),
+    serviceName: String(raw['serviceName'] ?? raw['ServiceName'] ?? ''),
+    basePrice: Number(raw['basePrice'] ?? raw['BasePrice'] ?? 0),
+    pricePerMile: Number(raw['pricePerMile'] ?? raw['PricePerMile'] ?? 0),
+    createdAt: String(raw['createdAt'] ?? raw['CreatedAt'] ?? ''),
+    updatedAt: String(raw['updatedAt'] ?? raw['UpdatedAt'] ?? '')
+  };
 }

@@ -50,8 +50,8 @@ export class ServicesComponent implements OnInit {
   ) {
     this.form = this.fb.group({
       name: ['', [Validators.required, Validators.maxLength(100)]],
-      loadedPrice: [0, [Validators.required, Validators.min(0)]],
-      deadHeadPrice: [0, [Validators.required, Validators.min(0)]],
+      basePrice: [0, [Validators.required, Validators.min(0)]],
+      pricePerMile: [0, [Validators.required, Validators.min(0)]],
       isAvailable: [true]
     });
   }
@@ -100,8 +100,8 @@ export class ServicesComponent implements OnInit {
     this.editingId = null;
     this.form.reset({
       name: '',
-      loadedPrice: 0,
-      deadHeadPrice: 0,
+      basePrice: 0,
+      pricePerMile: 0,
       isAvailable: true
     });
     this.error = null;
@@ -112,8 +112,8 @@ export class ServicesComponent implements OnInit {
     this.editingId = profile.id;
     this.form.patchValue({
       name: profile.name,
-      loadedPrice: profile.loadedPrice,
-      deadHeadPrice: profile.deadHeadPrice,
+      basePrice: profile.basePrice,
+      pricePerMile: profile.pricePerMile,
       isAvailable: profile.isAvailable
     });
     this.error = null;
@@ -134,8 +134,8 @@ export class ServicesComponent implements OnInit {
     const raw = this.form.getRawValue();
     const payload: CreateServicePricingProfilePayload = {
       name: String(raw.name || '').trim(),
-      loadedPrice: Number(raw.loadedPrice ?? 0),
-      deadHeadPrice: Number(raw.deadHeadPrice ?? 0),
+      basePrice: Number(raw.basePrice ?? 0),
+      pricePerMile: Number(raw.pricePerMile ?? 0),
       isAvailable: Boolean(raw.isAvailable)
     };
 

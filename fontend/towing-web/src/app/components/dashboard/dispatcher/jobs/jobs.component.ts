@@ -57,6 +57,7 @@ import {
   JOB_BILLING_PAYMENT_MODE,
   UpdateJobBillingPaymentRequest
 } from '../../../../services/job.service';
+import { TruckService, TruckListItem } from '../../../../services/truck.service';
 import { VehicleService, Vehicle } from '../../../../services/vehicle.service';
 import { ApiService } from '../../../../services/api.service';
 import { AccountsService } from '../../../../services/accounts.service';
@@ -64,6 +65,7 @@ import { ServicePricingService } from '../../../../services/service-pricing.serv
 import { AuthService } from '../../../../services/auth.service';
 import { PaymentService } from '../../../../services/payment.service';
 import { InsuranceAccount } from '../../../../models/insurance-account.model';
+import { InsuranceAccountServiceRate } from '../../../../models/insurance-account-service-rate.model';
 import { ServicePricingProfile } from '../../../../models/service-pricing.model';
 import { User } from '../../../../models/user.model';
 import { RoleId } from '../../../../constants/user-roles.constants';
@@ -72,6 +74,7 @@ import { LocationPickerComponent } from '../../../shared/location-picker/locatio
 import { LocationService } from '../../../../services/location.service';
 import { PricingService, PricingQuoteResponse } from '../../../../services/pricing.service';
 import { environment } from '../../../../../environments/environment';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 
 const JOBS_TABLE_COL_COUNT = 17;
 const JOBS_STICKY_STORAGE_KEY = 'dispatcherJobsTableStickyColumns';
@@ -94,6 +97,37 @@ function migrateJobsTableStickyFromBooleans(parsed: boolean[]): JobTableStickyPi
     }
     return i === JOBS_TABLE_COL_COUNT - 1 ? 'right' : 'left';
   });
+}
+
+/** Single row in the quote line-items table (modal + PDF). */
+interface QuoteLineItem {
+  description: string;
+  quantity: string;
+  unitPrice: string;
+  amount: string;
+}
+
+/** Structured quote summary for the review modal and PDF export */
+interface QuoteReviewSummary {
+  quoteRef: string;
+  quoteDateDisplay: string;
+  validUntilDisplay: string;
+  fromLines: string[];
+  toLines: string[];
+  lineItems: QuoteLineItem[];
+  /** Pre-tax total (after discount + service charge), matches API `taxableAmount` when server quote exists */
+  totalsSubtotal: string;
+  totalsTaxLabel: string;
+  totalsTax: string;
+  mileage: { label: string; value: string }[];
+  client: { label: string; value: string }[];
+  pickup: string;
+  destination: string;
+  serviceType: string;
+  vehicleLabel: string;
+  totalAmount: string;
+  notesPreview: string;
+  footerNote: string;
 }
 
 interface PagedResponse<T> {
@@ -154,6 +188,8 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
   priceOverrideReason = '';
   priceOverrideSubmitting = false;
   priceOverrideError: string | null = null;
+  /** When saving admin price override, allow driver to see commission estimate. */
+  priceOverrideCommissionVisible = false;
 
   /** Job details modal — billing / payment arrangement (synced in openJobDetails). */
   billingBillingPaymentMode: string = JOB_BILLING_PAYMENT_MODE.Standard;
@@ -233,8 +269,12 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
   // Drivable options
   drivableOptions = ['Yes', 'No'];
   
-  // Trucks (placeholder - you may need to load from a service)
-  trucks: any[] = [];
+  trucks: TruckListItem[] = [];
+  trucksLoading = false;
+
+  detailTruckId: number | null = null;
+  detailTruckSaving = false;
+  detailTruckError: string | null = null;
   
   // Service items for invoice charges
   serviceItems: any[] = [];
@@ -247,6 +287,10 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
   insuranceAccountsLoading = false;
   servicePricingProfiles: ServicePricingProfile[] = [];
   servicePricingProfilesLoading = false;
+
+  /** Per-account × service rows for the selected insurance account (job create). */
+  createJobAccountServiceRates: InsuranceAccountServiceRate[] = [];
+  private accountRatesSub?: Subscription;
 
   /** Map picker sub-modal for pickup / destination (above create-job modal) */
   showLocationMapModal = false;
@@ -266,7 +310,21 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
   dispatchOfficeLoadError: string | null = null;
   calculatingPrice = false;
   latestQuote: PricingQuoteResponse | null = null;
+
+  /** Quote call type: review summary without creating a job */
+  showQuoteReviewModal = false;
+  /** Editable recipient for SMS (defaults from contact / client phone) */
+  quoteSmsPhone = '';
+  /** Snapshot when opening quote review (mileage, client, locations, vehicle, total) */
+  quoteReviewSummary: QuoteReviewSummary | null = null;
+  /** Object URL for in-modal PDF preview (revoked on close). */
+  private quotePdfBlobUrl: string | null = null;
+  quotePdfSafeUrl: SafeResourceUrl | null = null;
+  quotePdfGenerating = false;
+  quotePdfError: string | null = null;
   private routeDistanceGeneration = 0;
+  /** Cached PNG data URL extracted from `public/images/logo.svg` (for jsPDF). */
+  private quoteLogoPngDataUrl: string | null | undefined;
   private pickupDestinationDistanceSub?: Subscription;
   private catalogMakeSearchSub?: Subscription;
   private catalogModelSearchSub?: Subscription;
@@ -309,9 +367,11 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
     private locationService: LocationService,
     private pricingService: PricingService,
     private vehicleCatalogService: VehicleCatalogService,
+    private truckService: TruckService,
     private ngZone: NgZone,
     private cdr: ChangeDetectorRef,
-    private fb: FormBuilder
+    private fb: FormBuilder,
+    private sanitizer: DomSanitizer
   ) {
     // Client section
     const clientGroup = this.fb.group({
@@ -384,7 +444,7 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
       eta: [''],
       // Assignment
       driverId: [''],
-      truckId: [''],
+      truckId: [null as number | null],
       // Notes
       notes: [''],
       billingNotes: [''],
@@ -434,7 +494,26 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
         this.validationErrorList = [];
       }
     });
-    
+
+    this.accountRatesSub = this.createJobForm
+      .get('account')
+      ?.valueChanges.pipe(
+        switchMap((raw) => {
+          const id =
+            raw !== null && raw !== undefined && String(raw).trim() !== '' ? Number(raw) : NaN;
+          if (!Number.isFinite(id) || id <= 0) {
+            return of([] as InsuranceAccountServiceRate[]);
+          }
+          return this.accountsService.listServiceRates(id).pipe(
+            catchError(() => of([] as InsuranceAccountServiceRate[]))
+          );
+        })
+      )
+      .subscribe((rates) => {
+        this.createJobAccountServiceRates = rates ?? [];
+        this.applySelectedServicePricing();
+      });
+
     this.createJobForm.get('pickupLocation')?.valueChanges.subscribe(() => {
       if (this.createJobError && this.validationErrorList.length > 0) {
         this.createJobError = null;
@@ -525,6 +604,7 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
     this.loadJobs();
     this.loadVehicles();
     this.loadDrivers();
+    this.loadTrucks();
     this.loadServicePricingProfiles();
     this.loadDispatchOfficeForDisplay();
     this.observeSelectedClientChanges();
@@ -650,6 +730,7 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
     this.catalogMakeSearchSub?.unsubscribe();
     this.catalogModelSearchSub?.unsubscribe();
     this.createJobClientFetchSub?.unsubscribe();
+    this.accountRatesSub?.unsubscribe();
   }
 
   setJobsTableStickySide(index: number, side: 'left' | 'right'): void {
@@ -1138,6 +1219,38 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
     );
   }
 
+  /** Active fleet only — create job API rejects inactive truck ids. */
+  get trucksForCreateJob(): TruckListItem[] {
+    return this.trucks.filter((t) => t.isActive);
+  }
+
+  loadTrucks(): void {
+    this.trucksLoading = true;
+    this.truckService
+      .getAll(true)
+      .pipe(
+        finalize(() => {
+          this.trucksLoading = false;
+          this.cdr.markForCheck();
+        }),
+        catchError((error) => {
+          console.error('Failed to load trucks:', error);
+          return of([] as TruckListItem[]);
+        })
+      )
+      .subscribe((rows) => {
+        this.trucks = rows;
+      });
+  }
+
+  private parseOptionalTruckId(raw: unknown): number | undefined {
+    if (raw === null || raw === undefined || raw === '') {
+      return undefined;
+    }
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : undefined;
+  }
+
   loadDrivers(): void {
     // Use dedicated drivers endpoint with pagination
     // Load all active drivers (using large page size for dropdown)
@@ -1183,6 +1296,7 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   openCreateJobModal(): void {
+    this.showQuoteReviewModal = false;
     this.showCreateJobModal = true;
     this.activeCreateJobTab = 'details';
     this.useExistingClient = true;
@@ -1190,6 +1304,7 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
     this.invoiceServiceItems = [];
     this.createJobValidationAttempted = false;
     this.createJobForm.reset();
+    this.createJobAccountServiceRates = [];
     this.resetCreateJobClientSelectUi();
     this.createJobForm.patchValue({
       callType: 'New Call',
@@ -1212,6 +1327,7 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
     this.loadServicePricingProfiles();
     this.syncVehicleOptionsForCurrentClient();
     this.resetCatalogPickers();
+    this.loadTrucks();
   }
 
   loadInsuranceAccountsForJob(): void {
@@ -1224,6 +1340,7 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
       )
       .subscribe((rows) => {
         this.insuranceAccounts = rows;
+        this.applySelectedServicePricing();
       });
   }
 
@@ -1254,6 +1371,10 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
       });
   }
 
+  /**
+   * Matches server `PricingCalculatorService`: account×service row → service catalog → legacy account BC + hookup.
+   * Base (fixed) appears as a service line item; per-mile and hookup go on invoice charge fields; AB/CA rates stay 0.
+   */
   private applySelectedServicePricing(): void {
     const serviceTypeRaw = this.createJobForm.get('serviceType')?.value;
     const selectedServiceType = String(serviceTypeRaw || '').trim();
@@ -1262,24 +1383,72 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
       return;
     }
 
-    if (!selectedServiceType) {
-      this.calculateInvoiceTotals();
-      return;
-    }
-
-    const profile = this.servicePricingProfiles.find(
-      (p) => p.isAvailable && p.name.toLowerCase() === selectedServiceType.toLowerCase()
+    const baseSuffix = ' (base)';
+    this.invoiceServiceItems = this.invoiceServiceItems.filter(
+      (item: any) => !String(item.serviceName || '').endsWith(baseSuffix)
     );
 
-    if (!profile) {
+    const accountRaw = this.createJobForm.get('account')?.value;
+    const accountId =
+      accountRaw !== null && accountRaw !== undefined && String(accountRaw).trim() !== ''
+        ? Number(accountRaw)
+        : NaN;
+    const account =
+      Number.isFinite(accountId) && accountId > 0
+        ? this.insuranceAccounts.find((a) => a.id === accountId)
+        : undefined;
+
+    if (!selectedServiceType && !account) {
       this.calculateInvoiceTotals();
       return;
     }
 
-    // Reflect selected service prices in invoice charges.
+    const profile = this.getSelectedServicePricingProfile();
+    const matrixRow =
+      profile && account
+        ? this.createJobAccountServiceRates.find((r) => r.servicePricingProfileId === profile.id)
+        : undefined;
+
+    let basePrice = 0;
+    let pricePerMile = 0;
+    let hookEnabled = false;
+    let hookAmount = 0;
+    let baseLabel = '';
+
+    if (matrixRow) {
+      basePrice = Number(matrixRow.basePrice) || 0;
+      pricePerMile = Number(matrixRow.pricePerMile) || 0;
+      hookEnabled = false;
+      hookAmount = 0;
+      baseLabel = (matrixRow.serviceName || profile?.name || selectedServiceType).trim();
+    } else if (profile) {
+      basePrice = Number(profile.basePrice) || 0;
+      pricePerMile = Number(profile.pricePerMile) || 0;
+      hookEnabled = false;
+      hookAmount = 0;
+      baseLabel = profile.name;
+    } else if (account) {
+      basePrice = 0;
+      pricePerMile = Number(account.rateBC) || 0;
+      hookAmount = Number(account.hookupFee) || 0;
+      hookEnabled = hookAmount > 0;
+      baseLabel = (selectedServiceType || account.name || 'Account').trim();
+    }
+
+    if (basePrice > 0 && baseLabel) {
+      this.invoiceServiceItems.unshift({
+        serviceName: `${baseLabel}${baseSuffix}`,
+        quantity: 1,
+        price: basePrice,
+        total: basePrice
+      });
+    }
+
     charges.patchValue({
-      loadedHookedMileagePrice: profile.loadedPrice,
-      deadHeadMileagePrice: profile.deadHeadPrice
+      unloadedEnrouteMileagePrice: 0,
+      deadHeadMileagePrice: 0,
+      loadedHookedMileagePrice: pricePerMile,
+      hookupFee: hookEnabled ? hookAmount : 0
     });
 
     this.calculateInvoiceTotals();
@@ -1449,6 +1618,7 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
 
   closeCreateJobModal(): void {
     this.closeLocationMapModal();
+    this.showQuoteReviewModal = false;
     this.showCreateJobModal = false;
     this.activeCreateJobTab = 'details';
     this.createJobForm.reset();
@@ -1647,9 +1817,13 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
       }
 
       const serviceItemsTotal = this.invoiceServiceItems.reduce((sum: number, item: any) => sum + (item.quantity * item.price), 0);
+      const svcProfile = this.getSelectedServicePricingProfile();
+      const serviceTypeStr = String(this.createJobForm.get('serviceType')?.value || '').trim();
       const quote = await firstValueFrom(this.pricingService.quote({
         accountId: Number.isFinite(accountId as number) ? accountId : undefined,
         accountName: accountName || undefined,
+        servicePricingProfileId: svcProfile?.id,
+        serviceName: serviceTypeStr || undefined,
         milesAB,
         milesBC,
         milesCA,
@@ -1682,6 +1856,10 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
         taxExempt: quote.taxExempt
       });
       this.createJobForm.patchValue({ cost: quote.grandTotal });
+      if (this.showQuoteReviewModal) {
+        this.quoteReviewSummary = this.buildQuoteReviewSummary();
+        void this.refreshQuotePdfPreview();
+      }
     } catch (error: any) {
       this.createJobError = error?.error?.message || 'Failed to calculate pricing. Please review account, addresses, and pricing values.';
     } finally {
@@ -1724,7 +1902,849 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
     return miles;
   }
 
+  onViewQuote(): void {
+    this.createJobValidationAttempted = true;
+    this.markAllFieldsAsTouched();
+    const validationErrors = this.getValidationErrors();
+    if (validationErrors.length > 0) {
+      this.validationErrorList = validationErrors;
+      this.createJobError = `Please fix ${validationErrors.length} error${validationErrors.length > 1 ? 's' : ''} below`;
+      setTimeout(() => {
+        const errorElement =
+          document.getElementById('create-job-validation-footer') ||
+          document.getElementById('validation-errors');
+        if (errorElement) {
+          errorElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }, 100);
+      return;
+    }
+    this.validationErrorList = [];
+    this.createJobError = null;
+    this.quoteSmsPhone = this.getDefaultQuoteSmsPhone();
+    this.quoteReviewSummary = this.buildQuoteReviewSummary();
+    this.showQuoteReviewModal = true;
+    void this.refreshQuotePdfPreview();
+  }
+
+  closeQuoteReviewModal(): void {
+    this.showQuoteReviewModal = false;
+    this.quoteReviewSummary = null;
+    this.revokeQuotePdfObjectUrl();
+    this.quotePdfGenerating = false;
+    this.quotePdfError = null;
+  }
+
+  private revokeQuotePdfObjectUrl(): void {
+    if (this.quotePdfBlobUrl) {
+      URL.revokeObjectURL(this.quotePdfBlobUrl);
+      this.quotePdfBlobUrl = null;
+    }
+    this.quotePdfSafeUrl = null;
+  }
+
+  /** Build PDF blob and show it in the quote modal iframe (same layout as download). */
+  async refreshQuotePdfPreview(): Promise<void> {
+    const summary = this.quoteReviewSummary;
+    if (!summary) {
+      return;
+    }
+    this.revokeQuotePdfObjectUrl();
+    this.quotePdfGenerating = true;
+    this.quotePdfError = null;
+    this.cdr.markForCheck();
+    try {
+      const doc = await this.renderQuotePdfDocument(summary);
+      const blob = doc.output('blob');
+      this.quotePdfBlobUrl = URL.createObjectURL(blob);
+      this.quotePdfSafeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(this.quotePdfBlobUrl);
+    } catch {
+      this.quotePdfError = 'Could not generate PDF preview. Try Download PDF or refresh the page.';
+    } finally {
+      this.quotePdfGenerating = false;
+      this.cdr.markForCheck();
+    }
+  }
+
+  buildQuoteReviewSummary(): QuoteReviewSummary {
+    const raw: any = this.createJobForm.getRawValue();
+    const mileage: { label: string; value: string }[] = [];
+
+    if (
+      this.officeToPickupMiles != null ||
+      this.pickupToDestinationMiles != null ||
+      this.dropoffToOfficeMiles != null
+    ) {
+      mileage.push(
+        {
+          label: 'Enroute',
+          value: this.officeToPickupMiles != null ? `${this.officeToPickupMiles} mi` : '—'
+        },
+        {
+          label: 'Loaded',
+          value: this.pickupToDestinationMiles != null ? `${this.pickupToDestinationMiles} mi` : '—'
+        },
+        {
+          label: 'Deadhead',
+          value: this.dropoffToOfficeMiles != null ? `${this.dropoffToOfficeMiles} mi` : '—'
+        }
+      );
+    } else {
+      const ch = raw.invoiceCharges || {};
+      mileage.push(
+        { label: 'Enroute (mi)', value: String(ch.unloadedEnrouteMileageQuantity ?? '0') },
+        { label: 'Loaded (mi)', value: String(ch.loadedHookedMileageQuantity ?? '0') },
+        { label: 'Deadhead (mi)', value: String(ch.deadHeadMileageQuantity ?? '0') }
+      );
+    }
+
+    const client: { label: string; value: string }[] = [
+      { label: 'Client', value: this.formatQuoteClientSummaryLine() }
+    ];
+
+    const pickup = String(raw.pickupLocation ?? '').trim() || '—';
+    const destination = String(raw.destinationAddress ?? raw.dropoffLocation ?? '').trim() || '—';
+    const serviceType = String(raw.serviceType ?? '').trim() || '—';
+
+    let vehicleLabel = '—';
+    if (this.useExistingVehicle && raw.vehicle?.vehicleId) {
+      const vid = parseInt(String(raw.vehicle.vehicleId), 10);
+      const veh =
+        this.vehicles.find((x) => x.id === vid) || this.filteredVehicles.find((x) => x.id === vid);
+      vehicleLabel = veh ? this.getVehicleDisplay(veh) : `Vehicle ID ${raw.vehicle.vehicleId}`;
+    } else {
+      const y = raw.vehicle?.vehicleYear;
+      const mk = raw.vehicle?.vehicleMake;
+      const md = raw.vehicle?.vehicleModel;
+      const col = raw.vehicle?.vehicleColor;
+      const plate = raw.vehicle?.licensePlate;
+      const st = raw.vehicle?.licenseState;
+      const desc = [y, mk, md]
+        .filter((x) => x != null && String(x).trim() !== '')
+        .map((x) => String(x).trim())
+        .join(' ');
+      if (desc) {
+        vehicleLabel = col ? `${desc} (${col})` : desc;
+      } else {
+        const vin = String(raw.vehicle?.vehicleVin ?? '').trim();
+        vehicleLabel = vin ? `VIN ${vin}` : '—';
+      }
+      if (plate) {
+        const pl = `${plate}${st ? ' (' + st + ')' : ''}`;
+        vehicleLabel = vehicleLabel === '—' ? `Plate ${pl}` : `${vehicleLabel} · ${pl}`;
+      }
+    }
+
+    const q = this.latestQuote;
+    const totalAmount = q ? this.formatCurrency(q.grandTotal) : this.formatCurrency(this.getGrandTotal());
+    const now = new Date();
+    const validUntil = new Date(now);
+    validUntil.setDate(validUntil.getDate() + 7);
+    const dateFmt: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric' };
+    const quoteDateDisplay = now.toLocaleDateString('en-US', dateFmt);
+    const validUntilDisplay = validUntil.toLocaleDateString('en-US', dateFmt);
+    const y = now.getFullYear();
+    const quoteRef = `QT-${y}-${String(Math.floor(Math.random() * 1_000_000)).padStart(6, '0')}`;
+
+    const fromLines: string[] = [];
+    const co = String(raw.companyName ?? '').trim();
+    if (co) {
+      fromLines.push(co);
+    }
+    const dispatchPhone = String(raw.contactPhoneNumber ?? '').trim();
+    if (dispatchPhone) {
+      fromLines.push(dispatchPhone);
+    }
+
+    const toLines: string[] = [];
+    const cn = String(raw.contactName ?? '').trim();
+    if (cn) {
+      toLines.push(cn);
+    }
+    const clientLine = this.formatQuoteClientSummaryLine();
+    if (clientLine && clientLine !== '—') {
+      toLines.push(clientLine);
+    }
+    if (toLines.length === 0) {
+      toLines.push('—');
+    }
+
+    const lineItems = this.buildQuoteLineItems(serviceType, raw);
+
+    let totalsSubtotal: string;
+    let totalsTaxLabel: string;
+    let totalsTax: string;
+    if (q) {
+      totalsSubtotal = this.formatCurrency(q.taxableAmount);
+      totalsTaxLabel = q.taxExempt ? 'Tax (exempt)' : `Tax (${q.taxPercent}%)`;
+      totalsTax = this.formatCurrency(q.taxAmount);
+    } else {
+      totalsSubtotal = this.formatCurrency(this.getTaxableAmount());
+      const taxExempt = !!raw.invoiceCharges?.taxExempt;
+      const taxPct = parseFloat(raw.invoiceCharges?.taxPercent ?? '0') || 0;
+      totalsTaxLabel = taxExempt ? 'Tax (exempt)' : `Tax (${taxPct}%)`;
+      totalsTax = this.formatCurrency(this.getTaxes());
+    }
+
+    const notesRaw = String(raw.notes ?? '').trim();
+    const notesPreview =
+      notesRaw ||
+      'Additional information about the job can be added in the job notes before sending this quote.';
+
+    return {
+      quoteRef,
+      quoteDateDisplay,
+      validUntilDisplay,
+      fromLines,
+      toLines,
+      lineItems,
+      totalsSubtotal,
+      totalsTaxLabel,
+      totalsTax,
+      mileage,
+      client,
+      pickup,
+      destination,
+      serviceType,
+      vehicleLabel,
+      totalAmount,
+      notesPreview,
+      footerNote: `Generated ${now.toLocaleString()}`
+    };
+  }
+
+  private buildQuoteLineItems(serviceType: string, raw: any): QuoteLineItem[] {
+    const rows: QuoteLineItem[] = [];
+    const q = this.latestQuote;
+
+    if (q) {
+      if (q.hookupFee > 0) {
+        rows.push({
+          description: 'Hookup fee',
+          quantity: '1',
+          unitPrice: this.formatCurrency(q.hookupFee),
+          amount: this.formatCurrency(q.hookupFee)
+        });
+      }
+      if (q.chargeBC > 0) {
+        rows.push({
+          description: `Loaded transport (${q.billableMiles} mi billable)`,
+          quantity: String(q.billableMiles),
+          unitPrice: this.formatCurrency(q.rateBC),
+          amount: this.formatCurrency(q.chargeBC)
+        });
+      }
+      if (q.extraItemsTotal > 0) {
+        rows.push({
+          description: 'Additional services & fees',
+          quantity: '1',
+          unitPrice: '—',
+          amount: this.formatCurrency(q.extraItemsTotal)
+        });
+      }
+      if (q.discountAmount > 0) {
+        rows.push({
+          description: 'Discount',
+          quantity: '1',
+          unitPrice: '—',
+          amount: `-${this.formatCurrency(q.discountAmount)}`
+        });
+      }
+      if (q.serviceChargeAmount > 0) {
+        rows.push({
+          description: `Service charge (${q.serviceChargePercent}%)`,
+          quantity: '1',
+          unitPrice: '—',
+          amount: this.formatCurrency(q.serviceChargeAmount)
+        });
+      }
+    } else {
+      const ch = raw.invoiceCharges || {};
+      const hook = parseFloat(ch.hookupFee) || 0;
+      const loadedQty = parseFloat(ch.loadedHookedMileageQuantity) || 0;
+      const loadedPrice = parseFloat(ch.loadedHookedMileagePrice) || 0;
+      const freeAllow = this.latestQuote?.pricingFreeMilesAllowance ?? 0;
+      const billable = Math.max(0, loadedQty - freeAllow);
+      const loadedAmt = billable * loadedPrice;
+
+      if (hook > 0) {
+        rows.push({
+          description: 'Hookup fee',
+          quantity: '1',
+          unitPrice: this.formatCurrency(hook),
+          amount: this.formatCurrency(hook)
+        });
+      }
+      if (loadedAmt > 0) {
+        rows.push({
+          description: `${serviceType || 'Towing'} — loaded mileage`,
+          quantity: String(billable),
+          unitPrice: this.formatCurrency(loadedPrice),
+          amount: this.formatCurrency(loadedAmt)
+        });
+      }
+      for (const item of this.invoiceServiceItems) {
+        const name = String(item.serviceName || '').trim() || 'Line item';
+        const qty = Number(item.quantity) || 0;
+        const price = Number(item.price) || 0;
+        const amt = qty * price;
+        if (amt <= 0) {
+          continue;
+        }
+        rows.push({
+          description: name,
+          quantity: String(qty),
+          unitPrice: this.formatCurrency(price),
+          amount: this.formatCurrency(amt)
+        });
+      }
+      const discountFlat = parseFloat(ch.discount) || 0;
+      const discountPct = parseFloat(ch.discountPercent) || 0;
+      const subPre = this.getSubtotal();
+      const discAmt = discountFlat > 0 ? discountFlat : subPre * (discountPct / 100);
+      if (discAmt > 0) {
+        rows.push({
+          description: 'Discount',
+          quantity: '1',
+          unitPrice: '—',
+          amount: `-${this.formatCurrency(discAmt)}`
+        });
+      }
+      const scPct = parseFloat(ch.serviceChargePercent) || 0;
+      const afterDisc = Math.max(0, subPre - discAmt);
+      const scAmt = afterDisc * (scPct / 100);
+      if (scAmt > 0) {
+        rows.push({
+          description: `Service charge (${scPct}%)`,
+          quantity: '1',
+          unitPrice: '—',
+          amount: this.formatCurrency(scAmt)
+        });
+      }
+    }
+
+    if (rows.length === 0) {
+      const est = this.latestQuote ? this.latestQuote.grandTotal : this.getGrandTotal();
+      rows.push({
+        description: `${serviceType || 'Towing'} — service estimate`,
+        quantity: '1',
+        unitPrice: this.formatCurrency(est),
+        amount: this.formatCurrency(est)
+      });
+    }
+
+    return rows;
+  }
+
+  /** Client as "Name (phone)" for quote modal, PDF, and SMS body (no separate contact fields). */
+  formatQuoteClientSummaryLine(): string {
+    const raw: any = this.createJobForm.getRawValue();
+    if (this.useExistingClient && raw.client?.clientId) {
+      const cid = String(raw.client.clientId);
+      const cli =
+        this.createJobSelectedClient && String(this.createJobSelectedClient.id) === cid
+          ? this.createJobSelectedClient
+          : null;
+      let clientLine = `Client ID ${cid}`;
+      if (cli) {
+        const name = String(cli.fullName ?? '').trim();
+        const phone = String(cli.phoneNumber ?? '').trim();
+        if (name && phone) {
+          clientLine = `${name} (${phone})`;
+        } else if (name) {
+          clientLine = name;
+        } else if (phone) {
+          clientLine = phone;
+        } else {
+          clientLine = this.formatCreateJobClientLabel(cli);
+        }
+      }
+      return clientLine;
+    }
+    const name = String(raw.client?.clientFullName ?? '').trim();
+    const phone = String(raw.client?.clientPhoneNumber ?? '').trim();
+    if (name && phone) {
+      return `${name} (${phone})`;
+    }
+    if (name) {
+      return name;
+    }
+    if (phone) {
+      return phone;
+    }
+    return '—';
+  }
+
+  private getDefaultQuoteSmsPhone(): string {
+    const contact = String(this.createJobForm.get('contactPhoneNumber')?.value ?? '').trim();
+    if (contact) {
+      return contact;
+    }
+    const newClientPhone = String(this.createJobForm.get('client.clientPhoneNumber')?.value ?? '').trim();
+    if (newClientPhone) {
+      return newClientPhone;
+    }
+    const sel = this.createJobSelectedClient?.phoneNumber;
+    if (sel && String(sel).trim()) {
+      return String(sel).trim();
+    }
+    return '';
+  }
+
+  buildQuoteDocumentText(options?: { forSms?: boolean }): string {
+    const raw: any = this.createJobForm.getRawValue();
+    const lines: string[] = [];
+    const push = (s: string) => lines.push(s);
+    const pushKv = (label: string, value: string | number | null | undefined) => {
+      const t = value === null || value === undefined ? '' : String(value).trim();
+      push(`${label}: ${t || '—'}`);
+    };
+
+    push('STRONG TOWING — SERVICE QUOTE (ESTIMATE)');
+    if (this.quoteReviewSummary?.quoteRef) {
+      push(`Reference: ${this.quoteReviewSummary.quoteRef}`);
+    }
+    push('This quote is an estimate and does not create a job in the system.');
+    push('');
+    pushKv('Company', raw.companyName);
+    const accRaw = raw.account;
+    if (accRaw !== null && accRaw !== undefined && String(accRaw).trim() !== '') {
+      const id = Number(accRaw);
+      const acc = this.insuranceAccounts.find((a) => a.id === id);
+      pushKv('Account', acc ? this.insuranceAccountOptionLabel(acc) : String(accRaw));
+    } else {
+      pushKv('Account', '');
+    }
+    if (raw.companyOverride) {
+      pushKv('Company override (invoice)', raw.companyOverride);
+    }
+    pushKv('Call type', raw.callType);
+    pushKv('Priority', raw.priority);
+    pushKv('Service type', raw.serviceType);
+    const svcProf = this.getSelectedServicePricingProfile();
+    if (svcProf) {
+      pushKv('Pricing profile', svcProf.name);
+    }
+    push('');
+    push('--- Client ---');
+    pushKv('Client', this.formatQuoteClientSummaryLine());
+    push('');
+    push('--- Locations ---');
+    pushKv('Pickup', raw.pickupLocation);
+    pushKv('Destination', raw.destinationAddress || raw.dropoffLocation);
+    if (
+      this.officeToPickupMiles != null ||
+      this.pickupToDestinationMiles != null ||
+      this.dropoffToOfficeMiles != null
+    ) {
+      push('');
+      push('--- Driving distances (mi) ---');
+      pushKv('Enroute', this.officeToPickupMiles != null ? this.officeToPickupMiles : '—');
+      pushKv('Loaded', this.pickupToDestinationMiles != null ? this.pickupToDestinationMiles : '—');
+      pushKv('Deadhead', this.dropoffToOfficeMiles != null ? this.dropoffToOfficeMiles : '—');
+    }
+    push('');
+    push('--- Vehicle ---');
+    if (this.useExistingVehicle && raw.vehicle?.vehicleId) {
+      const vid = parseInt(String(raw.vehicle.vehicleId), 10);
+      const veh =
+        this.vehicles.find((x) => x.id === vid) || this.filteredVehicles.find((x) => x.id === vid);
+      pushKv('Vehicle', veh ? this.getVehicleDisplay(veh) : `Vehicle ID ${raw.vehicle.vehicleId}`);
+    } else {
+      pushKv('VIN', raw.vehicle?.vehicleVin);
+      pushKv('Make', raw.vehicle?.vehicleMake);
+      pushKv('Model', raw.vehicle?.vehicleModel);
+      pushKv('Year', raw.vehicle?.vehicleYear);
+      pushKv('Color', raw.vehicle?.vehicleColor);
+      const plate = raw.vehicle?.licensePlate;
+      const st = raw.vehicle?.licenseState;
+      pushKv('License plate', plate ? `${plate}${st ? ' (' + st + ')' : ''}` : '');
+    }
+    if (raw.notes) {
+      push('');
+      push('--- Notes ---');
+      push(String(raw.notes));
+    }
+    if (raw.billingNotes) {
+      push('');
+      push('--- Billing notes ---');
+      push(String(raw.billingNotes));
+    }
+
+    const ch = raw.invoiceCharges || {};
+    push('');
+    push('--- Invoice charge inputs ---');
+    pushKv('Hookup fee', this.formatCurrency(parseFloat(ch.hookupFee) || 0));
+    pushKv('Unloaded en-route (mi × $/mi)', `${ch.unloadedEnrouteMileageQuantity ?? 0} × ${this.formatCurrency(parseFloat(ch.unloadedEnrouteMileagePrice) || 0)}`);
+    pushKv('Loaded / hooked (mi × $/mi)', `${ch.loadedHookedMileageQuantity ?? 0} × ${this.formatCurrency(parseFloat(ch.loadedHookedMileagePrice) || 0)}`);
+    pushKv('Deadhead (mi × $/mi)', `${ch.deadHeadMileageQuantity ?? 0} × ${this.formatCurrency(parseFloat(ch.deadHeadMileagePrice) || 0)}`);
+    pushKv('Discount ($)', this.formatCurrency(parseFloat(ch.discount) || 0));
+    pushKv('Discount (%)', String(ch.discountPercent ?? 0));
+    pushKv('Service charge (%)', String(ch.serviceChargePercent ?? 0));
+    pushKv('Tax (%)', String(ch.taxPercent ?? 0));
+    pushKv('Tax exempt', ch.taxExempt ? 'Yes' : 'No');
+    if (ch.manualTotalOverride != null && ch.manualTotalOverride !== '') {
+      pushKv('Manual total override', String(ch.manualTotalOverride));
+      pushKv('Override reason', ch.manualOverrideReason);
+    }
+
+    if (this.invoiceServiceItems.length > 0) {
+      push('');
+      push('--- Extra service line items ---');
+      for (const item of this.invoiceServiceItems) {
+        const name = String(item.serviceName || '').trim() || '(line item)';
+        const qty = Number(item.quantity) || 0;
+        const price = Number(item.price) || 0;
+        push(`  • ${name}  qty ${qty} @ ${this.formatCurrency(price)} = ${this.formatCurrency(qty * price)}`);
+      }
+    }
+
+    const q = this.latestQuote;
+    if (q) {
+      push('');
+      push('--- Server quote (Calculate Price) ---');
+      pushKv('Account (quote)', q.accountName ?? '');
+      pushKv('Miles A→B / B→C / C→A', `${q.milesAB} / ${q.milesBC} / ${q.milesCA}`);
+      pushKv('Billable miles (loaded)', String(q.billableMiles));
+      pushKv('Free miles applied', String(q.freeMilesApplied));
+      pushKv('Pricing free-mile allowance', String(q.pricingFreeMilesAllowance));
+      pushKv('Hookup fee', this.formatCurrency(q.hookupFee));
+      pushKv('Rate A→B / B→C / C→A per mi', `${this.formatCurrency(q.rateAB)} / ${this.formatCurrency(q.rateBC)} / ${this.formatCurrency(q.rateCA)}`);
+      pushKv('Charge A→B / B→C / C→A', `${this.formatCurrency(q.chargeAB)} / ${this.formatCurrency(q.chargeBC)} / ${this.formatCurrency(q.chargeCA)}`);
+      pushKv('Extra items total', this.formatCurrency(q.extraItemsTotal));
+      pushKv('Base subtotal', this.formatCurrency(q.baseSubtotal));
+      pushKv('Discount', this.formatCurrency(q.discountAmount));
+      pushKv('After discount', this.formatCurrency(q.afterDiscount));
+      pushKv('Service charge', `${q.serviceChargePercent}% → ${this.formatCurrency(q.serviceChargeAmount)}`);
+      pushKv('Taxable amount', this.formatCurrency(q.taxableAmount));
+      pushKv(`Tax (${q.taxExempt ? 'exempt' : String(q.taxPercent) + '%'})`, this.formatCurrency(q.taxAmount));
+      pushKv('Grand total (server)', this.formatCurrency(q.grandTotal));
+      if (q.manualTotalOverrideApplied) {
+        pushKv('Manual override applied', String(q.manualTotalOverrideApplied));
+        if (q.manualTotalOverride != null) {
+          pushKv('Manual override total', this.formatCurrency(Number(q.manualTotalOverride)));
+        }
+        if (q.manualOverrideReason) {
+          pushKv('Manual override reason', q.manualOverrideReason);
+        }
+      }
+    } else if (!options?.forSms) {
+      push('');
+      push('Tip: Use "Calculate Price" on the Payment tab for a detailed server-side quote breakdown.');
+    }
+
+    push('');
+    push('--- Totals (from form / calculator) ---');
+    pushKv('Subtotal', this.formatCurrency(this.getSubtotal()));
+    pushKv('Taxes', this.formatCurrency(this.getTaxes()));
+    pushKv('Grand total', this.formatCurrency(this.getGrandTotal()));
+    pushKv('Final cost field', this.formatCurrency(parseFloat(raw.cost) || 0));
+
+    push('');
+    push(`Generated ${new Date().toLocaleString()}`);
+
+    return lines.join('\n');
+  }
+
+  async downloadQuoteExport(): Promise<void> {
+    const summary = this.quoteReviewSummary ?? this.buildQuoteReviewSummary();
+    const doc = await this.renderQuotePdfDocument(summary);
+    const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const fileName = `towing-quote-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.pdf`;
+    doc.save(fileName);
+  }
+
+  private async renderQuotePdfDocument(summary: QuoteReviewSummary): Promise<import('jspdf').jsPDF> {
+    const { jsPDF } = await import('jspdf');
+    const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+    const margin = 48;
+    let y = margin;
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const contentW = pageW - margin * 2;
+    const lineH = 11.5;
+    const gap = 6;
+    const primary: [number, number, number] = [44, 62, 80];
+    const lightGray: [number, number, number] = [242, 242, 242];
+    const mid = margin + contentW / 2 + 6;
+    const colW = contentW / 2 - 20;
+    const totW = 220;
+    const totX = pageW - margin - totW;
+    const cQty = pageW - margin - 168;
+    const cUnit = pageW - margin - 108;
+    const cAmt = pageW - margin - 8;
+
+    const ensureSpace = (h: number) => {
+      if (y + h > pageH - margin) {
+        doc.addPage();
+        y = margin;
+      }
+    };
+
+    const hr = () => {
+      ensureSpace(gap + 4);
+      y += 4;
+      doc.setDrawColor(220, 220, 220);
+      doc.line(margin, y, pageW - margin, y);
+      y += gap + 6;
+    };
+
+    const writeParagraph = (text: string, x: number, maxW: number, fontSize = 9) => {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(fontSize);
+      doc.setTextColor(...primary);
+      const lines = doc.splitTextToSize(text, maxW);
+      for (const line of lines) {
+        ensureSpace(lineH);
+        doc.text(line, x, y);
+        y += lineH;
+      }
+    };
+
+    const columnHeight = (lines: string[], x: number, startY: number, w: number): number => {
+      let yy = startY;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(...primary);
+      for (const ln of lines) {
+        const parts = doc.splitTextToSize(ln, w);
+        for (const p of parts) {
+          doc.text(p, x, yy);
+          yy += lineH;
+        }
+      }
+      return yy;
+    };
+
+    // Header — left: logo (from logo.svg embedded PNG) or company name; right: QUOTE + meta
+    const yHeader = y;
+    const logoDataUrl = await this.getQuoteLogoPngDataUrl();
+    const logoWPt = 108;
+    const logoHPt = (32 / 142) * logoWPt;
+    if (logoDataUrl) {
+      try {
+        doc.addImage(logoDataUrl, 'PNG', margin, yHeader, logoWPt, logoHPt);
+      } catch {
+        doc.setTextColor(...primary);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(12);
+        doc.text(summary.fromLines[0] || 'Strong Towing', margin, yHeader + 12);
+      }
+    } else {
+      doc.setTextColor(...primary);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.text(summary.fromLines[0] || 'Strong Towing', margin, yHeader + 12);
+    }
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(120, 128, 136);
+    const taglineY = logoDataUrl ? yHeader + logoHPt + 8 : yHeader + 26;
+    doc.text('Service quote (estimate)', margin, taglineY);
+    doc.setTextColor(...primary);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(20);
+    doc.text('QUOTE', pageW - margin, yHeader + 14, { align: 'right' });
+    doc.setFontSize(10);
+    doc.text(summary.quoteRef, pageW - margin, yHeader + 30, { align: 'right' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text(`Date: ${summary.quoteDateDisplay}`, pageW - margin, yHeader + 44, { align: 'right' });
+    doc.text(`Valid until: ${summary.validUntilDisplay}`, pageW - margin, yHeader + 56, { align: 'right' });
+
+    y = yHeader + 72;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(100, 110, 120);
+    writeParagraph('This document is a price estimate only and does not book a job until submitted as a regular call.', margin, contentW, 8);
+    doc.setTextColor(...primary);
+    y += 4;
+    hr();
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('FROM', margin, y);
+    doc.text('TO', mid, y);
+    y += lineH + 2;
+    const yFromStart = y;
+    const endFrom = columnHeight(summary.fromLines.slice(1), margin, yFromStart, colW);
+    const endTo = columnHeight(summary.toLines, mid, yFromStart, colW);
+    y = Math.max(endFrom, endTo) + gap;
+    hr();
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('SERVICE & VEHICLE', margin, y);
+    doc.text('LOCATIONS', mid, y);
+    y += lineH + 2;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    ensureSpace(lineH * 4);
+    doc.text(`Service type: ${summary.serviceType}`, margin, y);
+    doc.text(`Vehicle: ${summary.vehicleLabel}`, margin, y + lineH);
+    const pickupLines = doc.splitTextToSize(`Pickup: ${summary.pickup}`, colW);
+    let yR = y;
+    for (const pl of pickupLines) {
+      doc.text(pl, mid, yR);
+      yR += lineH;
+    }
+    const destLines = doc.splitTextToSize(`Destination: ${summary.destination}`, colW);
+    for (const dl of destLines) {
+      doc.text(dl, mid, yR);
+      yR += lineH;
+    }
+    y = Math.max(y + lineH * 2, yR) + gap;
+    hr();
+
+    if (summary.mileage.length > 0) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.text('Driving distances', margin, y);
+      y += lineH + 2;
+      doc.setFont('helvetica', 'normal');
+      for (const m of summary.mileage) {
+        ensureSpace(lineH);
+        doc.text(`${m.label}: ${m.value}`, margin, y);
+        y += lineH;
+      }
+      y += gap;
+      hr();
+    }
+
+    // Line items table
+    ensureSpace(28);
+    doc.setFillColor(...lightGray);
+    doc.rect(margin, y - 2, contentW, 16, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(...primary);
+    doc.text('DESCRIPTION', margin + 4, y + 9);
+    doc.text('QTY', cQty, y + 9);
+    doc.text('UNIT PRICE', cUnit, y + 9, { align: 'right' });
+    doc.text('AMOUNT', cAmt, y + 9, { align: 'right' });
+    y += 22;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    for (const row of summary.lineItems) {
+      const descW = cQty - margin - 14;
+      const descLines = doc.splitTextToSize(row.description, descW);
+      const h = Math.max(lineH, descLines.length * lineH);
+      ensureSpace(h + 6);
+      doc.text(descLines, margin + 4, y);
+      doc.text(row.quantity, cQty, y);
+      doc.text(row.unitPrice, cUnit, y, { align: 'right' });
+      doc.text(row.amount, cAmt, y, { align: 'right' });
+      y += h + 4;
+    }
+
+    y += 10;
+    // Totals
+    ensureSpace(72);
+    doc.setFillColor(...lightGray);
+    doc.rect(totX, y - 6, totW, 18, 'F');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(...primary);
+    doc.text('Subtotal', totX + 8, y + 6);
+    doc.text(summary.totalsSubtotal, pageW - margin - 8, y + 6, { align: 'right' });
+    y += 22;
+    doc.setFillColor(255, 255, 255);
+    doc.rect(totX, y - 6, totW, 18, 'F');
+    doc.setTextColor(...primary);
+    doc.text(summary.totalsTaxLabel, totX + 8, y + 6);
+    doc.text(summary.totalsTax, pageW - margin - 8, y + 6, { align: 'right' });
+    y += 22;
+    doc.setFillColor(...primary);
+    doc.rect(totX, y - 6, totW, 22, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(255, 255, 255);
+    doc.text('Total', totX + 8, y + 8);
+    doc.text(summary.totalAmount, pageW - margin - 8, y + 8, { align: 'right' });
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'normal');
+    y += 32;
+
+    hr();
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...primary);
+    doc.text('NOTES', margin, y);
+    doc.text('THANK YOU', mid, y);
+    y += lineH + 2;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    const notesH = columnHeight([summary.notesPreview], margin, y, colW);
+    const thanksH = columnHeight(['We appreciate your business!'], mid, y, colW);
+    y = Math.max(notesH, thanksH) + gap;
+
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    writeParagraph(summary.footerNote, margin, contentW, 8);
+
+    return doc;
+  }
+
+  /**
+   * jsPDF cannot render SVG reliably; `logo.svg` embeds a PNG. Fetch SVG, extract data URL for addImage.
+   */
+  private async getQuoteLogoPngDataUrl(): Promise<string | null> {
+    if (this.quoteLogoPngDataUrl !== undefined) {
+      return this.quoteLogoPngDataUrl;
+    }
+    try {
+      const url = new URL('images/logo.svg', document.baseURI).toString();
+      const res = await fetch(url);
+      if (!res.ok) {
+        this.quoteLogoPngDataUrl = null;
+        return null;
+      }
+      const svg = await res.text();
+      const m =
+        svg.match(/href="(data:image\/png;base64,[^"]+)"/i) ||
+        svg.match(/xlink:href="(data:image\/png;base64,[^"]+)"/i);
+      this.quoteLogoPngDataUrl = m?.[1] ?? null;
+      return this.quoteLogoPngDataUrl;
+    } catch {
+      this.quoteLogoPngDataUrl = null;
+      return null;
+    }
+  }
+
+  openEmailWithQuote(): void {
+    const summary = this.quoteReviewSummary ?? this.buildQuoteReviewSummary();
+    const subject = `Quote ${summary.quoteRef} — ${summary.fromLines[0] || 'Strong Towing'}`;
+    const maxChars = 1800;
+    let body = this.buildQuoteDocumentText();
+    if (body.length > maxChars) {
+      body = body.slice(0, maxChars - 80) + '\n\n… (truncated — use Export PDF for the full formatted quote.)';
+    }
+    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  }
+
+  openSmsWithQuote(): void {
+    const digits = this.quoteSmsPhone.replace(/\D/g, '');
+    if (!digits) {
+      return;
+    }
+    const maxChars = 1600;
+    let body = this.buildQuoteDocumentText({ forSms: true });
+    if (body.length > maxChars) {
+      body = body.slice(0, maxChars - 50) + '\n\n… (truncated — use Export for full quote)';
+    }
+    window.location.href = `sms:${digits}?body=${encodeURIComponent(body)}`;
+  }
+
+  quoteSmsRecipientReady(): boolean {
+    return this.quoteSmsPhone.replace(/\D/g, '').length > 0;
+  }
+
   onCreateJob(): void {
+    if (this.createJobForm.get('callType')?.value === 'Quote') {
+      this.onViewQuote();
+      return;
+    }
     this.createJobValidationAttempted = true;
     // Mark all fields as touched to show validation errors
     this.markAllFieldsAsTouched();
@@ -1774,7 +2794,9 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
     
     const serviceItemsTotal = this.invoiceServiceItems.reduce((sum: number, item: any) => 
       sum + (item.quantity * item.price), 0);
-    const subtotal = hookupFee + (unloadedQty * unloadedPrice) + (loadedQty * loadedPrice) + (deadQty * deadPrice) + serviceItemsTotal;
+    const freeAllowSubmit = this.latestQuote?.pricingFreeMilesAllowance ?? 0;
+    const billableLoadedSubmit = Math.max(0, loadedQty - freeAllowSubmit);
+    const subtotal = hookupFee + billableLoadedSubmit * loadedPrice + serviceItemsTotal;
     const effectiveDiscount = discount > 0 ? discount : (subtotal * (discountPercent / 100));
     const afterDiscount = Math.max(0, subtotal - effectiveDiscount);
     const serviceChargeAmount = afterDiscount * (serviceChargePercent / 100);
@@ -1785,6 +2807,7 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
     const jobData: CreateJobRequest = {
       cost: parseFloat(formValue.cost) || grandTotal,
       serviceType: formValue.serviceType,
+      servicePricingProfileId: this.getSelectedServicePricingProfile()?.id,
       pickupLocation: formValue.pickupLocation,
       dropoffLocation: formValue.dropoffLocation || formValue.destinationAddress || undefined,
       notes: formValue.notes || undefined,
@@ -1806,7 +2829,7 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
       eta: formValue.eta || undefined,
       // Assignment
       driverId: formValue.driverId || undefined,
-      truckId: formValue.truckId || undefined,
+      truckId: this.parseOptionalTruckId(formValue.truckId),
       // Notes
       billingNotes: formValue.billingNotes || undefined,
       includeBillingNotesOnReceipt: formValue.includeBillingNotesOnReceipt || false,
@@ -2016,12 +3039,46 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
     this.pushNotificationWarning = null;
   }
 
+  saveJobTruckAssignment(): void {
+    if (!this.selectedJob) {
+      return;
+    }
+    if (
+      this.selectedJob.status === JOB_STATUS.Completed ||
+      this.selectedJob.status === JOB_STATUS.Cancelled
+    ) {
+      return;
+    }
+    this.detailTruckSaving = true;
+    this.detailTruckError = null;
+    this.jobService
+      .updateJobTruck(this.selectedJob.id, { truckId: this.detailTruckId })
+      .pipe(
+        finalize(() => {
+          this.detailTruckSaving = false;
+        })
+      )
+      .subscribe({
+        next: (updated) => {
+          this.selectedJob = updated;
+          this.loadJobs();
+        },
+        error: (err: { error?: { message?: string } }) => {
+          this.detailTruckError = err.error?.message || 'Failed to update truck';
+        }
+      });
+  }
+
   openJobDetails(job: Job): void {
     this.selectedJob = job;
     this.showJobDetailsModal = true;
+    this.detailTruckId = job.truckId ?? null;
+    this.detailTruckSaving = false;
+    this.detailTruckError = null;
     this.priceOverrideError = null;
     this.priceOverrideSubmitting = false;
     this.priceOverrideReason = '';
+    this.priceOverrideCommissionVisible = false;
     this.priceOverrideCost =
       job.cost !== null && job.cost !== undefined && Number.isFinite(Number(job.cost))
         ? Number(job.cost)
@@ -2053,6 +3110,8 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
   closeJobDetails(): void {
     this.showJobDetailsModal = false;
     this.selectedJob = null;
+    this.detailTruckId = null;
+    this.detailTruckError = null;
     this.priceOverrideError = null;
     this.priceOverrideReason = '';
     this.priceOverrideCost = null;
@@ -2130,7 +3189,11 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
       this.priceOverrideError = 'Please enter a reason (at least 5 characters).';
       return;
     }
-    const payload: OverrideJobPriceRequest = { cost, reason };
+    const payload: OverrideJobPriceRequest = {
+      cost,
+      reason,
+      commissionVisibleToDriver: this.priceOverrideCommissionVisible
+    };
     this.priceOverrideSubmitting = true;
     this.priceOverrideError = null;
     this.jobService.overrideJobPrice(this.selectedJob.id, payload).subscribe({
@@ -2214,21 +3277,29 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
     }).format(amount);
   }
 
+  /** Google Maps search URL for an address string (quote modal + PDF links). */
+  mapsLinkForAddress(address: string | null | undefined): string | null {
+    const t = String(address ?? '').trim();
+    if (!t || t === '—') {
+      return null;
+    }
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t)}`;
+  }
+
   // Helper methods for template calculations
   parseFloat(value: any): number {
     return parseFloat(value) || 0;
   }
 
   getSubtotal(): number {
-    const unloadedQty = parseFloat(this.createJobForm.get('invoiceCharges.unloadedEnrouteMileageQuantity')?.value || '0');
-    const unloadedPrice = parseFloat(this.createJobForm.get('invoiceCharges.unloadedEnrouteMileagePrice')?.value || '0');
     const loadedQty = parseFloat(this.createJobForm.get('invoiceCharges.loadedHookedMileageQuantity')?.value || '0');
     const loadedPrice = parseFloat(this.createJobForm.get('invoiceCharges.loadedHookedMileagePrice')?.value || '0');
-    const deadQty = parseFloat(this.createJobForm.get('invoiceCharges.deadHeadMileageQuantity')?.value || '0');
-    const deadPrice = parseFloat(this.createJobForm.get('invoiceCharges.deadHeadMileagePrice')?.value || '0');
     const hookupFee = parseFloat(this.createJobForm.get('invoiceCharges.hookupFee')?.value || '0');
     const serviceItemsTotal = this.invoiceServiceItems.reduce((sum, item) => sum + (item.quantity * item.price), 0);
-    return hookupFee + (unloadedQty * unloadedPrice) + (loadedQty * loadedPrice) + (deadQty * deadPrice) + serviceItemsTotal;
+    const freeAllow = this.latestQuote?.pricingFreeMilesAllowance ?? 0;
+    const billableLoaded = Math.max(0, loadedQty - freeAllow);
+    // Customer subtotal matches API: loaded (BC) miles only + hook + extras — not enroute/deadhead.
+    return hookupFee + billableLoaded * loadedPrice + serviceItemsTotal;
   }
 
   getTaxes(): number {

@@ -141,7 +141,13 @@ export interface Job {
   // Assignment
   driverId?: string | null;
   driverName?: string | null;
-  truckId?: string;
+  truckId?: number | null;
+  truck?: {
+    id: number;
+    unitLabel: string;
+    truckTypeId: number;
+    truckTypeName: string;
+  };
   
   // Financials
   cost: number;
@@ -149,6 +155,7 @@ export interface Job {
   driverCommissionRatePercent?: number | null;
   /** Estimated commission (cost × rate / 100). */
   driverCommissionEstimate?: number | null;
+  commissionVisibleToDriver?: boolean;
   /** Mirrors backend Job.PaymentStatus (e.g. Unpaid, Pending, Paid). */
   paymentStatus?: string;
   paymentMethod?: string;
@@ -302,7 +309,7 @@ export interface CreateJobRequest {
   
   // Assignment
   driverId?: string;
-  truckId?: string;
+  truckId?: number;
   
   // Notes
   notes?: string;
@@ -315,6 +322,8 @@ export interface CreateJobRequest {
   // Job data (required)
   cost: number;
   serviceType?: string;
+  /** Service catalog id for account+service pricing on the server. */
+  servicePricingProfileId?: number;
   dropoffLocation?: string; // Alias for destinationAddress
 
   billingPaymentMode?: string;
@@ -324,6 +333,10 @@ export interface CreateJobRequest {
 
 export interface AssignDriverRequest {
   driverId: string;
+}
+
+export interface UpdateJobTruckRequest {
+  truckId: number | null;
 }
 
 /** Response from POST jobs/{id}/assign — assignment always succeeds when 200; push may be skipped. */
@@ -340,6 +353,7 @@ export interface UpdateJobStatusRequest {
 export interface OverrideJobPriceRequest {
   cost: number;
   reason: string;
+  commissionVisibleToDriver?: boolean;
 }
 
 export interface UpdateJobBillingPaymentRequest {
@@ -422,6 +436,16 @@ export class JobService {
       map((r) => ({ ...r, job: normalizeJob(r.job as Job & { Status?: string }) })),
       catchError(error => {
         console.error('Assign driver error:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  updateJobTruck(jobId: number, body: UpdateJobTruckRequest): Observable<Job> {
+    return this.apiService.put<Job>(`jobs/${jobId}/truck`, body).pipe(
+      map((j) => normalizeJob(j as Job & { Status?: string })),
+      catchError((error) => {
+        console.error('Update job truck error:', error);
         return throwError(() => error);
       })
     );

@@ -1,0 +1,277 @@
+<div class="p-8 min-h-screen bg-gray-50">
+  <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+    <div>
+      <h1 class="text-3xl font-bold text-gray-900">Fleet trucks</h1>
+      <p class="text-gray-600 mt-1">Manage truck types and tow trucks</p>
+    </div>
+    <div class="flex gap-2">
+      <button
+        type="button"
+        (click)="activePanel = 'fleet'"
+        class="px-4 py-2 rounded-lg font-medium"
+        [class.bg-primary]="activePanel === 'fleet'"
+        [class.text-white]="activePanel === 'fleet'"
+        [class.bg-white]="activePanel !== 'fleet'"
+        [class.text-gray-700]="activePanel !== 'fleet'"
+        [class.border]="activePanel !== 'fleet'"
+      >
+        Trucks
+      </button>
+      <button
+        type="button"
+        (click)="activePanel = 'types'"
+        class="px-4 py-2 rounded-lg font-medium"
+        [class.bg-primary]="activePanel === 'types'"
+        [class.text-white]="activePanel === 'types'"
+        [class.bg-white]="activePanel !== 'types'"
+        [class.text-gray-700]="activePanel !== 'types'"
+        [class.border]="activePanel !== 'types'"
+      >
+        Truck types
+      </button>
+    </div>
+  </div>
+
+  @if (error) {
+    <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+      <i class="fas fa-exclamation-circle mr-2"></i>{{ error }}
+    </div>
+  }
+
+  @if (activePanel === 'types') {
+    <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-lg font-semibold text-gray-900">Truck types</h2>
+        <button
+          type="button"
+          (click)="openCreateType()"
+          class="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 text-sm font-medium"
+        >
+          <i class="fas fa-plus mr-2"></i>Add type
+        </button>
+      </div>
+      @if (typesLoading) {
+        <p class="text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>Loading…</p>
+      } @else if (truckTypes.length === 0) {
+        <p class="text-gray-600">No truck types yet. Create one before adding trucks.</p>
+      } @else {
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+              @for (t of truckTypes; track t.id) {
+                <tr>
+                  <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ t.name }}</td>
+                  <td class="px-4 py-3 text-sm text-gray-600">{{ t.description || '—' }}</td>
+                  <td class="px-4 py-3 text-sm text-right space-x-2">
+                    <button type="button" class="text-primary hover:underline" (click)="openEditType(t)">Edit</button>
+                    <button type="button" class="text-red-600 hover:underline" (click)="deleteType(t)">Delete</button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+  }
+
+  @if (activePanel === 'fleet') {
+    <div class="flex justify-end mb-4">
+      <button
+        type="button"
+        (click)="openCreateTruck()"
+        [disabled]="truckTypes.length === 0"
+        class="px-6 py-3 bg-primary text-white rounded-lg hover:opacity-90 font-medium disabled:opacity-50"
+      >
+        <i class="fas fa-plus mr-2"></i>Add truck
+      </button>
+    </div>
+
+    @if (loading) {
+      <div class="text-center py-12 bg-white rounded-lg shadow-sm">
+        <i class="fas fa-spinner fa-spin text-4xl text-primary"></i>
+        <p class="mt-4 text-gray-600">Loading trucks…</p>
+      </div>
+    } @else if (trucks.length === 0) {
+      <div class="bg-white rounded-lg shadow-sm p-12 text-center">
+        <i class="fas fa-truck text-6xl text-gray-300 mb-4"></i>
+        <p class="text-gray-600 mb-4">No trucks yet. Add a truck type, then add trucks.</p>
+        <button
+          type="button"
+          (click)="openCreateTruck()"
+          [disabled]="truckTypes.length === 0"
+          class="px-6 py-3 bg-primary text-white rounded-lg disabled:opacity-50"
+        >
+          Add truck
+        </button>
+      </div>
+    } @else {
+      <div class="bg-white rounded-lg shadow-sm overflow-hidden overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unit</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Active jobs</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Drivers</th>
+              <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200">
+            @for (t of trucks; track t.id) {
+              <tr [class.opacity-50]="!t.isActive">
+                <td class="px-4 py-3 text-sm text-gray-900">{{ t.truckTypeName }}</td>
+                <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ t.unitLabel }}</td>
+                <td class="px-4 py-3">
+                  <span class="inline-flex px-2 py-0.5 rounded text-xs font-medium" [ngClass]="availabilityBadgeClass(t.availabilityLabel)">
+                    {{ t.availabilityLabel }}
+                  </span>
+                  @if (!t.isActive) {
+                    <span class="ml-1 text-xs text-gray-500">(inactive)</span>
+                  }
+                </td>
+                <td class="px-4 py-3 text-sm text-gray-700">
+                  @if (t.activeJobs.length === 0) {
+                    <span class="text-gray-400">—</span>
+                  } @else {
+                    <div class="flex flex-col gap-1">
+                      @for (j of t.activeJobs; track j.jobId) {
+                        <a [routerLink]="jobListBasePath()" class="text-primary hover:underline">
+                          Job #{{ j.jobId }} ({{ j.status }})
+                        </a>
+                      }
+                    </div>
+                  }
+                </td>
+                <td class="px-4 py-3 text-sm text-gray-700">
+                  @if (t.activeJobs.length === 0) {
+                    <span class="text-gray-400">—</span>
+                  } @else {
+                    <div class="flex flex-col gap-0.5">
+                      @for (j of t.activeJobs; track j.jobId + (j.driverId || '')) {
+                        <span>{{ j.driverName || j.driverId || '—' }}</span>
+                      }
+                    </div>
+                  }
+                </td>
+                <td class="px-4 py-3 text-sm text-right space-x-2 whitespace-nowrap">
+                  <button type="button" class="text-primary hover:underline" (click)="openEditTruck(t)">Edit</button>
+                  <button type="button" class="text-red-600 hover:underline" (click)="softDeleteTruck(t)">Remove</button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+</div>
+
+@if (showTypeModal) {
+  <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+      <h3 class="text-lg font-bold text-gray-900 mb-4">{{ editingType ? 'Edit truck type' : 'New truck type' }}</h3>
+      <form [formGroup]="typeForm" (ngSubmit)="saveType()">
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+            <input type="text" formControlName="name" class="w-full border rounded-lg px-3 py-2" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <textarea formControlName="description" rows="2" class="w-full border rounded-lg px-3 py-2"></textarea>
+          </div>
+        </div>
+        <div class="mt-6 flex justify-end gap-2">
+          <button type="button" (click)="closeTypeModal()" class="px-4 py-2 border rounded-lg">Cancel</button>
+          <button
+            type="submit"
+            [disabled]="typeSubmitting"
+            class="px-4 py-2 bg-primary text-white rounded-lg disabled:opacity-50"
+          >
+            Save
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
+
+@if (showTruckModal) {
+  <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 overflow-y-auto">
+    <div class="bg-white rounded-lg shadow-xl max-w-lg w-full p-6 my-8">
+      <h3 class="text-lg font-bold text-gray-900 mb-4">{{ editingTruck ? 'Edit truck' : 'New truck' }}</h3>
+      <form [formGroup]="truckForm" (ngSubmit)="saveTruck()">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="md:col-span-2">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Type *</label>
+            <select formControlName="truckTypeId" class="w-full border rounded-lg px-3 py-2">
+              <option [ngValue]="null">Select type</option>
+              @for (ty of truckTypes; track ty.id) {
+                <option [ngValue]="ty.id">{{ ty.name }}</option>
+              }
+            </select>
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Unit label *</label>
+            <input type="text" formControlName="unitLabel" class="w-full border rounded-lg px-3 py-2" placeholder="e.g. Truck A" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">License plate</label>
+            <input type="text" formControlName="licensePlate" class="w-full border rounded-lg px-3 py-2" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">VIN</label>
+            <input type="text" formControlName="vin" class="w-full border rounded-lg px-3 py-2" maxlength="17" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Make</label>
+            <input type="text" formControlName="make" class="w-full border rounded-lg px-3 py-2" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Model</label>
+            <input type="text" formControlName="model" class="w-full border rounded-lg px-3 py-2" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Year</label>
+            <input type="number" formControlName="year" class="w-full border rounded-lg px-3 py-2" />
+          </div>
+          <div class="md:col-span-2 flex items-center gap-4">
+            <label class="inline-flex items-center gap-2 text-sm">
+              <input type="checkbox" formControlName="isOutOfService" />
+              Out of service
+            </label>
+            @if (editingTruck) {
+              <label class="inline-flex items-center gap-2 text-sm">
+                <input type="checkbox" formControlName="isActive" />
+                Active in fleet
+              </label>
+            }
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+            <textarea formControlName="notes" rows="2" class="w-full border rounded-lg px-3 py-2"></textarea>
+          </div>
+        </div>
+        <div class="mt-6 flex justify-end gap-2">
+          <button type="button" (click)="closeTruckModal()" class="px-4 py-2 border rounded-lg">Cancel</button>
+          <button
+            type="submit"
+            [disabled]="truckSubmitting"
+            class="px-4 py-2 bg-primary text-white rounded-lg disabled:opacity-50"
+          >
+            Save
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}

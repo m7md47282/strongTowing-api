@@ -37,15 +37,17 @@
         <p class="text-3xl font-bold text-gray-900">{{ data.currentDriverCommissionPercentage | number: '1.0-2' }}%</p>
         <p class="text-xs text-indigo-900/70 mt-2">Set by your company in admin settings; payroll uses this for gross pay on job totals.</p>
       </div>
-      <div class="rounded-xl border border-violet-200/80 p-6 bg-violet-50/40">
-        <h3 class="text-sm font-medium text-violet-900/80 mb-1">Illustrative gross (completed revenue × rate)</h3>
-        <p class="text-3xl font-bold text-gray-900">
-          {{ illustrativeGrossOnCompletedRevenue() | currency: 'USD' : 'symbol' : '1.2-2' }}
-        </p>
-        <p class="text-xs text-violet-900/70 mt-2">
-          Estimate only. Actual pay is by pay period in payroll below (cash withheld and other rules apply).
-        </p>
-      </div>
+      @if (data.payrolls.length > 0) {
+        <div class="rounded-xl border border-violet-200/80 p-6 bg-violet-50/40">
+          <h3 class="text-sm font-medium text-violet-900/80 mb-1">Illustrative gross (completed revenue × rate)</h3>
+          <p class="text-3xl font-bold text-gray-900">
+            {{ illustrativeGrossOnCompletedRevenue() | currency: 'USD' : 'symbol' : '1.2-2' }}
+          </p>
+          <p class="text-xs text-violet-900/70 mt-2">
+            Estimate only. Final pay is in finalized payroll below (cash withheld and other rules apply).
+          </p>
+        </div>
+      }
       <div class="rounded-xl border border-amber-200/80 p-6 bg-amber-50/40">
         <h3 class="text-sm font-medium text-amber-900/80 mb-1">Cash collected (for company)</h3>
         <p class="text-3xl font-bold text-gray-900">

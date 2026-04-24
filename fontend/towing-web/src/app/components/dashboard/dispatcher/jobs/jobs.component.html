@@ -478,13 +478,18 @@
 
   <!-- Create Job Modal -->
   @if (showCreateJobModal) {
-    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[99] p-4">
       <div class="bg-white rounded-lg shadow-xl max-w-7xl w-full max-h-[90vh] flex flex-col">
         <div class="px-6 py-5 border-b border-gray-200 bg-gray-50 flex-shrink-0">
           <div class="flex items-center justify-between">
             <div>
               <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Create New Job</h2>
               <p class="text-sm text-gray-600 mt-1">Switch between tabs anytime to complete the form.</p>
+              @if (createJobForm.get('callType')?.value === 'Quote') {
+                <p class="text-sm text-amber-800 mt-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2">
+                  Quote mode: fill the form and use <strong>View quote</strong> to see the full estimate, export it, or send it by SMS. No job is created until you change the call type and submit.
+                </p>
+              }
             </div>
             <button
               type="button"
@@ -561,21 +566,15 @@
             </div>
           }
 
-          <p class="mb-4 text-sm text-gray-600">
-            <span class="text-red-500">*</span> Required fields
-          </p>
-
           <!-- Step 1: Call Type & Basic Info -->
           @if (activeCreateJobTab === 'details') {
             <div class="space-y-6 animate-fadeIn">
-              <div class="mb-6">
-                <h3 class="text-xl font-bold text-gray-900">Call Type & Basic Info</h3>
-                <p class="text-sm text-gray-600">Select the call type and provide basic information</p>
-              </div>
             <!-- Call Type Section -->
-            <div class="border-b border-gray-200 pb-4 ">
-              <h3 class="text-lg font-semibold text-gray-900 mb-4">Call Type</h3>
-              <div class="flex flex-wrap items-center justify-center gap-2 mb-4">
+            <div class="bg-gray-50 rounded-xl p-5 border border-gray-200">
+              <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <i class="fas fa-phone-alt text-primary"></i> Call Type
+              </h3>
+              <div class="flex flex-wrap items-center justify-start gap-2 mb-4">
                 @for (callType of callTypes; track callType) {
                   <label class="relative flex items-center justify-center cursor-pointer">
                     <input
@@ -620,10 +619,12 @@
             </div>
 
             <!-- Company & Account Section -->
-            <div class="border-b border-gray-200 pb-4 ">
-              <h3 class="text-lg font-semibold text-gray-900 mb-4">Company & Account</h3>
-              <div class="space-y-4 flex items-end gap-2">
-                <div class="w-1/3 h-[120px]">
+            <div class="bg-gray-50 rounded-xl p-5 border border-gray-200">
+              <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <i class="fas fa-building text-primary"></i> Company & Account
+              </h3>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
                   <label class="block text-sm font-medium text-gray-700 mb-2">Company Name</label>
                   <input
                     type="text"
@@ -634,7 +635,7 @@
                     [readonly]="true"
                   />
                 </div>
-                <div class="w-1/3 h-[120px]">
+                <div>
                   <label class="block text-sm font-medium text-gray-700 mb-2">Account</label>
                   <select
                     formControlName="account"
@@ -651,11 +652,11 @@
                   }
                   @if (!insuranceAccountsLoading && insuranceAccounts.length === 0) {
                     <p class="mt-1 text-xs text-amber-700">
-                      No insurance accounts available. An administrator can add them under Admin → Accounts.
+                      No accounts available. Add them under Admin → Accounts.
                     </p>
                   }
                 </div>
-                <div class="w-1/3 h-[120px]">
+                <div>
                   <label class="block text-sm font-medium text-gray-700 mb-2">Company Override</label>
                   <select
                     formControlName="companyOverride"
@@ -669,8 +670,10 @@
             </div>
 
             <!-- Priority -->
-            <div class="pb-4 ">
-              <label class="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+            <div class="bg-gray-50 rounded-xl p-5 border border-gray-200 !mb-4">
+              <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <i class="fas fa-exclamation-triangle text-primary"></i> Priority
+              </h3>
               <div class="flex gap-4">
                 @for (priority of priorities; track priority) {
                   <label class="flex items-center cursor-pointer">
@@ -691,14 +694,11 @@
           <!-- Step 2: Location & Service -->
           @if (activeCreateJobTab === 'details') {
             <div class="space-y-6 animate-fadeIn">
-              <div class="mb-6">
-                <h3 class="text-xl font-bold text-gray-900">Location & Service</h3>
-                <p class="text-sm text-gray-600">Provide location details and service information</p>
-              </div>
-
             <!-- Location Section -->
-            <div class="border-b border-gray-200 pb-4 ">
-              <h3 class="text-lg font-semibold text-gray-900 mb-4">Location</h3>
+            <div class="bg-gray-50 rounded-xl p-5 border border-gray-200">
+              <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <i class="fas fa-map-marker-alt text-primary"></i> Location
+              </h3>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -770,7 +770,7 @@
                   } @else if (pickupToDestinationMiles !== null) {
                     <span class="text-gray-800">
                       <i class="fas fa-road mr-1 text-gray-500"></i>
-                      Pickup → drop-off:
+                      Loaded:
                       <strong class="ml-1">{{ pickupToDestinationMiles | number: '1.2-2' }} mi</strong>
                       @if (pickupToDestinationDurationText) {
                         <span class="text-gray-600 mx-1">·</span>
@@ -784,10 +784,12 @@
             </div>
 
             <!-- Job Details Section -->
-            <div class="">
-              <h3 class="text-lg font-semibold text-gray-900 mb-4">Job Details</h3>
+            <div class="bg-gray-50 rounded-xl p-5 border border-gray-200">
+              <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <i class="fas fa-wrench text-primary"></i> Job Details
+              </h3>
 
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="grid grid-cols-1 gap-4">
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-2">
                     Service Type <span class="text-red-500">*</span>
@@ -816,7 +818,7 @@
                   }
                   @if (getSelectedServicePricingProfile(); as pricingProfile) {
                     <p class="mt-1 text-xs text-gray-600">
-                      Service defaults applied: Loaded {{ pricingProfile.loadedPrice | number:'1.2-2' }}, Deadhead {{ pricingProfile.deadHeadPrice | number:'1.2-2' }}.
+                      Service defaults: base {{ pricingProfile.basePrice | number:'1.2-2' }}, {{ pricingProfile.pricePerMile | number:'1.2-2' }}/mi loaded.
                     </p>
                   }
                 </div>
@@ -828,34 +830,33 @@
           <!-- Step 3: Client Information -->
           @if (activeCreateJobTab === 'details') {
             <div class="space-y-6 animate-fadeIn">
-              <div class="mb-6">
-                <h3 class="text-xl font-bold text-gray-900">Client Information</h3>
-                <p class="text-sm text-gray-600">Select or create client details</p>
-              </div>
 
             <!-- Client Section -->
-            <div class="border-b border-gray-200 pb-4 " formGroupName="client">
+            <div class="bg-gray-50 rounded-xl p-5 border border-gray-200 mt-8" formGroupName="client">
+              <div class="mb-2">
+                <h3 class="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <i class="fas fa-user-circle text-primary"></i> Client Information
+                </h3>
+              </div>
               <!-- Client Mode Toggle -->
-              <div class="mb-4">
-                <div class="flex gap-4">
-                  <label class="flex items-center cursor-pointer">
-                    <input
-                      type="radio"
-                      [checked]="useExistingClient"
-                      (change)="useExistingClient = true; onClientModeChange()"
-                      class="mr-2"
-                    />
-                    <span class="text-sm font-medium text-gray-700">Use Existing Client</span>
-                  </label>
-                  <label class="flex items-center cursor-pointer">
-                    <input
-                      type="radio"
-                      [checked]="!useExistingClient"
-                      (change)="useExistingClient = false; onClientModeChange()"
-                      class="mr-2"
-                    />
-                    <span class="text-sm font-medium text-gray-700">Create New Client</span>
-                  </label>
+              <div class="mb-6 flex justify-center sm:justify-start">
+                <div class="inline-flex bg-gray-200/70 p-1 rounded-lg">
+                  <button
+                    type="button"
+                    [class]="useExistingClient ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-200/50'"
+                    class="px-4 py-2 text-sm font-medium rounded-md transition-all duration-200"
+                    (click)="useExistingClient = true; onClientModeChange()"
+                  >
+                    <i class="fas fa-search mr-1.5"></i> Existing Client
+                  </button>
+                  <button
+                    type="button"
+                    [class]="!useExistingClient ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-200/50'"
+                    class="px-4 py-2 text-sm font-medium rounded-md transition-all duration-200"
+                    (click)="useExistingClient = false; onClientModeChange()"
+                  >
+                    <i class="fas fa-plus mr-1.5"></i> New Client
+                  </button>
                 </div>
               </div>
 
@@ -908,7 +909,29 @@
                 </div>
               } @else {
                 <!-- New Client Form -->
-                <div class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                      Full Name <span class="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      formControlName="clientFullName"
+                      placeholder="John Doe"
+                      [class.border-red-500]="showCreateJobFieldError(createJobForm.get('client.clientFullName'))"
+                      class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary"
+                    />
+                    @if (showCreateJobFieldError(createJobForm.get('client.clientFullName'))) {
+                      <p class="mt-1 text-sm text-red-600">
+                        <i class="fas fa-exclamation-circle mr-1"></i>
+                        @if (createJobForm.get('client.clientFullName')?.hasError('required')) {
+                          Full name is required
+                        } @else if (createJobForm.get('client.clientFullName')?.hasError('minlength')) {
+                          Full name must be at least 2 characters
+                        }
+                      </p>
+                    }
+                  </div>
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
                       Phone Number <span class="text-red-500">*</span>
@@ -932,30 +955,8 @@
                     }
                     <p class="mt-1 text-xs text-gray-500">
                       <i class="fas fa-info-circle mr-1"></i>
-                      Phone number is used as the unique identifier for this client
+                      Used as unique identifier
                     </p>
-                  </div>
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                      Full Name <span class="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      formControlName="clientFullName"
-                      placeholder="John Doe"
-                      [class.border-red-500]="showCreateJobFieldError(createJobForm.get('client.clientFullName'))"
-                      class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary"
-                    />
-                    @if (showCreateJobFieldError(createJobForm.get('client.clientFullName'))) {
-                      <p class="mt-1 text-sm text-red-600">
-                        <i class="fas fa-exclamation-circle mr-1"></i>
-                        @if (createJobForm.get('client.clientFullName')?.hasError('required')) {
-                          Full name is required
-                        } @else if (createJobForm.get('client.clientFullName')?.hasError('minlength')) {
-                          Full name must be at least 2 characters
-                        }
-                      </p>
-                    }
                   </div>
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
@@ -982,36 +983,34 @@
           <!-- Step 4: Vehicle Information -->
           @if (activeCreateJobTab === 'details') {
             <div class="space-y-6 animate-fadeIn ">
-              <div class="mb-6">
-                <h3 class="text-xl font-bold text-gray-900">Vehicle Information</h3>
-                <p class="text-sm text-gray-600">Select or create vehicle details</p>
-              </div>
+          
 
             <!-- Vehicle Section -->
-            <div class="border-b border-gray-200 pb-4 " formGroupName="vehicle">
-              <h3 class="text-lg font-semibold text-gray-900 mb-4">Vehicle Information</h3>
-              
+            <div class="bg-gray-50 rounded-xl p-5 border border-gray-200 mt-8" formGroupName="vehicle">
+              <div class="mb-2">
+                <h3 class="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <i class="fas fa-car text-primary"></i> Vehicle Information
+                </h3>
+              </div>
               <!-- Vehicle Mode Toggle -->
-              <div class="mb-4">
-                <div class="flex gap-4">
-                  <label class="flex items-center cursor-pointer">
-                    <input
-                      type="radio"
-                      [checked]="useExistingVehicle"
-                      (change)="useExistingVehicle = true; onVehicleModeChange()"
-                      class="mr-2"
-                    />
-                    <span class="text-sm font-medium text-gray-700">Use Existing Vehicle</span>
-                  </label>
-                  <label class="flex items-center cursor-pointer">
-                    <input
-                      type="radio"
-                      [checked]="!useExistingVehicle"
-                      (change)="useExistingVehicle = false; onVehicleModeChange()"
-                      class="mr-2"
-                    />
-                    <span class="text-sm font-medium text-gray-700">Create New Vehicle</span>
-                  </label>
+              <div class="mb-6 flex justify-center sm:justify-start">
+                <div class="inline-flex bg-gray-200/70 p-1 rounded-lg">
+                  <button
+                    type="button"
+                    [class]="useExistingVehicle ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-200/50'"
+                    class="px-4 py-2 text-sm font-medium rounded-md transition-all duration-200"
+                    (click)="useExistingVehicle = true; onVehicleModeChange()"
+                  >
+                    <i class="fas fa-search mr-1.5"></i> Existing Vehicle
+                  </button>
+                  <button
+                    type="button"
+                    [class]="!useExistingVehicle ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-200/50'"
+                    class="px-4 py-2 text-sm font-medium rounded-md transition-all duration-200"
+                    (click)="useExistingVehicle = false; onVehicleModeChange()"
+                  >
+                    <i class="fas fa-plus mr-1.5"></i> New Vehicle
+                  </button>
                 </div>
               </div>
 
@@ -1302,14 +1301,12 @@
           <!-- Step 5: Assignment & Notes -->
           @if (activeCreateJobTab === 'details') {
             <div class="space-y-6 animate-fadeIn ">
-              <div class="mb-6">
-                <h3 class="text-xl font-bold text-gray-900">Assignment & Notes</h3>
-                <p class="text-sm text-gray-600">Assign driver and add notes</p>
-              </div>
 
             <!-- Assignment Section -->
-            <div class="border-b border-gray-200 pb-4 ">
-              <h3 class="text-lg font-semibold text-gray-900 mb-4">Assignment</h3>
+            <div class="bg-gray-50 rounded-xl p-5 border border-gray-200">
+              <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <i class="fas fa-users-cog text-primary"></i> Assignment
+              </h3>
               <div class="grid grid-cols-2 gap-4">
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-2">Driver</label>
@@ -1329,18 +1326,25 @@
                     formControlName="truckId"
                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary"
                   >
-                    <option value="">Select a truck</option>
-                    @for (truck of trucks; track truck.id) {
-                      <option [value]="truck.id">{{ truck.name || truck.id }}</option>
+                    <option [ngValue]="null">Select a truck</option>
+                    @for (truck of trucksForCreateJob; track truck.id) {
+                      <option [ngValue]="truck.id">
+                        {{ truck.unitLabel }} ({{ truck.truckTypeName }}) — {{ truck.availabilityLabel }}
+                      </option>
                     }
                   </select>
+                  @if (trucksLoading) {
+                    <p class="text-xs text-gray-500 mt-1">Loading trucks…</p>
+                  }
                 </div>
               </div>
             </div>
 
             <!-- Notes Section -->
-            <div class="border-b border-gray-200 pb-4">
-              <h3 class="text-lg font-semibold text-gray-900 mb-4">Notes</h3>
+            <div class="bg-gray-50 rounded-xl p-5 border border-gray-200">
+              <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <i class="fas fa-sticky-note text-primary"></i> Notes
+              </h3>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Notes</label>
                 <textarea
@@ -1353,8 +1357,10 @@
             </div>
 
             <!-- Billing Notes Section -->
-            <div class="pb-4 ">
-              <h3 class="text-lg font-semibold text-gray-900 mb-4">Billing Notes</h3>
+            <div class="bg-gray-50 rounded-xl p-5 border border-gray-200">
+              <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <i class="fas fa-file-invoice-dollar text-primary"></i> Billing Notes
+              </h3>
               <div class="space-y-4">
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-2">Billing Notes</label>
@@ -1383,32 +1389,43 @@
           <!-- Step 6: Invoice & Charges -->
           @if (activeCreateJobTab === 'payment') {
             <div class="space-y-6 animate-fadeIn">
-              <div class="mb-6">
-                <h3 class="text-xl font-bold text-gray-900">Invoice & Charges</h3>
-                <p class="text-sm text-gray-600">Set up pricing and charges</p>
-              </div>
 
             <!-- Invoice Charges Section -->
-            <div class="border-b border-gray-200 pb-4" formGroupName="invoiceCharges">
-              <h3 class="text-lg font-semibold text-gray-900 mb-4">Invoice Charges</h3>
+            <div class="bg-gray-50 rounded-xl p-5 border border-gray-200" formGroupName="invoiceCharges">
 
-              <div class="mb-4 rounded-lg border border-gray-200 bg-slate-50 px-4 py-3 text-sm text-gray-700">
-                <p class="font-medium text-gray-900 mb-1">Dispatch office (point A)</p>
-                @if (dispatchOfficeLoadError) {
-                  <p class="text-amber-800">{{ dispatchOfficeLoadError }}</p>
-                } @else if (dispatchOfficeCoords) {
-                  <p>
-                    <span class="font-mono text-gray-800">{{ dispatchOfficeCoords.lat | number:'1.4-4' }}, {{ dispatchOfficeCoords.lng | number:'1.4-4' }}</span>
-                    <span class="text-gray-600"> — Used for office → pickup and drop-off → office when you calculate price.</span>
+              <div class="mb-6">
+                <div class="flex justify-between items-center mb-2">
+                  <h3 class="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <i class="fas fa-file-invoice text-primary"></i> Invoice Charges
+                  </h3>
+                  <button
+                    type="button"
+                    (click)="calculatePrice()"
+                    [disabled]="calculatingPrice"
+                    class="px-4 py-2 text-sm font-medium bg-primary text-white rounded-lg hover:opacity-90 disabled:opacity-50 transition-colors shadow-sm"
+                  >
+                    @if (calculatingPrice) {
+                      <i class="fas fa-spinner fa-spin mr-2"></i>Calculating...
+                    } @else {
+                      <i class="fas fa-calculator mr-2"></i>Calculate Price
+                    }
+                  </button>
+                </div>
+                @if (officeToPickupMiles !== null || pickupToDestinationMiles !== null || dropoffToOfficeMiles !== null) {
+                  <p class="text-xs text-gray-600 bg-gray-200/50 p-2.5 rounded-md inline-block">
+                    <i class="fas fa-route mr-1 text-gray-500"></i>
+                    Enroute: <strong class="text-gray-800">{{ officeToPickupMiles ?? 0 | number:'1.2-2' }} mi</strong> <span class="mx-1 text-gray-400">&bull;</span>
+                    Loaded: <strong class="text-gray-800">{{ pickupToDestinationMiles ?? 0 | number:'1.2-2' }} mi</strong> <span class="mx-1 text-gray-400">&bull;</span>
+                    Deadhead: <strong class="text-gray-800">{{ dropoffToOfficeMiles ?? 0 | number:'1.2-2' }} mi</strong>
                   </p>
                 }
-                <p class="text-xs text-gray-500 mt-1">Set in Admin → Settings → Dispatch office location.</p>
               </div>
+
+            
               
               <!-- Office → pickup (unloaded / enroute) -->
               <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Office → pickup (unloaded / enroute)</label>
-                <p class="text-xs text-gray-500 mb-2">Truck not hooked; from dispatch office to the pickup location.</p>
+                <label class="block text-sm font-medium text-gray-700 mb-1 text-lg font-semibold">Enroute</label>
                 <div class="grid grid-cols-3 gap-4">
                   <div>
                     <label class="block text-xs text-gray-500 mb-1">Miles</label>
@@ -1445,8 +1462,7 @@
 
               <!-- Pickup → drop-off (loaded / hooked) -->
               <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Pickup → drop-off (loaded / hooked)</label>
-                <p class="text-xs text-gray-500 mb-2">Vehicle hooked; from pickup address to drop-off address.</p>
+                <label class="block text-sm font-medium text-gray-700 mb-1 text-lg font-semibold">Loaded</label>
                 <div class="grid grid-cols-3 gap-4">
                   <div>
                     <label class="block text-xs text-gray-500 mb-1">Miles</label>
@@ -1483,8 +1499,7 @@
 
               <!-- Drop-off → office (deadhead) -->
               <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Drop-off → office (deadhead)</label>
-                <p class="text-xs text-gray-500 mb-2">Empty return from drop-off back to the dispatch office.</p>
+                <label class="block text-sm font-medium text-gray-700 mb-1 text-lg font-semibold">Deadhead</label>
                 <div class="grid grid-cols-3 gap-4">
                   <div>
                     <label class="block text-xs text-gray-500 mb-1">Miles</label>
@@ -1520,8 +1535,8 @@
               </div>
 
               <!-- Hookup fee -->
-              <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Hookup Fee</label>
+              <div class="mb-4 md:w-[32%] w-full">
+                <label class="block text-sm font-medium text-gray-700 mb-2 text-lg font-semibold">Hookup Fee</label>
                 <input
                   type="number"
                   formControlName="hookupFee"
@@ -1534,8 +1549,7 @@
 
               <!-- Service Items -->
               <div class="mb-4">
-                <div class="flex items-center justify-between mb-2">
-                  <label class="block text-sm font-medium text-gray-700">Service Items</label>
+                <div class="flex items-center mb-2">
                   <button
                     type="button"
                     (click)="addServiceItem()"
@@ -1596,7 +1610,7 @@
               </div>
 
               <!-- Discount and Tax Exempt -->
-              <div class="grid grid-cols-2 gap-4 mb-4">
+              <div class="grid grid-cols-2 gap-4 mb-4 mt-8">
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-2">Discount ($ amount)</label>
                   <input
@@ -1684,30 +1698,8 @@
                 </div>
               </div>
 
-              <div class="mb-4">
-                <button
-                  type="button"
-                  (click)="calculatePrice()"
-                  [disabled]="calculatingPrice"
-                  class="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 disabled:opacity-50"
-                >
-                  @if (calculatingPrice) {
-                    <i class="fas fa-spinner fa-spin mr-2"></i>Calculating...
-                  } @else {
-                    <i class="fas fa-calculator mr-2"></i>Calculate Price
-                  }
-                </button>
-                @if (officeToPickupMiles !== null || pickupToDestinationMiles !== null || dropoffToOfficeMiles !== null) {
-                  <p class="mt-2 text-xs text-gray-600 leading-relaxed">
-                    Office → pickup: {{ officeToPickupMiles ?? 0 | number:'1.2-2' }} mi ·
-                    Pickup → drop-off: {{ pickupToDestinationMiles ?? 0 | number:'1.2-2' }} mi ·
-                    Drop-off → office: {{ dropoffToOfficeMiles ?? 0 | number:'1.2-2' }} mi
-                  </p>
-                }
-              </div>
-
               <!-- Summary -->
-              <div class="border-t border-gray-200 pt-4 mb-6">
+              <div class="bg-white rounded-lg p-4 border border-gray-200 mt-6 mb-2 shadow-sm">
                 <div class="space-y-2 text-right">
                   <div class="flex justify-between">
                     <span class="text-sm font-medium text-gray-700">Subtotal:</span>
@@ -1732,8 +1724,10 @@
             </div>
 
             <!-- Cost Section -->
-            <div class="border-t border-gray-200 pt-6">
-              <h3 class="text-lg font-semibold text-gray-900 mb-4">Final Cost</h3>
+            <div class="bg-gray-50 rounded-xl p-5 border border-gray-200 mt-6">
+              <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <i class="fas fa-dollar-sign text-primary"></i> Final Cost
+              </h3>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">
                   Cost <span class="text-red-500">*</span>
@@ -1779,7 +1773,13 @@
         <div class="flex-shrink-0 border-t border-gray-200 bg-white">
           @if (createJobValidationAttempted && getValidationErrors().length > 0) {
             <div id="create-job-validation-footer" class="px-6 py-3 bg-red-50 border-b border-red-100">
-              <p class="text-sm font-semibold text-red-800 mb-2">Fix the following to create the job:</p>
+              <p class="text-sm font-semibold text-red-800 mb-2">
+                @if (createJobForm.get('callType')?.value === 'Quote') {
+                  Fix the following to view the quote:
+                } @else {
+                  Fix the following to create the job:
+                }
+              </p>
               <ul class="list-disc list-inside text-sm text-red-700 space-y-0.5">
                 @for (err of getValidationErrors(); track err) {
                   <li>{{ err }}</li>
@@ -1796,19 +1796,140 @@
               <i class="fas fa-times mr-2"></i>Cancel
             </button>
             
-            <button
-              type="button"
-              (click)="onCreateJob()"
-              [disabled]="submitting"
-              class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            @if (createJobForm.get('callType')?.value === 'Quote') {
+              <button
+                type="button"
+                (click)="onViewQuote()"
+                class="px-6 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition-colors"
+              >
+                <i class="fas fa-file-invoice-dollar mr-2"></i>
+                View quote
+              </button>
+            } @else {
+              <button
+                type="button"
+                (click)="onCreateJob()"
+                [disabled]="submitting"
+                class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                @if (submitting) {
+                  <i class="fas fa-spinner fa-spin mr-2"></i>
+                } @else {
+                  <i class="fas fa-check mr-2"></i>
+                }
+                Create Job
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (showCreateJobModal && showQuoteReviewModal) {
+    <div
+      class="fixed inset-0 bg-black/55 flex items-center justify-center z-[999] p-4"
+      (click)="closeQuoteReviewModal()"
+      role="presentation"
+    >
+      <div
+        class="bg-slate-100 rounded-xl shadow-2xl max-w-4xl w-full max-h-[92vh] flex flex-col border border-slate-200/80"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="px-5 py-3 border-b border-slate-200 bg-white rounded-t-xl flex items-center justify-between flex-shrink-0 gap-3">
+          <div>
+            <h2 class="text-lg font-semibold text-slate-800 tracking-tight">Quote (PDF)</h2>
+            <p class="text-xs text-slate-500 mt-0.5">Live PDF preview — same document as Download PDF. Not a booked job until you submit as a regular call.</p>
+          </div>
+          <button
+            type="button"
+            (click)="closeQuoteReviewModal()"
+            class="text-slate-500 hover:text-slate-800 p-2 rounded-full hover:bg-slate-100 shrink-0"
+            aria-label="Close quote"
+          >
+            <i class="fas fa-times text-lg"></i>
+          </button>
+        </div>
+        <div class="px-4 py-4 overflow-y-auto flex-1 min-h-0 flex flex-col gap-4">
+          @if (!latestQuote) {
+            <p class="text-sm text-amber-900 bg-amber-50 border border-amber-200/80 rounded-lg px-3 py-2">
+              Open the <strong>Payment Details</strong> tab and run <strong>Calculate Price</strong> to align line items and totals with server pricing.
+            </p>
+          }
+          @if (quoteReviewSummary) {
+            <div
+              class="mx-auto w-full max-w-4xl flex-1 min-h-[min(70vh,720px)] flex flex-col bg-slate-200/80 rounded-lg border border-slate-300/80 shadow-inner overflow-hidden"
             >
-              @if (submitting) {
-                <i class="fas fa-spinner fa-spin mr-2"></i>
-              } @else {
-                <i class="fas fa-check mr-2"></i>
+              @if (quotePdfGenerating) {
+                <div class="flex-1 flex flex-col items-center justify-center gap-3 py-20 text-slate-600 bg-white">
+                  <i class="fas fa-spinner fa-spin text-3xl text-[#2C3E50]" aria-hidden="true"></i>
+                  <span class="text-sm font-medium">Generating PDF…</span>
+                </div>
+              } @else if (quotePdfError) {
+                <div class="flex-1 flex flex-col items-center justify-center gap-4 p-10 text-center bg-white">
+                  <p class="text-sm text-red-800 max-w-md">{{ quotePdfError }}</p>
+                  <button
+                    type="button"
+                    (click)="refreshQuotePdfPreview()"
+                    class="px-4 py-2 text-sm font-medium bg-[#2C3E50] text-white rounded-md hover:bg-[#243342] transition-colors"
+                  >
+                    <i class="fas fa-redo mr-2"></i>Try again
+                  </button>
+                </div>
+              } @else if (quotePdfSafeUrl) {
+                <iframe
+                  [src]="quotePdfSafeUrl"
+                  class="w-full flex-1 min-h-[min(70vh,720px)] border-0 bg-slate-100"
+                  title="Quote PDF preview"
+                ></iframe>
               }
-              Create Job
-            </button>
+            </div>
+          }
+          <div class="mx-auto w-full max-w-[820px] space-y-3 bg-white rounded-lg border border-slate-200 px-4 py-4 shadow-sm">
+            <label class="block text-xs font-semibold uppercase tracking-wide text-slate-600" for="quote-sms-phone">SMS recipient</label>
+            <input
+              id="quote-sms-phone"
+              type="tel"
+              name="quoteSmsPhone"
+              [(ngModel)]="quoteSmsPhone"
+              [ngModelOptions]="{ standalone: true }"
+              class="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-[#2C3E50]/25 focus:border-[#2C3E50]"
+              placeholder="Phone number"
+            />
+            <div class="flex flex-wrap gap-2">
+              <button
+                type="button"
+                (click)="downloadQuoteExport()"
+                class="px-4 py-2 text-sm font-medium bg-[#2C3E50] text-white rounded-md hover:bg-[#243342] transition-colors"
+              >
+                <i class="fas fa-download mr-2"></i>Download PDF
+              </button>
+              <button
+                type="button"
+                (click)="openSmsWithQuote()"
+                [disabled]="!quoteSmsRecipientReady()"
+                class="px-4 py-2 text-sm font-medium bg-slate-700 text-white rounded-md hover:bg-slate-800 disabled:opacity-45 disabled:cursor-not-allowed transition-colors"
+              >
+                <i class="fas fa-sms mr-2"></i>Open SMS
+              </button>
+              <button
+                type="button"
+                (click)="openEmailWithQuote()"
+                class="px-4 py-2 text-sm font-medium border border-slate-300 text-[#2C3E50] rounded-md hover:bg-slate-50 transition-colors"
+              >
+                <i class="fas fa-envelope mr-2"></i>Email quote
+              </button>
+              <button
+                type="button"
+                (click)="closeQuoteReviewModal()"
+                class="px-4 py-2 text-sm font-medium border border-slate-300 text-slate-700 rounded-md hover:bg-slate-50"
+              >
+                Back to form
+              </button>
+            </div>
+            <p class="text-[11px] text-slate-500 leading-snug">
+              The preview is the same PDF as download. SMS and email send a text summary (long messages may be truncated).
+            </p>
           </div>
         </div>
       </div>
@@ -1818,7 +1939,7 @@
   <!-- Map picker for pickup / destination (stacked above create job modal) -->
   @if (showLocationMapModal) {
     <div
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[999] p-4"
       (click)="closeLocationMapModal()"
     >
       <div
@@ -1864,7 +1985,7 @@
 
   <!-- Assign Driver Modal -->
   @if (showAssignDriverModal && selectedJob) {
-    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[99] p-4">
       <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
         <div class="p-6 border-b border-gray-200">
           <h2 class="text-2xl font-bold text-gray-900">{{ assignDriverModalIsReassign ? 'Re-assign driver' : 'Assign driver' }}</h2>
@@ -1910,7 +2031,7 @@
 
   <!-- Payment link for client (Stripe) -->
   @if (showPaymentLinkModal && paymentLinkJob) {
-    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[99] p-4">
       <div class="bg-white rounded-lg shadow-xl max-w-lg w-full">
         <div class="p-6 border-b border-gray-200">
           <h2 class="text-2xl font-bold text-gray-900">Payment link</h2>
@@ -1985,7 +2106,7 @@
 
   <!-- Update Status Modal -->
   @if (showUpdateStatusModal && selectedJob) {
-    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[99] p-4">
       <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
         <div class="p-6 border-b border-gray-200">
           <h2 class="text-2xl font-bold text-gray-900">Update Job Status</h2>
@@ -2032,7 +2153,7 @@
 
   <!-- Job Details Modal -->
   @if (showJobDetailsModal && selectedJob) {
-    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[99] p-4">
       <div class="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] flex flex-col">
         <div class="p-6 border-b border-gray-200 flex-shrink-0">
           <div class="flex items-center justify-between">
@@ -2069,7 +2190,6 @@
                   </div>
                 </div>
                 <div>
-                  <h4 class="text-sm font-medium text-gray-500 mb-1">Call Type</h4>
                   <p class="text-gray-900">{{ selectedJob.callType || 'N/A' }}</p>
                 </div>
                 <div>
@@ -2123,6 +2243,15 @@
                     Updates the stored job total after creation. A line is appended to job notes for the audit trail.
                   </p>
                   <div class="flex flex-col gap-3 lg:flex-row lg:items-end">
+                    <label class="inline-flex items-center gap-2 text-sm text-amber-950 lg:mb-2">
+                      <input
+                        type="checkbox"
+                        [(ngModel)]="priceOverrideCommissionVisible"
+                        [name]="'priceOverrideCommissionVisible' + selectedJob.id"
+                        class="rounded border-amber-400 text-amber-800"
+                      />
+                      Show commission to driver
+                    </label>
                     <div class="w-full lg:w-40">
                       <label class="block text-xs font-medium text-gray-700 mb-1" for="priceOverrideCost">New total ($)</label>
                       <input
@@ -2432,12 +2561,53 @@
                     <p class="text-gray-900">{{ selectedJob.driverName }}</p>
                   </div>
                 }
-                @if (selectedJob.truckId) {
-                  <div>
-                    <h4 class="text-sm font-medium text-gray-500 mb-1">Truck ID</h4>
-                    <p class="text-gray-900">{{ selectedJob.truckId }}</p>
-                  </div>
-                }
+                <div class="md:col-span-2">
+                  <h4 class="text-sm font-medium text-gray-500 mb-1">Truck</h4>
+                  @if (selectedJob.truck) {
+                    <p class="text-gray-900 mb-2">
+                      {{ selectedJob.truck.unitLabel }}
+                      <span class="text-gray-500">({{ selectedJob.truck.truckTypeName }})</span>
+                    </p>
+                  } @else if (selectedJob.truckId) {
+                    <p class="text-gray-900 mb-2">Truck #{{ selectedJob.truckId }}</p>
+                  } @else {
+                    <p class="text-gray-500 mb-2">No truck assigned</p>
+                  }
+                  @if (
+                    selectedJob.status !== JOB_STATUS.Completed &&
+                    selectedJob.status !== JOB_STATUS.Cancelled
+                  ) {
+                    <div class="flex flex-wrap items-center gap-2 mt-2">
+                      <select
+                        [(ngModel)]="detailTruckId"
+                        [ngModelOptions]="{ standalone: true }"
+                        class="flex-1 min-w-[200px] px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      >
+                        <option [ngValue]="null">No truck</option>
+                        @for (t of trucks; track t.id) {
+                          <option [ngValue]="t.id">
+                            {{ t.unitLabel }} ({{ t.truckTypeName }}) — {{ t.availabilityLabel }}
+                          </option>
+                        }
+                      </select>
+                      <button
+                        type="button"
+                        (click)="saveJobTruckAssignment()"
+                        [disabled]="detailTruckSaving || trucksLoading"
+                        class="px-3 py-2 bg-primary text-white text-sm rounded-lg disabled:opacity-50"
+                      >
+                        @if (detailTruckSaving) {
+                          <i class="fas fa-spinner fa-spin"></i>
+                        } @else {
+                          Save truck
+                        }
+                      </button>
+                    </div>
+                    @if (detailTruckError) {
+                      <p class="text-sm text-red-600 mt-1">{{ detailTruckError }}</p>
+                    }
+                  }
+                </div>
                 @if (selectedJob.eta) {
                   <div>
                     <h4 class="text-sm font-medium text-gray-500 mb-1">ETA</h4>
@@ -2523,4 +2693,3 @@
     </div>
   }
 </div>
-

@@ -47,30 +47,37 @@ public class PricingCalculatorService : IPricingCalculatorService
 
         decimal basePrice;
         decimal pricePerMile;
-        var hookEnabled = false;
-        decimal hookAmount;
 
         if (accountServiceRow != null)
         {
             basePrice = accountServiceRow.BasePrice;
             pricePerMile = accountServiceRow.PricePerMile;
-            hookEnabled = accountServiceRow.HookFeeEnabled;
-            hookAmount = accountServiceRow.HookFeeAmount;
         }
         else if (serviceProfile != null)
         {
             basePrice = serviceProfile.BasePrice;
             pricePerMile = serviceProfile.PricePerMile;
-            hookEnabled = serviceProfile.HookFeeEnabled;
-            hookAmount = serviceProfile.HookFeeAmount;
         }
         else
         {
-            // Legacy: account-level BC rate + default/account hookup when no service catalog match
+            // Legacy: account-level BC rate when no service catalog match
             basePrice = 0m;
             pricePerMile = account?.RateBC ?? 0m;
-            hookAmount = account?.HookupFee ?? settings.DefaultPricingHookupFee;
-            hookEnabled = hookAmount > 0m;
+        }
+
+        var catalogPricing = accountServiceRow != null || serviceProfile != null;
+        decimal hookupLineAmount;
+        var hookupLineApplies = false;
+        if (catalogPricing)
+        {
+            // Towing base is BasePrice (+ mileage); optional hookup is dispatcher-entered via request only.
+            hookupLineAmount = 0m;
+            hookupLineApplies = false;
+        }
+        else
+        {
+            hookupLineAmount = account?.HookupFee ?? settings.DefaultPricingHookupFee;
+            hookupLineApplies = hookupLineAmount > 0m;
         }
 
         // Dispatcher overrides (explicit line items from UI)
@@ -81,16 +88,16 @@ public class PricingCalculatorService : IPricingCalculatorService
 
         if (request.HookupFee.HasValue)
         {
-            hookAmount = EnsureNonNegative(request.HookupFee.Value, nameof(request.HookupFee));
-            hookEnabled = hookAmount > 0m;
+            hookupLineAmount = EnsureNonNegative(request.HookupFee.Value, nameof(request.HookupFee));
+            hookupLineApplies = hookupLineAmount > 0m;
         }
 
         basePrice = EnsureNonNegative(basePrice, nameof(basePrice));
         pricePerMile = EnsureNonNegative(pricePerMile, nameof(pricePerMile));
-        hookAmount = EnsureNonNegative(hookAmount, nameof(hookAmount));
+        hookupLineAmount = EnsureNonNegative(hookupLineAmount, nameof(hookupLineAmount));
 
-        var hookCharge = hookEnabled ? hookAmount : 0m;
-        hookCharge = RoundMoney(hookCharge, roundingMode);
+        var hookupLineCharge = hookupLineApplies ? hookupLineAmount : 0m;
+        hookupLineCharge = RoundMoney(hookupLineCharge, roundingMode);
 
         // Customer pays loaded miles only; enroute and deadhead are not billed
         var chargeAB = 0m;
@@ -101,7 +108,7 @@ public class PricingCalculatorService : IPricingCalculatorService
         var chargeBC = RoundMoney(billableMiles * pricePerMile, roundingMode);
         var rateBC = RoundMoney(pricePerMile, roundingMode);
 
-        var hookupFeeTotal = hookCharge;
+        var hookupFeeTotal = hookupLineCharge;
 
         var serviceChargePercent = request.ServiceChargePercent
             ?? settings.DefaultPricingServiceChargePercent;

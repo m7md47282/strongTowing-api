@@ -13,8 +13,8 @@ function mapProfileDto(raw: Record<string, unknown>): ServicePricingProfile {
   return {
     id: Number(raw['id'] ?? raw['Id']),
     name: String(raw['name'] ?? raw['Name'] ?? ''),
-    loadedPrice: Number(raw['loadedPrice'] ?? raw['LoadedPrice'] ?? 0),
-    deadHeadPrice: Number(raw['deadHeadPrice'] ?? raw['DeadHeadPrice'] ?? 0),
+    basePrice: Number(raw['basePrice'] ?? raw['BasePrice'] ?? 0),
+    pricePerMile: Number(raw['pricePerMile'] ?? raw['PricePerMile'] ?? 0),
     isAvailable: Boolean(raw['isAvailable'] ?? raw['IsAvailable']),
     createdAt: String(raw['createdAt'] ?? raw['CreatedAt'] ?? ''),
     updatedAt: String(raw['updatedAt'] ?? raw['UpdatedAt'] ?? '')

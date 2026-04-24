@@ -71,8 +71,6 @@ public class AccountServiceRatesController : ControllerBase
             ServicePricingProfileId = request.ServicePricingProfileId,
             BasePrice = request.BasePrice,
             PricePerMile = request.PricePerMile,
-            HookFeeEnabled = request.HookFeeEnabled,
-            HookFeeAmount = request.HookFeeAmount,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -122,8 +120,6 @@ public class AccountServiceRatesController : ControllerBase
 
         row.BasePrice = request.BasePrice;
         row.PricePerMile = request.PricePerMile;
-        row.HookFeeEnabled = request.HookFeeEnabled;
-        row.HookFeeAmount = request.HookFeeAmount;
         row.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
@@ -158,8 +154,6 @@ public class AccountServiceRatesController : ControllerBase
             ServiceName = row.ServicePricingProfile?.Name ?? string.Empty,
             BasePrice = row.BasePrice,
             PricePerMile = row.PricePerMile,
-            HookFeeEnabled = row.HookFeeEnabled,
-            HookFeeAmount = row.HookFeeAmount,
             CreatedAt = row.CreatedAt,
             UpdatedAt = row.UpdatedAt
         };
