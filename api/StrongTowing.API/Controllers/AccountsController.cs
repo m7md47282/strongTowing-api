@@ -7,6 +7,7 @@ using StrongTowing.Application.DTOs.Responses;
 using StrongTowing.Core.Constants;
 using StrongTowing.Core.Entities;
 using StrongTowing.Infrastructure.Data;
+using StrongTowing.API;
 
 namespace StrongTowing.API.Controllers;
 
@@ -119,8 +120,22 @@ public class AccountsController : ControllerBase
                 UpdatedAt = DateTime.UtcNow
             };
 
+            var providerName = _context.Database.ProviderName ?? string.Empty;
+            var useTransaction = !providerName.Contains("InMemory", StringComparison.OrdinalIgnoreCase);
+            await using var tx = useTransaction
+                ? await _context.Database.BeginTransactionAsync()
+                : null;
+
             _context.InsuranceAccounts.Add(account);
             await _context.SaveChangesAsync();
+
+            var now = DateTime.UtcNow;
+            await SeedCashCallDefaultRatesForNewAccountAsync(account, now);
+
+            if (tx != null)
+            {
+                await tx.CommitAsync();
+            }
 
             return CreatedAtAction(nameof(GetById), new { id = account.Id }, MapToDto(account));
         }
@@ -208,6 +223,62 @@ public class AccountsController : ControllerBase
             _logger.LogError(ex, "Error deleting insurance account {AccountId}", id);
             return HandleUnexpectedError("An error occurred while deleting the account.", ex);
         }
+    }
+
+    /// <summary>Creates the standard cash call catalog rows if missing, then copies the template onto the new account.</summary>
+    private async Task SeedCashCallDefaultRatesForNewAccountAsync(InsuranceAccount account, DateTime now)
+    {
+        var template = CashCallDefaultServiceTemplate.All;
+        var names = template.Select(t => t.Name).ToList();
+        var existing = await _context.ServicePricingProfiles
+            .Where(p => names.Contains(p.Name))
+            .ToListAsync();
+
+        var byName = existing.ToDictionary(p => p.Name, StringComparer.Ordinal);
+        var newProfiles = new List<ServicePricingProfile>();
+
+        foreach (var line in template)
+        {
+            if (byName.ContainsKey(line.Name))
+            {
+                continue;
+            }
+
+            var profile = new ServicePricingProfile
+            {
+                Name = line.Name,
+                BasePrice = line.BasePrice,
+                PricePerMile = line.PricePerMile,
+                IsAvailable = true,
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+            byName[line.Name] = profile;
+            newProfiles.Add(profile);
+        }
+
+        if (newProfiles.Count > 0)
+        {
+            _context.ServicePricingProfiles.AddRange(newProfiles);
+            await _context.SaveChangesAsync();
+        }
+
+        var rateRows = template.Select(line =>
+        {
+            var profile = byName[line.Name];
+            return new InsuranceAccountServiceRate
+            {
+                InsuranceAccountId = account.Id,
+                ServicePricingProfileId = profile.Id,
+                BasePrice = line.BasePrice,
+                PricePerMile = line.PricePerMile,
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+        });
+
+        _context.InsuranceAccountServiceRates.AddRange(rateRows);
+        await _context.SaveChangesAsync();
     }
 
     private ObjectResult HandleUnexpectedError(string message, Exception ex)
