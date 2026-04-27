@@ -655,6 +655,15 @@
                       No accounts available. Add them under Admin → Accounts.
                     </p>
                   }
+                  @if (createJobForm.get('account')?.value) {
+                    <button
+                      type="button"
+                      (click)="openDispatcherCashCallRates()"
+                      class="mt-2 text-xs font-medium text-primary hover:underline"
+                    >
+                      Open Cash call rates
+                    </button>
+                  }
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-2">Company Override</label>

@@ -33,6 +33,7 @@ import { AccountsComponent } from './components/dashboard/admin/accounts/account
 import { ServicesComponent as AdminServicesComponent } from './components/dashboard/admin/services/services.component';
 import { LocationPickerComponent } from './components/shared/location-picker/location-picker.component';
 import { LegalDocumentComponent } from './components/legal/legal-document.component';
+import { AccountCashCallRatesComponent } from './components/dashboard/shared/account-cash-call-rates/account-cash-call-rates.component';
 
 export const routes: Routes = [
   { 
@@ -125,6 +126,12 @@ export const routes: Routes = [
         component: SettingsComponent,
         canActivate: [roleGuard, authGuard],
         data: { roles: [RoleId.SuperAdmin, RoleId.Admin] }
+      },
+      {
+        path: 'accounts/:accountId/cash-call',
+        component: AccountCashCallRatesComponent,
+        canActivate: [roleGuard, authGuard],
+        data: { roles: [RoleId.SuperAdmin, RoleId.Admin] }
       }
     ]
   },
@@ -139,7 +146,8 @@ export const routes: Routes = [
       { path: 'drivers', component: DriverAssignmentsComponent },
       { path: 'vehicles', component: VehiclesComponent },
       { path: 'trucks', component: TrucksComponent },
-      { path: 'payments', component: PaymentsComponent }
+      { path: 'payments', component: PaymentsComponent },
+      { path: 'accounts/:accountId/cash-call', component: AccountCashCallRatesComponent }
     ]
   },
   {

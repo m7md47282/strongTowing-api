@@ -12,7 +12,6 @@ export interface InsuranceAccount {
   postalCode: string | null;
   notes: string | null;
   isActive: boolean;
-  hookupFee: number;
   rateAB: number;
   rateBC: number;
   rateCA: number;
@@ -33,7 +32,6 @@ export interface CreateInsuranceAccountPayload {
   postalCode?: string | null;
   notes?: string | null;
   isActive: boolean;
-  hookupFee?: number;
   rateAB?: number;
   rateBC?: number;
   rateCA?: number;

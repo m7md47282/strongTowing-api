@@ -269,26 +269,36 @@ export class AuthService {
 
   // Check if user is admin (SuperAdmin or Administrator)
   isAdmin(): boolean {
-    const user = this.getCurrentUser();
-    return !!(user && (user.roleId === RoleId.SuperAdmin || user.roleId === RoleId.Admin));
+    const roleId = this.getCurrentRoleId();
+    return roleId === RoleId.SuperAdmin || roleId === RoleId.Admin;
   }
 
   // Check if user is dispatcher
   isDispatcher(): boolean {
-    const user = this.getCurrentUser();
-    return !!(user && user.roleId === RoleId.Dispatcher);
+    return this.getCurrentRoleId() === RoleId.Dispatcher;
   }
 
   // Check if user is driver
   isDriver(): boolean {
-    const user = this.getCurrentUser();
-    return !!(user && user.roleId === RoleId.Driver);
+    return this.getCurrentRoleId() === RoleId.Driver;
   }
 
   // Check if user is super admin
   isSuperAdmin(): boolean {
+    return this.getCurrentRoleId() === RoleId.SuperAdmin;
+  }
+
+  /** Normalizes roleId to number (handles localStorage string values). */
+  private getCurrentRoleId(): number | null {
     const user = this.getCurrentUser();
-    return !!(user && user.roleId === RoleId.SuperAdmin);
+    if (!user) {
+      return null;
+    }
+    const roleId =
+      typeof user.roleId === 'string'
+        ? parseInt(user.roleId as unknown as string, 10)
+        : Number(user.roleId);
+    return Number.isFinite(roleId) ? roleId : null;
   }
 
   // Update user profile

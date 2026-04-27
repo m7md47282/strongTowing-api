@@ -73,8 +73,10 @@ import { PlacesAutocompleteDirective } from '../../../../directives/places-autoc
 import { LocationPickerComponent } from '../../../shared/location-picker/location-picker.component';
 import { LocationService } from '../../../../services/location.service';
 import { PricingService, PricingQuoteResponse } from '../../../../services/pricing.service';
+import { SettingsService } from '../../../../services/settings.service';
 import { environment } from '../../../../../environments/environment';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { Router } from '@angular/router';
 
 const JOBS_TABLE_COL_COUNT = 17;
 const JOBS_STICKY_STORAGE_KEY = 'dispatcherJobsTableStickyColumns';
@@ -292,6 +294,9 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
   createJobAccountServiceRates: InsuranceAccountServiceRate[] = [];
   private accountRatesSub?: Subscription;
 
+  /** System default hookup (Admin → Settings); used for legacy pricing when no service catalog. */
+  defaultHookupFromSettings = 0;
+
   /** Map picker sub-modal for pickup / destination (above create-job modal) */
   showLocationMapModal = false;
   locationMapTarget: 'pickup' | 'destination' | null = null;
@@ -366,8 +371,10 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
     private paymentService: PaymentService,
     private locationService: LocationService,
     private pricingService: PricingService,
+    private settingsService: SettingsService,
     private vehicleCatalogService: VehicleCatalogService,
     private truckService: TruckService,
+    private router: Router,
     private ngZone: NgZone,
     private cdr: ChangeDetectorRef,
     private fb: FormBuilder,
@@ -607,6 +614,17 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
     this.loadTrucks();
     this.loadServicePricingProfiles();
     this.loadDispatchOfficeForDisplay();
+    this.settingsService.getSettings().subscribe({
+      next: (s) => {
+        this.defaultHookupFromSettings = Number(s.defaultPricingHookupFee ?? 0) || 0;
+        this.applySelectedServicePricing();
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.defaultHookupFromSettings = 0;
+        this.applySelectedServicePricing();
+      }
+    });
     this.observeSelectedClientChanges();
 
     this.createJobClientFetchSub = merge(
@@ -1430,7 +1448,7 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
     } else if (account) {
       basePrice = 0;
       pricePerMile = Number(account.rateBC) || 0;
-      hookAmount = Number(account.hookupFee) || 0;
+      hookAmount = this.defaultHookupFromSettings;
       hookEnabled = hookAmount > 0;
       baseLabel = (selectedServiceType || account.name || 'Account').trim();
     }
@@ -1471,6 +1489,22 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
       return `${account.name} (${account.accountNumber})`;
     }
     return account.name;
+  }
+
+  openDispatcherCashCallRates(): void {
+    const accountRaw = this.createJobForm.get('account')?.value;
+    const accountId =
+      accountRaw !== null && accountRaw !== undefined && String(accountRaw).trim() !== ''
+        ? Number(accountRaw)
+        : NaN;
+    if (!Number.isFinite(accountId) || accountId <= 0) {
+      return;
+    }
+
+    const account = this.insuranceAccounts.find((a) => a.id === accountId);
+    void this.router.navigate(['/dispatcher/accounts', accountId, 'cash-call'], {
+      queryParams: account?.name ? { accountName: account.name } : undefined
+    });
   }
 
   formatCreateJobClientLabel(client: User): string {
