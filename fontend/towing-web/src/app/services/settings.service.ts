@@ -63,6 +63,8 @@ export interface SystemSettings {
   postmarkServerTokenConfigured: boolean;
   postmarkDefaultFromEmail?: string | null;
   postmarkMessageStream?: string | null;
+  /** Public https URL to your logo image (shown in HTML emails). */
+  emailBrandingLogoUrl?: string | null;
 
   emailDriverJobAssigned: boolean;
   emailDriverJobCompleted: boolean;
@@ -173,6 +175,7 @@ export interface UpdateSystemSettingsRequest {
   postmarkServerToken?: string | null;
   postmarkDefaultFromEmail?: string | null;
   postmarkMessageStream?: string | null;
+  emailBrandingLogoUrl?: string | null;
 
   emailDriverJobAssigned: boolean;
   emailDriverJobCompleted: boolean;
@@ -189,6 +192,17 @@ export interface UpdateSystemSettingsRequest {
   emailClientPaymentFailed: boolean;
   emailClientJobCancelled: boolean;
   emailClientJobCompleted: boolean;
+}
+
+export interface EmailTemplateItem {
+  eventKey: string;
+  displayName: string;
+  description: string;
+  placeholders: string[];
+  subject: string;
+  htmlBody: string;
+  textBody: string | null;
+  isCustom: boolean;
 }
 
 @Injectable({
@@ -218,5 +232,22 @@ export class SettingsService {
   /** Public: dispatch phone from appsettings (for driver app). */
   getDispatchContact(): Observable<DispatchContact> {
     return this.apiService.getPublic<DispatchContact>('settings/dispatch-contact');
+  }
+
+  /** Admin/SuperAdmin: list transactional email templates. */
+  getEmailTemplates(): Observable<EmailTemplateItem[]> {
+    return this.apiService.get<EmailTemplateItem[]>('settings/email-templates');
+  }
+
+  /** SuperAdmin: upsert one or more custom templates. */
+  updateEmailTemplates(
+    items: { eventKey: string; subject: string; htmlBody: string; textBody?: string | null }[]
+  ): Observable<void> {
+    return this.apiService.put<void>('settings/email-templates', { items });
+  }
+
+  /** SuperAdmin: remove custom row for an event (revert to code defaults). */
+  resetEmailTemplate(eventKey: string): Observable<void> {
+    return this.apiService.post<void>('settings/email-templates/reset', { eventKey });
   }
 }

@@ -1,12 +1,13 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize } from 'rxjs/operators';
 import { interval, Subscription } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import { RoleId } from '../../../../constants/user-roles.constants';
 import { AuthService } from '../../../../services/auth.service';
 import {
+  EmailTemplateItem,
   SettingsService,
   SystemSettings,
   TestEmailResponse,
@@ -29,7 +30,7 @@ type SettingsTab = 'general' | 'payments' | 'vehicleCatalog' | 'sms' | 'email';
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, LocationPickerComponent],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, LocationPickerComponent],
   templateUrl: './settings.component.html',
   styleUrls: ['./settings.component.scss']
 })
@@ -71,6 +72,14 @@ export class SettingsComponent implements OnInit, OnDestroy {
   emailTestLoading = false;
   emailTestError: string | null = null;
   emailTestResult: TestEmailResponse | null = null;
+
+  emailTemplates: EmailTemplateItem[] | null = null;
+  emailTemplatesLoading = false;
+  emailTemplatesError: string | null = null;
+  /** Which template row is currently being saved. */
+  savingTemplateKey: string | null = null;
+  /** Which template is resetting. */
+  resettingTemplateKey: string | null = null;
 
   constructor(
     private fb: FormBuilder,
@@ -153,6 +162,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
       postmarkServerToken: [''],
       postmarkDefaultFromEmail: [''],
       postmarkMessageStream: [''],
+      emailBrandingLogoUrl: [''],
       emailDriverJobAssigned: [true],
       emailDriverJobCompleted: [true],
       emailDriverPayrollPaid: [true],
@@ -208,6 +218,9 @@ export class SettingsComponent implements OnInit, OnDestroy {
     this.catalogSyncError = null;
     if (tab === 'vehicleCatalog' && this.isAdminOrSuperAdmin()) {
       this.refreshCatalogSyncStatus();
+    }
+    if (tab === 'email' && this.isAdminOrSuperAdmin() && this.emailTemplates === null) {
+      this.loadEmailTemplates();
     }
   }
 
@@ -373,6 +386,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
       postmarkServerToken: null,
       postmarkDefaultFromEmail: c.postmarkDefaultFromEmail ?? null,
       postmarkMessageStream: c.postmarkMessageStream ?? null,
+      emailBrandingLogoUrl: c.emailBrandingLogoUrl ?? null,
       emailDriverJobAssigned: c.emailDriverJobAssigned ?? true,
       emailDriverJobCompleted: c.emailDriverJobCompleted ?? true,
       emailDriverPayrollPaid: c.emailDriverPayrollPaid ?? true,
@@ -399,6 +413,9 @@ export class SettingsComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (settings) => {
           this.currentSettings = settings;
+          if (this.isAdminOrSuperAdmin()) {
+            this.loadEmailTemplates();
+          }
           this.settingsForm.patchValue({
             driverCommissionPercentage: settings.driverCommissionPercentage,
             stripeEnabled: settings.stripeEnabled,
@@ -652,6 +669,9 @@ export class SettingsComponent implements OnInit, OnDestroy {
       postmarkServerToken: token,
       postmarkDefaultFromEmail: v.postmarkDefaultFromEmail || null,
       postmarkMessageStream: v.postmarkMessageStream || null,
+      emailBrandingLogoUrl: (v.emailBrandingLogoUrl as string | null) && String(v.emailBrandingLogoUrl).trim().length > 0
+        ? String(v.emailBrandingLogoUrl).trim()
+        : null,
       emailDriverJobAssigned: !!v.emailDriverJobAssigned,
       emailDriverJobCompleted: !!v.emailDriverJobCompleted,
       emailDriverPayrollPaid: !!v.emailDriverPayrollPaid,
@@ -718,6 +738,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
       postmarkServerToken: '',
       postmarkDefaultFromEmail: settings.postmarkDefaultFromEmail || '',
       postmarkMessageStream: settings.postmarkMessageStream || '',
+      emailBrandingLogoUrl: settings.emailBrandingLogoUrl || '',
       emailDriverJobAssigned: settings.emailDriverJobAssigned ?? true,
       emailDriverJobCompleted: settings.emailDriverJobCompleted ?? true,
       emailDriverPayrollPaid: settings.emailDriverPayrollPaid ?? true,
@@ -733,6 +754,96 @@ export class SettingsComponent implements OnInit, OnDestroy {
       emailClientJobCancelled: settings.emailClientJobCancelled ?? true,
       emailClientJobCompleted: settings.emailClientJobCompleted ?? true
     });
+  }
+
+  loadEmailTemplates(): void {
+    if (!this.isAdminOrSuperAdmin()) {
+      return;
+    }
+    this.emailTemplatesLoading = true;
+    this.emailTemplatesError = null;
+    this.settingsService
+      .getEmailTemplates()
+      .pipe(
+        finalize(() => {
+          this.emailTemplatesLoading = false;
+        })
+      )
+      .subscribe({
+        next: (list) => {
+          this.emailTemplates = list;
+        },
+        error: (err) => {
+          this.emailTemplatesError =
+            err.error?.message || err.error?.error || 'Could not load email templates.';
+        }
+      });
+  }
+
+  saveEmailTemplate(t: EmailTemplateItem): void {
+    if (!this.isSuperAdmin()) {
+      return;
+    }
+    if (!t.subject?.trim() || !t.htmlBody?.trim()) {
+      this.error = 'Subject and HTML body are required.';
+      return;
+    }
+    this.savingTemplateKey = t.eventKey;
+    this.error = null;
+    this.emailTemplatesError = null;
+    this.settingsService
+      .updateEmailTemplates([
+        {
+          eventKey: t.eventKey,
+          subject: t.subject.trim(),
+          htmlBody: t.htmlBody,
+          textBody: t.textBody && t.textBody.trim().length > 0 ? t.textBody.trim() : null
+        }
+      ])
+      .pipe(
+        finalize(() => {
+          this.savingTemplateKey = null;
+        })
+      )
+      .subscribe({
+        next: () => {
+          t.isCustom = true;
+          this.successMessage = 'Email template saved.';
+        },
+        error: (err) => {
+          this.error = err.error?.message || err.error?.error || 'Failed to save template.';
+        }
+      });
+  }
+
+  /** Renders a merge field token for display, e.g. `{{JobId}}`. */
+  mergeFieldToken(name: string): string {
+    return `{{${name}}}`;
+  }
+
+  resetEmailTemplateToDefault(t: EmailTemplateItem): void {
+    if (!this.isSuperAdmin()) {
+      return;
+    }
+    this.resettingTemplateKey = t.eventKey;
+    this.error = null;
+    this.emailTemplatesError = null;
+    this.settingsService
+      .resetEmailTemplate(t.eventKey)
+      .pipe(
+        finalize(() => {
+          this.resettingTemplateKey = null;
+        })
+      )
+      .subscribe({
+        next: () => {
+          this.loadEmailTemplates();
+          this.successMessage = 'Template reverted to default.';
+        },
+        error: (err) => {
+          this.error = err.error?.message || err.error?.error || 'Failed to reset template.';
+        }
+      });
   }
 
   openSmsTestModal(): void {
