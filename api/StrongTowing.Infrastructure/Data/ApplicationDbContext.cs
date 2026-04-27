@@ -17,6 +17,7 @@ namespace StrongTowing.Infrastructure.Data
         public DbSet<Payment> Payments { get; set; }
         public DbSet<CashCollection> CashCollections { get; set; }
         public DbSet<SystemSettings> SystemSettings { get; set; }
+        public DbSet<SystemEmailTemplate> SystemEmailTemplates { get; set; }
         public DbSet<InsuranceAccount> InsuranceAccounts { get; set; }
         public DbSet<ServicePricingProfile> ServicePricingProfiles { get; set; }
         public DbSet<InsuranceAccountServiceRate> InsuranceAccountServiceRates { get; set; }
@@ -122,6 +123,21 @@ namespace StrongTowing.Infrastructure.Data
             builder.Entity<SystemSettings>()
                 .HasIndex(s => s.Id)
                 .IsUnique();
+
+            builder.Entity<SystemEmailTemplate>()
+                .HasIndex(t => t.EventKey)
+                .IsUnique();
+            builder.Entity<SystemEmailTemplate>()
+                .Property(t => t.EventKey)
+                .HasMaxLength(64)
+                .IsRequired();
+            builder.Entity<SystemEmailTemplate>()
+                .Property(t => t.Subject)
+                .HasMaxLength(500)
+                .IsRequired();
+            builder.Entity<SystemEmailTemplate>()
+                .Property(t => t.HtmlBody)
+                .IsRequired();
 
             builder.Entity<InsuranceAccount>()
                 .HasIndex(a => a.Name)

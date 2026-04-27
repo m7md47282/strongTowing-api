@@ -1,7 +1,7 @@
-using System.Net;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using StrongTowing.Application.Abstractions;
+using StrongTowing.Application.EmailTemplates;
 using StrongTowing.Core.Entities;
 using StrongTowing.Core.Enums;
 using StrongTowing.Infrastructure.Data;
@@ -14,6 +14,7 @@ public sealed class EmailNotificationService : IEmailNotificationService
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IEmailSender _emailSender;
     private readonly IEncryptionService _encryption;
+    private readonly IEmailEventTemplateService _emailEventTemplateService;
     private readonly ILogger<EmailNotificationService> _logger;
 
     public EmailNotificationService(
@@ -21,12 +22,14 @@ public sealed class EmailNotificationService : IEmailNotificationService
         UserManager<ApplicationUser> userManager,
         IEmailSender emailSender,
         IEncryptionService encryption,
+        IEmailEventTemplateService emailEventTemplateService,
         ILogger<EmailNotificationService> logger)
     {
         _db = db;
         _userManager = userManager;
         _emailSender = emailSender;
         _encryption = encryption;
+        _emailEventTemplateService = emailEventTemplateService;
         _logger = logger;
     }
 
@@ -34,16 +37,20 @@ public sealed class EmailNotificationService : IEmailNotificationService
         SendDriverAsync(
             driverUserId,
             s => s.EmailDriverJobAssigned,
-            $"Strong Towing: New job #{jobId} — {pickupSummary}. Open the driver app for details.",
-            $"Job #{jobId} update",
+            EmailEventKeys.DriverJobAssigned,
+            new Dictionary<string, string>
+            {
+                ["JobId"] = jobId.ToString(),
+                ["PickupSummary"] = pickupSummary
+            },
             cancellationToken);
 
     public Task NotifyDriverJobCompletedAsync(int jobId, string driverUserId, CancellationToken cancellationToken = default) =>
         SendDriverAsync(
             driverUserId,
             s => s.EmailDriverJobCompleted,
-            $"Strong Towing: Job #{jobId} marked completed.",
-            $"Job #{jobId} completed",
+            EmailEventKeys.DriverJobCompleted,
+            new Dictionary<string, string> { ["JobId"] = jobId.ToString() },
             cancellationToken);
 
     public Task NotifyDriverPayrollPaidAsync(
@@ -55,8 +62,13 @@ public sealed class EmailNotificationService : IEmailNotificationService
         SendDriverAsync(
             driverUserId,
             s => s.EmailDriverPayrollPaid,
-            $"Strong Towing: Payroll {payPeriodStart:MM/dd/yyyy}–{payPeriodEnd:MM/dd/yyyy} marked paid. Net: ${netPay:0.00}.",
-            "Payroll notification",
+            EmailEventKeys.DriverPayrollPaid,
+            new Dictionary<string, string>
+            {
+                ["PayPeriodStart"] = payPeriodStart.ToString("MM/dd/yyyy"),
+                ["PayPeriodEnd"] = payPeriodEnd.ToString("MM/dd/yyyy"),
+                ["NetPay"] = netPay.ToString("0.00")
+            },
             cancellationToken);
 
     public Task NotifyClientJobCreatedAsync(int jobId, string? contactEmail, string? ownerEmail, CancellationToken cancellationToken = default) =>
@@ -64,8 +76,8 @@ public sealed class EmailNotificationService : IEmailNotificationService
             contactEmail,
             ownerEmail,
             s => s.EmailClientJobCreated,
-            $"Strong Towing: We received your request. Job #{jobId}. We'll update you shortly.",
-            $"Job #{jobId} received",
+            EmailEventKeys.ClientJobCreated,
+            new Dictionary<string, string> { ["JobId"] = jobId.ToString() },
             cancellationToken);
 
     public Task NotifyClientFraudUnderReviewAsync(int jobId, string? contactEmail, string? ownerEmail, CancellationToken cancellationToken = default) =>
@@ -73,8 +85,8 @@ public sealed class EmailNotificationService : IEmailNotificationService
             contactEmail,
             ownerEmail,
             s => s.EmailClientFraudUnderReview,
-            $"Strong Towing: Job #{jobId} is under review. We'll contact you shortly.",
-            $"Job #{jobId} under review",
+            EmailEventKeys.ClientFraudUnderReview,
+            new Dictionary<string, string> { ["JobId"] = jobId.ToString() },
             cancellationToken);
 
     public Task NotifyClientDriverAssignedAsync(int jobId, string? contactEmail, string? ownerEmail, CancellationToken cancellationToken = default) =>
@@ -82,8 +94,8 @@ public sealed class EmailNotificationService : IEmailNotificationService
             contactEmail,
             ownerEmail,
             s => s.EmailClientDriverAssigned,
-            $"Strong Towing: A driver is assigned to job #{jobId}.",
-            $"Driver assigned — job #{jobId}",
+            EmailEventKeys.ClientDriverAssigned,
+            new Dictionary<string, string> { ["JobId"] = jobId.ToString() },
             cancellationToken);
 
     public Task NotifyClientJobStatusAsync(
@@ -96,31 +108,21 @@ public sealed class EmailNotificationService : IEmailNotificationService
         if (status is not (JobStatus.OnRoute or JobStatus.OnScene or JobStatus.Loaded))
             return Task.CompletedTask;
 
-        Func<SystemSettings, bool> toggle = status switch
+        (Func<SystemSettings, bool> toggle, string eventKey) = status switch
         {
-            JobStatus.OnRoute => s => s.EmailClientStatusOnRoute,
-            JobStatus.OnScene => s => s.EmailClientStatusOnScene,
-            JobStatus.Loaded => s => s.EmailClientStatusLoaded,
-            _ => _ => false
+            JobStatus.OnRoute => ((Func<SystemSettings, bool>)(s => s.EmailClientStatusOnRoute), EmailEventKeys.ClientStatusOnRoute),
+            JobStatus.OnScene => (s => s.EmailClientStatusOnScene, EmailEventKeys.ClientStatusOnScene),
+            JobStatus.Loaded => (s => s.EmailClientStatusLoaded, EmailEventKeys.ClientStatusLoaded),
+            _ => ((Func<SystemSettings, bool>)(_ => false), EmailEventKeys.ClientStatusOnRoute)
         };
 
-        var msg = status switch
-        {
-            JobStatus.OnRoute => $"Strong Towing: Driver en route for job #{jobId}.",
-            JobStatus.OnScene => $"Strong Towing: Driver on scene for job #{jobId}.",
-            JobStatus.Loaded => $"Strong Towing: Vehicle loaded for job #{jobId}.",
-            _ => ""
-        };
-
-        var subj = status switch
-        {
-            JobStatus.OnRoute => $"Job #{jobId} — driver en route",
-            JobStatus.OnScene => $"Job #{jobId} — on scene",
-            JobStatus.Loaded => $"Job #{jobId} — vehicle loaded",
-            _ => $"Job #{jobId} update"
-        };
-
-        return SendClientAsync(contactEmail, ownerEmail, toggle, msg, subj, cancellationToken);
+        return SendClientAsync(
+            contactEmail,
+            ownerEmail,
+            toggle,
+            eventKey,
+            new Dictionary<string, string> { ["JobId"] = jobId.ToString() },
+            cancellationToken);
     }
 
     public Task NotifyClientPaymentLinkCreatedAsync(
@@ -134,8 +136,13 @@ public sealed class EmailNotificationService : IEmailNotificationService
             contactEmail,
             ownerEmail,
             s => s.EmailClientPaymentLinkCreated,
-            $"Strong Towing: Pay ${amount:0.00} for job #{jobId}: {linkUrl}",
-            $"Pay for job #{jobId}",
+            EmailEventKeys.ClientPaymentLinkCreated,
+            new Dictionary<string, string>
+            {
+                ["JobId"] = jobId.ToString(),
+                ["Amount"] = $"${amount:0.00}",
+                ["LinkUrl"] = linkUrl
+            },
             cancellationToken);
 
     public Task NotifyClientPaymentSucceededAsync(
@@ -145,13 +152,17 @@ public sealed class EmailNotificationService : IEmailNotificationService
         string? ownerEmail,
         CancellationToken cancellationToken = default)
     {
-        var amt = amount.HasValue ? $" ${amount:0.00}" : "";
+        var amountLine = amount.HasValue ? $" of <strong>${amount.Value:0.00}</strong>" : string.Empty;
         return SendClientAsync(
             contactEmail,
             ownerEmail,
             s => s.EmailClientPaymentSucceeded,
-            $"Strong Towing: Payment{amt} received for job #{jobId}. Thank you.",
-            $"Payment received — job #{jobId}",
+            EmailEventKeys.ClientPaymentSucceeded,
+            new Dictionary<string, string>
+            {
+                ["JobId"] = jobId.ToString(),
+                ["AmountLine"] = amountLine
+            },
             cancellationToken);
     }
 
@@ -160,8 +171,8 @@ public sealed class EmailNotificationService : IEmailNotificationService
             contactEmail,
             ownerEmail,
             s => s.EmailClientPaymentFailed,
-            $"Strong Towing: Payment could not be completed for job #{jobId}. Please try again or contact us.",
-            $"Payment issue — job #{jobId}",
+            EmailEventKeys.ClientPaymentFailed,
+            new Dictionary<string, string> { ["JobId"] = jobId.ToString() },
             cancellationToken);
 
     public Task NotifyClientJobCancelledAsync(
@@ -171,15 +182,19 @@ public sealed class EmailNotificationService : IEmailNotificationService
         string? ownerEmail,
         CancellationToken cancellationToken = default)
     {
-        var fee = feeAmount is > 0
-            ? $" A cancellation fee of ${feeAmount:0.00} may apply."
-            : "";
+        var feeSentence = feeAmount is > 0
+            ? $" A cancellation fee of <strong>${feeAmount:0.00}</strong> may apply."
+            : string.Empty;
         return SendClientAsync(
             contactEmail,
             ownerEmail,
             s => s.EmailClientJobCancelled,
-            $"Strong Towing: Job #{jobId} was cancelled.{fee}",
-            $"Job #{jobId} cancelled",
+            EmailEventKeys.ClientJobCancelled,
+            new Dictionary<string, string>
+            {
+                ["JobId"] = jobId.ToString(),
+                ["FeeSentence"] = feeSentence
+            },
             cancellationToken);
     }
 
@@ -188,15 +203,15 @@ public sealed class EmailNotificationService : IEmailNotificationService
             contactEmail,
             ownerEmail,
             s => s.EmailClientJobCompleted,
-            $"Strong Towing: Job #{jobId} is completed. Thank you.",
-            $"Job #{jobId} completed",
+            EmailEventKeys.ClientJobCompleted,
+            new Dictionary<string, string> { ["JobId"] = jobId.ToString() },
             cancellationToken);
 
     private async Task SendDriverAsync(
         string driverUserId,
         Func<SystemSettings, bool> toggle,
-        string body,
-        string subject,
+        string eventKey,
+        IReadOnlyDictionary<string, string> merge,
         CancellationToken cancellationToken)
     {
         var settings = await _db.SystemSettings.AsNoTracking().FirstOrDefaultAsync(cancellationToken);
@@ -214,15 +229,16 @@ public sealed class EmailNotificationService : IEmailNotificationService
             return;
         }
 
-        await DispatchSendAsync(settings, email, subject, body, cancellationToken).ConfigureAwait(false);
+        var rendered = await _emailEventTemplateService.RenderAsync(eventKey, merge, cancellationToken).ConfigureAwait(false);
+        await DispatchSendAsync(settings, email, rendered, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task SendClientAsync(
         string? contactEmail,
         string? ownerEmail,
         Func<SystemSettings, bool> toggle,
-        string body,
-        string subject,
+        string eventKey,
+        IReadOnlyDictionary<string, string> merge,
         CancellationToken cancellationToken)
     {
         var settings = await _db.SystemSettings.AsNoTracking().FirstOrDefaultAsync(cancellationToken);
@@ -239,7 +255,8 @@ public sealed class EmailNotificationService : IEmailNotificationService
             return;
         }
 
-        await DispatchSendAsync(settings, email, subject, body, cancellationToken).ConfigureAwait(false);
+        var rendered = await _emailEventTemplateService.RenderAsync(eventKey, merge, cancellationToken).ConfigureAwait(false);
+        await DispatchSendAsync(settings, email, rendered, cancellationToken).ConfigureAwait(false);
     }
 
     private static bool CanSend(SystemSettings settings)
@@ -265,7 +282,7 @@ public sealed class EmailNotificationService : IEmailNotificationService
         return t.Contains('@', StringComparison.Ordinal) ? t : null;
     }
 
-    private async Task DispatchSendAsync(SystemSettings settings, string toEmail, string subject, string plainBody, CancellationToken cancellationToken)
+    private async Task DispatchSendAsync(SystemSettings settings, string toEmail, EmailRenderResult rendered, CancellationToken cancellationToken)
     {
         string token;
         try
@@ -281,7 +298,6 @@ public sealed class EmailNotificationService : IEmailNotificationService
         if (string.IsNullOrWhiteSpace(token))
             return;
 
-        var html = ToHtmlEmail(plainBody);
         var stream = string.IsNullOrWhiteSpace(settings.PostmarkMessageStream) ? null : settings.PostmarkMessageStream;
 
         var result = await _emailSender.SendAsync(
@@ -289,20 +305,14 @@ public sealed class EmailNotificationService : IEmailNotificationService
             settings.PostmarkDefaultFromEmail!,
             stream,
             toEmail,
-            subject,
-            html,
-            plainBody,
+            rendered.Subject,
+            rendered.HtmlBody,
+            rendered.PlainTextBody,
             cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
             _logger.LogWarning("Email send failed: {Message}", result.ErrorMessage);
         else
             _logger.LogInformation("Email sent to {To} PostmarkId={Id}", toEmail, result.PostmarkMessageId);
-    }
-
-    private static string ToHtmlEmail(string plain)
-    {
-        var esc = WebUtility.HtmlEncode(plain);
-        return $"<html><body><p style=\"font-family:sans-serif;font-size:14px;line-height:1.5;\">{esc.Replace("\n", "<br/>", StringComparison.Ordinal)}</p></body></html>";
     }
 }

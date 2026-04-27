@@ -7,8 +7,11 @@ using System.Text;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Hosting;
 using StrongTowing.Infrastructure.Data;
 using StrongTowing.Core.Entities;
+using StrongTowing.API.Infrastructure;
 using StrongTowing.API.Options;
 using StrongTowing.API.Services;
 using StrongTowing.Application.Abstractions;
@@ -30,6 +33,7 @@ builder.Services.Configure<OfficeLocationOptions>(builder.Configuration.GetSecti
 builder.Services.Configure<DispatchContactOptions>(builder.Configuration.GetSection(DispatchContactOptions.SectionName));
 builder.Services.Configure<FirebaseOptions>(builder.Configuration.GetSection(FirebaseOptions.SectionName));
 builder.Services.Configure<AuthOtpOptions>(builder.Configuration.GetSection(AuthOtpOptions.SectionName));
+builder.Services.Configure<EmailBrandingOptions>(builder.Configuration.GetSection(EmailBrandingOptions.SectionName));
 builder.Services.AddDataProtection();
 builder.Services.AddScoped<IAuthOtpEmailService, AuthOtpEmailService>();
 builder.Services.AddHttpClient(); // IHttpClientFactory + default client (e.g. NHTSA vPIC sync)
@@ -122,6 +126,7 @@ builder.Services.AddScoped<IFcmNotificationService, FcmNotificationService>();
 builder.Services.AddScoped<ISmsSender, TwilioSmsSender>();
 builder.Services.AddHttpClient<IEmailSender, PostmarkEmailSender>();
 builder.Services.AddScoped<ISmsNotificationService, SmsNotificationService>();
+builder.Services.AddScoped<IEmailEventTemplateService, EmailEventTemplateService>();
 builder.Services.AddScoped<IEmailNotificationService, EmailNotificationService>();
 builder.Services.AddScoped<IPricingCalculatorService, PricingCalculatorService>();
 builder.Services.AddScoped<IDriverPayrollService, DriverPayrollService>();
@@ -188,6 +193,36 @@ var app = builder.Build();
 
 // IIS Forwarded Headers (must be first)
 app.UseForwardedHeaders();
+
+app.UseExceptionHandler(errorApp =>
+{
+    errorApp.Run(async context =>
+    {
+        var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("GlobalException");
+        var env = context.RequestServices.GetRequiredService<IWebHostEnvironment>();
+        var feature = context.Features.Get<IExceptionHandlerFeature>();
+        var ex = feature?.Error;
+        if (ex == null)
+        {
+            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsJsonAsync(new
+            {
+                error = "Internal Server Error",
+                message = "An unknown error occurred.",
+                traceId = context.TraceIdentifier
+            });
+            return;
+        }
+
+        logger.LogError(ex, "Unhandled exception");
+
+        var statusCode = ApiErrorFormatter.StatusCodeFor(ex);
+        context.Response.StatusCode = statusCode;
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsJsonAsync(ApiErrorFormatter.Build(context, env, ex, operation: null));
+    });
+});
 
 // CORS (must be before UseAuthentication and UseAuthorization)
 app.UseCors("AllowAngularApp");

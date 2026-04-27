@@ -1,12 +1,15 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using StrongTowing.API.Infrastructure;
 using StrongTowing.Application.DTOs.Requests;
 using StrongTowing.Application.DTOs.Responses;
 using StrongTowing.Application.Abstractions;
 using StrongTowing.Core.Constants;
 using StrongTowing.Core.Entities;
+using StrongTowing.Application.EmailTemplates;
 using StrongTowing.Infrastructure.Data;
 using StrongTowing.API.Services;
 using StrongTowing.API.Options;
@@ -24,19 +27,22 @@ public class SettingsController : ControllerBase
     private readonly ISmsSender _smsSender;
     private readonly IEmailSender _emailSender;
     private readonly ILogger<SettingsController> _logger;
+    private readonly IWebHostEnvironment _environment;
 
     public SettingsController(
         ApplicationDbContext context,
         IEncryptionService encryptionService,
         ISmsSender smsSender,
         IEmailSender emailSender,
-        ILogger<SettingsController> logger)
+        ILogger<SettingsController> logger,
+        IWebHostEnvironment environment)
     {
         _context = context;
         _encryptionService = encryptionService;
         _smsSender = smsSender;
         _emailSender = emailSender;
         _logger = logger;
+        _environment = environment;
     }
 
     /// <summary>
@@ -548,6 +554,160 @@ public class SettingsController : ControllerBase
             ToEmail = to,
             PostmarkMessageId = result.PostmarkMessageId
         });
+    }
+
+    /// <summary>Lists all transactional email templates (defaults merged with any custom DB rows).</summary>
+    [HttpGet("email-templates")]
+    [Authorize(Roles = $"{UserRoles.Administrator},{UserRoles.SuperAdmin}")]
+    public async Task<IActionResult> GetEmailTemplates()
+    {
+        try
+        {
+            var rows = await _context.SystemEmailTemplates.AsNoTracking().ToListAsync(HttpContext.RequestAborted);
+            var byKey = rows
+                .GroupBy(r => r.EventKey, StringComparer.Ordinal)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+            var list = new List<EmailTemplateItemDto>(EmailTemplateDefinitions.All.Count);
+            foreach (var def in EmailTemplateDefinitions.All)
+            {
+                byKey.TryGetValue(def.EventKey, out var row);
+                list.Add(new EmailTemplateItemDto
+                {
+                    EventKey = def.EventKey,
+                    DisplayName = def.DisplayName,
+                    Description = def.Description,
+                    Placeholders = def.Placeholders,
+                    Subject = row is { Subject: { Length: > 0 } s } ? s : def.DefaultSubject,
+                    HtmlBody = row is { HtmlBody: { Length: > 0 } h } ? h : def.DefaultInnerHtml,
+                    TextBody = row?.TextBody,
+                    IsCustom = row != null
+                });
+            }
+
+            return Ok(list);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GetEmailTemplates failed");
+            var code = ApiErrorFormatter.StatusCodeFor(ex);
+            return StatusCode(code, ApiErrorFormatter.Build(HttpContext, _environment, ex, nameof(GetEmailTemplates)));
+        }
+    }
+
+    /// <summary>Creates or updates custom email template rows (inner HTML + subject; same placeholders as code defaults).</summary>
+    [HttpPut("email-templates")]
+    [Authorize(Roles = UserRoles.SuperAdmin)]
+    public async Task<IActionResult> UpdateEmailTemplates([FromBody] UpdateEmailTemplatesRequest? request)
+    {
+        if (request?.Items is not { Count: > 0 })
+        {
+            return BadRequest(new { error = "Bad Request", message = "At least one template item is required." });
+        }
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "System";
+        var valid = EmailEventKeys.All.ToHashSet(StringComparer.Ordinal);
+        foreach (var item in request.Items)
+        {
+            if (string.IsNullOrWhiteSpace(item.EventKey) || !valid.Contains(item.EventKey!))
+            {
+                return BadRequest(new { error = "Bad Request", message = $"Unknown or invalid event key: {item.EventKey}" });
+            }
+
+            if (EmailTemplateDefinitions.ByKey(item.EventKey) is null)
+            {
+                return BadRequest(new { error = "Bad Request", message = $"No template definition for: {item.EventKey}" });
+            }
+
+            if (string.IsNullOrWhiteSpace(item.Subject) || string.IsNullOrWhiteSpace(item.HtmlBody))
+            {
+                return BadRequest(new { error = "Bad Request", message = "Subject and htmlBody are required for each item." });
+            }
+        }
+
+        try
+        {
+            foreach (var item in request.Items)
+            {
+                var row = await _context.SystemEmailTemplates
+                    .FirstOrDefaultAsync(t => t.EventKey == item.EventKey, HttpContext.RequestAborted);
+                if (row == null)
+                {
+                    _context.SystemEmailTemplates.Add(new SystemEmailTemplate
+                    {
+                        EventKey = item.EventKey.Trim(),
+                        Subject = item.Subject.Trim(),
+                        HtmlBody = item.HtmlBody,
+                        TextBody = string.IsNullOrWhiteSpace(item.TextBody) ? null : item.TextBody
+                    });
+                }
+                else
+                {
+                    row.Subject = item.Subject.Trim();
+                    row.HtmlBody = item.HtmlBody;
+                    row.TextBody = string.IsNullOrWhiteSpace(item.TextBody) ? null : item.TextBody;
+                }
+            }
+
+            var st = await _context.SystemSettings.FirstOrDefaultAsync(HttpContext.RequestAborted);
+            if (st != null)
+            {
+                st.UpdatedAt = DateTime.UtcNow;
+                st.UpdatedBy = userId;
+            }
+
+            await _context.SaveChangesAsync(HttpContext.RequestAborted);
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "UpdateEmailTemplates failed");
+            var code = ApiErrorFormatter.StatusCodeFor(ex);
+            return StatusCode(code, ApiErrorFormatter.Build(HttpContext, _environment, ex, nameof(UpdateEmailTemplates)));
+        }
+    }
+
+    /// <summary>Removes the custom row for an event so code defaults are used again.</summary>
+    [HttpPost("email-templates/reset")]
+    [Authorize(Roles = UserRoles.SuperAdmin)]
+    public async Task<IActionResult> ResetEmailTemplate([FromBody] ResetEmailTemplateRequest? request)
+    {
+        if (request == null || string.IsNullOrWhiteSpace(request.EventKey))
+        {
+            return BadRequest(new { error = "Bad Request", message = "eventKey is required." });
+        }
+
+        if (!EmailEventKeys.All.Any(x => string.Equals(x, request.EventKey, StringComparison.Ordinal)) ||
+            EmailTemplateDefinitions.ByKey(request.EventKey) is null)
+        {
+            return BadRequest(new { error = "Bad Request", message = "Unknown event key." });
+        }
+
+        try
+        {
+            var row = await _context.SystemEmailTemplates
+                .FirstOrDefaultAsync(t => t.EventKey == request.EventKey, HttpContext.RequestAborted);
+            if (row == null)
+                return NoContent();
+
+            _context.SystemEmailTemplates.Remove(row);
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "System";
+            var st = await _context.SystemSettings.FirstOrDefaultAsync(HttpContext.RequestAborted);
+            if (st != null)
+            {
+                st.UpdatedAt = DateTime.UtcNow;
+                st.UpdatedBy = userId;
+            }
+
+            await _context.SaveChangesAsync(HttpContext.RequestAborted);
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "ResetEmailTemplate failed");
+            var code = ApiErrorFormatter.StatusCodeFor(ex);
+            return StatusCode(code, ApiErrorFormatter.Build(HttpContext, _environment, ex, nameof(ResetEmailTemplate)));
+        }
     }
 
     private SystemSettingsDto MapToSystemSettingsDto(SystemSettings settings)
