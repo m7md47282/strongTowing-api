@@ -262,19 +262,33 @@
             <td class="py-4 px-6">
               <p class="text-sm text-gray-600">{{ formatDate(user.updatedAt) }}</p>
             </td>
-            <td class="py-4 px-6">
-              <button
-                (click)="toggleUserStatus(user)"
-                class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-                [ngClass]="{
-                  'bg-red-100 text-red-700 hover:bg-red-200': user.isActive,
-                  'bg-green-100 text-green-700 hover:bg-green-200': !user.isActive
-                }"
-                [title]="user.isActive ? 'Deactivate user' : 'Activate user'"
-              >
-                <i class="fas" [ngClass]="user.isActive ? 'fa-ban' : 'fa-check'"></i>
-                {{ user.isActive ? 'Deactivate' : 'Activate' }}
-              </button>
+            <td class="py-4 px-6 whitespace-nowrap">
+              <div class="flex flex-nowrap items-center gap-1">
+                <button
+                  type="button"
+                  (click)="openStatusToggleConfirm(user)"
+                  class="inline-flex items-center justify-center min-w-[2.25rem] min-h-[2.25rem] rounded-lg transition-colors ring-1 ring-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                  [ngClass]="{
+                    'bg-amber-50 text-amber-800 hover:bg-amber-100': user.isActive,
+                    'bg-emerald-50 text-emerald-800 hover:bg-emerald-100': !user.isActive
+                  }"
+                  [title]="user.isActive ? 'Deactivate user account' : 'Activate user account'"
+                  [attr.aria-label]="user.isActive ? 'Deactivate user account' : 'Activate user account'"
+                >
+                  <i class="fas fa-fw text-sm" [class]="user.isActive ? 'fa-user-slash' : 'fa-user-check'"></i>
+                </button>
+                @if (canRemoveUsers() && !isCurrentUser(user) && user.isActive) {
+                  <button
+                    type="button"
+                    (click)="confirmRemoveUser(user)"
+                    class="inline-flex items-center justify-center min-w-[2.25rem] min-h-[2.25rem] rounded-lg bg-red-50 text-red-700 hover:bg-red-100 transition-colors ring-1 ring-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                    title="Delete user permanently"
+                    aria-label="Delete user permanently"
+                  >
+                    <i class="fas fa-trash-alt fa-fw text-sm"></i>
+                  </button>
+                }
+              </div>
             </td>
           </tr>
           }
@@ -361,6 +375,111 @@
     </div>
   }
 </div>
+
+<!-- Activate / deactivate confirm -->
+@if (statusConfirmUser !== null) {
+  <div
+    class="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/40"
+    (click)="cancelStatusToggle()"
+  >
+    <div
+      class="bg-white rounded-xl shadow-xl max-w-md w-full p-6"
+      (click)="$event.stopPropagation()"
+    >
+      <h3 class="text-lg font-semibold text-gray-900 mb-2">
+        {{ statusToggleWillActivate() ? 'Activate' : 'Deactivate' }} user?
+      </h3>
+      <p class="text-sm text-gray-600 mb-4">
+        <span class="font-medium text-gray-900">{{ statusConfirmUser.fullName }}</span>
+        <span class="text-gray-500">({{ statusConfirmUser.email }})</span>
+        will be {{ statusToggleWillActivate() ? 'activated' : 'deactivated' }}.
+        @if (!statusToggleWillActivate()) {
+          <span class="block mt-2 text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 text-xs">
+            Deactivated users cannot sign in until reactivated.
+          </span>
+        }
+      </p>
+      @if (statusToggleModalError) {
+        <div class="text-sm text-red-600 mb-4">{{ statusToggleModalError }}</div>
+      }
+      <div class="flex justify-end gap-3">
+        <button
+          type="button"
+          (click)="cancelStatusToggle()"
+          [disabled]="statusSubmitting"
+          class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          (click)="executeStatusToggle()"
+          [disabled]="statusSubmitting"
+          class="px-4 py-2 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed"
+          [ngClass]="
+            statusToggleWillActivate()
+              ? 'bg-emerald-600 hover:bg-emerald-700'
+              : 'bg-amber-600 hover:bg-amber-700'
+          "
+        >
+          @if (statusSubmitting) {
+            <i class="fas fa-spinner fa-spin mr-2"></i>
+          }
+          {{ statusToggleWillActivate() ? 'Activate' : 'Deactivate' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Delete user confirm -->
+@if (deleteConfirmUserId !== null) {
+  <div class="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/40">
+    <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+      <h3 class="text-lg font-semibold text-gray-900 mb-2">Delete user?</h3>
+      <p class="text-sm text-gray-600 mb-4">
+        This permanently removes the user account. It cannot be undone. Deletion is blocked if the user still owns
+        vehicles, or has payroll or cash collection history as a driver (the server will show a specific error).
+      </p>
+      <label class="block text-sm font-medium text-gray-700 mb-1">
+        Type <span class="font-semibold text-gray-900">{{ deleteConfirmExpectedName }}</span> to confirm
+      </label>
+      <input
+        type="text"
+        [(ngModel)]="deleteConfirmationInput"
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="off"
+        spellcheck="false"
+        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary mb-6"
+        placeholder="Full name"
+      />
+      @if (error) {
+        <div class="text-sm text-red-600 mb-4">{{ error }}</div>
+      }
+      <div class="flex justify-end gap-3">
+        <button
+          type="button"
+          (click)="cancelRemoveUser()"
+          class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          (click)="executeRemoveUser()"
+          [disabled]="removeSubmitting || !isRemovePhraseValid()"
+          class="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          @if (removeSubmitting) {
+            <i class="fas fa-spinner fa-spin mr-2"></i>
+          }
+          Delete
+        </button>
+      </div>
+    </div>
+  </div>
+}
 
 <!-- Create User Modal -->
 @if (showCreateModal) {

@@ -1,6 +1,7 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { finalize } from 'rxjs/operators';
 import { interval, Subscription } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
@@ -26,6 +27,9 @@ import {
 } from '../../../../services/vehicle-catalog-admin.service';
 
 type SettingsTab = 'general' | 'payments' | 'vehicleCatalog' | 'sms' | 'email';
+
+/** How the HTML template body editor is shown: code + preview, code only, or preview only. */
+type EmailHtmlPaneMode = 'split' | 'source' | 'preview';
 
 @Component({
   selector: 'app-settings',
@@ -81,12 +85,22 @@ export class SettingsComponent implements OnInit, OnDestroy {
   /** Which template is resetting. */
   resettingTemplateKey: string | null = null;
 
+  /** Per-event collapsible panels in the email templates list (key = eventKey). */
+  emailTemplatePanelOpen: Record<string, boolean> = {};
+
+  /** Per-event: split vs source-only vs preview-only for the HTML body editor. */
+  emailTemplateHtmlPane: Record<string, EmailHtmlPaneMode> = {};
+
+  /** Entire "Email content (per event)" block expanded or collapsed. */
+  emailContentSectionExpanded = true;
+
   constructor(
     private fb: FormBuilder,
     private settingsService: SettingsService,
     private authService: AuthService,
     private paymentService: PaymentService,
-    private vehicleCatalogAdmin: VehicleCatalogAdminService
+    private vehicleCatalogAdmin: VehicleCatalogAdminService,
+    private sanitizer: DomSanitizer
   ) {
     this.generalForm = this.fb.group({
       officeLatitude: [null as number | null],
@@ -162,7 +176,6 @@ export class SettingsComponent implements OnInit, OnDestroy {
       postmarkServerToken: [''],
       postmarkDefaultFromEmail: [''],
       postmarkMessageStream: [''],
-      emailBrandingLogoUrl: [''],
       emailDriverJobAssigned: [true],
       emailDriverJobCompleted: [true],
       emailDriverPayrollPaid: [true],
@@ -386,7 +399,6 @@ export class SettingsComponent implements OnInit, OnDestroy {
       postmarkServerToken: null,
       postmarkDefaultFromEmail: c.postmarkDefaultFromEmail ?? null,
       postmarkMessageStream: c.postmarkMessageStream ?? null,
-      emailBrandingLogoUrl: c.emailBrandingLogoUrl ?? null,
       emailDriverJobAssigned: c.emailDriverJobAssigned ?? true,
       emailDriverJobCompleted: c.emailDriverJobCompleted ?? true,
       emailDriverPayrollPaid: c.emailDriverPayrollPaid ?? true,
@@ -669,9 +681,6 @@ export class SettingsComponent implements OnInit, OnDestroy {
       postmarkServerToken: token,
       postmarkDefaultFromEmail: v.postmarkDefaultFromEmail || null,
       postmarkMessageStream: v.postmarkMessageStream || null,
-      emailBrandingLogoUrl: (v.emailBrandingLogoUrl as string | null) && String(v.emailBrandingLogoUrl).trim().length > 0
-        ? String(v.emailBrandingLogoUrl).trim()
-        : null,
       emailDriverJobAssigned: !!v.emailDriverJobAssigned,
       emailDriverJobCompleted: !!v.emailDriverJobCompleted,
       emailDriverPayrollPaid: !!v.emailDriverPayrollPaid,
@@ -738,7 +747,6 @@ export class SettingsComponent implements OnInit, OnDestroy {
       postmarkServerToken: '',
       postmarkDefaultFromEmail: settings.postmarkDefaultFromEmail || '',
       postmarkMessageStream: settings.postmarkMessageStream || '',
-      emailBrandingLogoUrl: settings.emailBrandingLogoUrl || '',
       emailDriverJobAssigned: settings.emailDriverJobAssigned ?? true,
       emailDriverJobCompleted: settings.emailDriverJobCompleted ?? true,
       emailDriverPayrollPaid: settings.emailDriverPayrollPaid ?? true,
@@ -819,6 +827,58 @@ export class SettingsComponent implements OnInit, OnDestroy {
   /** Renders a merge field token for display, e.g. `{{JobId}}`. */
   mergeFieldToken(name: string): string {
     return `{{${name}}}`;
+  }
+
+  isEmailTemplateExpanded(eventKey: string): boolean {
+    return !!this.emailTemplatePanelOpen[eventKey];
+  }
+
+  toggleEmailContentSection(): void {
+    this.emailContentSectionExpanded = !this.emailContentSectionExpanded;
+  }
+
+  toggleEmailTemplatePanel(eventKey: string): void {
+    this.emailTemplatePanelOpen = {
+      ...this.emailTemplatePanelOpen,
+      [eventKey]: !this.emailTemplatePanelOpen[eventKey]
+    };
+  }
+
+  getEmailHtmlPane(eventKey: string): EmailHtmlPaneMode {
+    return this.emailTemplateHtmlPane[eventKey] ?? 'split';
+  }
+
+  setEmailHtmlPane(eventKey: string, pane: EmailHtmlPaneMode): void {
+    this.emailTemplateHtmlPane = { ...this.emailTemplateHtmlPane, [eventKey]: pane };
+  }
+
+  isEmailHtmlPane(eventKey: string, pane: EmailHtmlPaneMode): boolean {
+    return this.getEmailHtmlPane(eventKey) === pane;
+  }
+
+  /**
+   * Renders saved template inner HTML for the live preview (super-admin content only).
+   * Wraps with a header logo placeholder and resolves {{LogoUrl}} like the server (admin uses app-relative asset).
+   */
+  emailTemplatePreviewHtml(fragment: string | null | undefined): SafeHtml {
+    const raw = typeof fragment === 'string' ? fragment.trim() : '';
+    if (!raw) {
+      return this.sanitizer.bypassSecurityTrustHtml(
+        '<p class="text-slate-400 text-sm italic m-0">Nothing to preview yet. Add HTML in the source panel.</p>'
+      );
+    }
+    const previewLogoSrc = '/images/logo.svg';
+    const inner = raw.replace(/\{\{\s*LogoUrl\s*\}\}/gi, previewLogoSrc);
+    const wrapped = `
+      <div class="email-preview-outer overflow-hidden rounded-t border-0 border-b border-slate-200 bg-white text-left">
+        <div class="border-b border-slate-200 bg-gradient-to-b from-white to-slate-50 px-8 py-5 text-center">
+          <img src="${previewLogoSrc}" alt="Logo" width="200" class="inline-block h-auto max-w-[200px]" />
+        </div>
+        <div class="px-8 py-7 font-serif text-base leading-relaxed text-slate-900 [&_a]:text-primary">
+          ${inner}
+        </div>
+      </div>`;
+    return this.sanitizer.bypassSecurityTrustHtml(wrapped);
   }
 
   resetEmailTemplateToDefault(t: EmailTemplateItem): void {

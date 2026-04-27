@@ -5,3 +5,37 @@
 pre {
   margin: 0;
 }
+
+/* Email template live preview: innerHTML is admin-controlled; style common tags for readability */
+.email-html-preview {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 15px;
+  line-height: 1.65;
+  color: #0f172a;
+}
+
+:host ::ng-deep .email-html-preview p {
+  margin: 0 0 0.75em;
+}
+
+:host ::ng-deep .email-html-preview p:last-child {
+  margin-bottom: 0;
+}
+
+:host ::ng-deep .email-html-preview a {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+:host ::ng-deep .email-html-preview strong {
+  font-weight: 600;
+}
+
+:host ::ng-deep .email-html-preview br {
+  line-height: 1.65;
+}
+
+/* Code-style HTML source editor */
+.email-html-source {
+  tab-size: 2;
+}

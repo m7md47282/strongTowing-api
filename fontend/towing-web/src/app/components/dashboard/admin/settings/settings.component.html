@@ -379,18 +379,6 @@
               />
               <p class="text-xs text-gray-500 mt-1">Default is outbound if empty.</p>
             </div>
-            <div class="md:col-span-2">
-              <label class="block text-sm font-medium text-gray-700 mb-1">Email logo URL (optional)</label>
-              <input
-                type="url"
-                formControlName="emailBrandingLogoUrl"
-                class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                placeholder="https://your-site.com/images/logo-withbg.jpeg"
-              />
-              <p class="text-xs text-gray-500 mt-1">
-                Public <strong>https</strong> image URL shown in HTML emails. Leave empty to use a text-only header. Save with the button below.
-              </p>
-            </div>
           </div>
 
           <div class="border-t border-gray-200 pt-4 mt-4">
@@ -485,10 +473,38 @@
         </div>
 
         @if (isAdminOrSuperAdmin()) {
-          <div class="bg-white border border-gray-200 rounded-xl p-6 mt-6">
-            <h2 class="text-lg font-semibold text-gray-900 mb-1">Email content (per event)</h2>
-            <p class="text-sm text-gray-600 mb-4">
-              Edit the subject and inner HTML for each notification. A formal layout and footer are added automatically. Use merge fields as shown below.
+          <div class="mt-6 overflow-hidden rounded-xl border border-gray-200 bg-white">
+            <button
+              type="button"
+              (click)="toggleEmailContentSection()"
+              class="flex w-full items-start justify-between gap-3 p-6 text-left transition-colors hover:bg-gray-50/80"
+              [attr.aria-expanded]="emailContentSectionExpanded"
+              aria-controls="email-content-per-event-panel"
+              id="email-content-per-event-trigger"
+            >
+              <div class="min-w-0 flex-1">
+                <h2 class="text-lg font-semibold text-gray-900">Email content (per event)</h2>
+                <p class="mt-1 line-clamp-2 text-sm text-gray-600">
+                  Per-event subject, HTML, and merge fields. Server adds layout, logo, and footer.
+                </p>
+              </div>
+              <i
+                class="fas mt-1 shrink-0 text-gray-500"
+                [class.fa-chevron-up]="emailContentSectionExpanded"
+                [class.fa-chevron-down]="!emailContentSectionExpanded"
+                aria-hidden="true"
+              ></i>
+            </button>
+
+            @if (emailContentSectionExpanded) {
+            <div
+              class="border-t border-gray-100 px-6 pb-6"
+              id="email-content-per-event-panel"
+              role="region"
+              aria-labelledby="email-content-per-event-trigger"
+            >
+            <p class="mb-4 text-sm text-gray-600">
+              Edit the subject and inner HTML for each notification. A formal layout, header logo (<code class="text-xs bg-gray-100 px-1 rounded">/images/logo.svg</code>), and footer are applied on the server. Use merge fields as shown below.
             </p>
             @if (emailTemplatesLoading) {
               <div class="flex items-center gap-2 text-gray-600 text-sm py-4">
@@ -502,89 +518,208 @@
               </div>
             }
             @if (emailTemplates && !emailTemplatesLoading) {
-              <div class="space-y-4">
+              <div class="space-y-2">
                 @for (t of emailTemplates; track t.eventKey) {
                   <div
-                    class="border rounded-lg p-4"
-                    [ngClass]="t.isCustom ? 'border-amber-300 bg-amber-50' : 'border-gray-200'"
+                    class="border rounded-lg overflow-hidden"
+                    [ngClass]="t.isCustom ? 'border-amber-300 bg-amber-50/40' : 'border-gray-200 bg-white'"
                   >
-                    <div class="flex flex-wrap items-start justify-between gap-2 mb-2">
-                      <div>
+                    <button
+                      type="button"
+                      (click)="toggleEmailTemplatePanel(t.eventKey)"
+                      class="w-full flex items-start justify-between gap-3 p-3 text-left hover:bg-black/[0.03]"
+                      [attr.aria-expanded]="isEmailTemplateExpanded(t.eventKey)"
+                      [attr.aria-controls]="'email-template-panel-' + t.eventKey"
+                      [id]="'email-template-trigger-' + t.eventKey"
+                    >
+                      <div class="min-w-0 flex-1">
                         <h3 class="text-sm font-semibold text-gray-900">{{ t.displayName }}</h3>
-                        <p class="text-xs text-gray-600 mt-0.5">{{ t.description }}</p>
+                        <p class="text-xs text-gray-600 mt-0.5 line-clamp-2">{{ t.description }}</p>
                       </div>
-                      @if (t.isCustom) {
-                        <span class="text-xs font-medium text-amber-800 bg-amber-100 border border-amber-200 rounded px-2 py-0.5">Custom</span>
-                      }
-                    </div>
-                    <p class="text-xs text-gray-500 mb-2">
-                      Placeholders:
-                      @for (p of t.placeholders; track p) {
-                        <code class="ml-1 px-1 py-0.5 bg-gray-100 rounded text-gray-800">{{ mergeFieldToken(p) }}</code>
-                      }
-                    </p>
-                    <div class="space-y-2">
-                      <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-0.5">Subject</label>
-                        <input
-                          type="text"
-                          [ngModel]="$any(t).subject"
-                          (ngModelChange)="$any(t).subject = $event"
-                          [ngModelOptions]="{ standalone: true }"
-                          [name]="'subj-' + t.eventKey"
-                          class="w-full px-2.5 py-1.5 border border-gray-300 rounded text-sm"
-                        />
-                      </div>
-                      <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-0.5">HTML body (inner content)</label>
-                        <textarea
-                          [name]="'html-' + t.eventKey"
-                          rows="8"
-                          [ngModel]="$any(t).htmlBody"
-                          (ngModelChange)="$any(t).htmlBody = $event"
-                          [ngModelOptions]="{ standalone: true }"
-                          class="w-full px-2.5 py-1.5 border border-gray-300 rounded text-sm font-mono text-xs"
-                        ></textarea>
-                      </div>
-                      <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-0.5">Plain text (optional)</label>
-                        <textarea
-                          [name]="'txt-' + t.eventKey"
-                          rows="3"
-                          [ngModel]="$any(t).textBody"
-                          (ngModelChange)="$any(t).textBody = $event"
-                          [ngModelOptions]="{ standalone: true }"
-                          [placeholder]="'Leave empty to auto-generate from HTML when sending.'"
-                          class="w-full px-2.5 py-1.5 border border-gray-300 rounded text-sm font-mono text-xs"
-                        ></textarea>
-                      </div>
-                    </div>
-                    <div class="flex flex-wrap gap-2 mt-3">
-                      <button
-                        type="button"
-                        (click)="saveEmailTemplate(t)"
-                        [disabled]="!isSuperAdmin() || savingTemplateKey === t.eventKey"
-                        class="px-3 py-1.5 text-sm font-medium rounded-lg bg-primary text-white hover:opacity-90 disabled:opacity-50"
-                      >
-                        @if (savingTemplateKey === t.eventKey) {
-                          <i class="fas fa-spinner fa-spin"></i>
-                        } @else {
-                          Save template
+                      <div class="flex items-center gap-2 shrink-0">
+                        @if (t.isCustom) {
+                          <span class="text-xs font-medium text-amber-800 bg-amber-100 border border-amber-200 rounded px-2 py-0.5">Custom</span>
                         }
-                      </button>
-                      <button
-                        type="button"
-                        (click)="resetEmailTemplateToDefault(t)"
-                        [disabled]="!isSuperAdmin() || !t.isCustom || resettingTemplateKey === t.eventKey"
-                        class="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-300 text-gray-800 hover:bg-gray-50 disabled:opacity-50"
+                        <i
+                          class="fas text-gray-500 text-sm mt-0.5 transition-transform"
+                          [class.fa-chevron-up]="isEmailTemplateExpanded(t.eventKey)"
+                          [class.fa-chevron-down]="!isEmailTemplateExpanded(t.eventKey)"
+                          aria-hidden="true"
+                        ></i>
+                      </div>
+                    </button>
+
+                    @if (isEmailTemplateExpanded(t.eventKey)) {
+                      <div
+                        class="px-3 pb-3 pt-1 border-t border-gray-100"
+                        [id]="'email-template-panel-' + t.eventKey"
+                        role="region"
+                        [attr.aria-labelledby]="'email-template-trigger-' + t.eventKey"
                       >
-                        @if (resettingTemplateKey === t.eventKey) {
-                          <i class="fas fa-spinner fa-spin"></i>
-                        } @else {
-                          Reset to default
-                        }
-                      </button>
-                    </div>
+                        <p class="text-xs text-gray-500 mb-3">
+                          Placeholders:
+                          @for (p of t.placeholders; track p) {
+                            <code class="ml-1 px-1 py-0.5 bg-gray-100 rounded text-gray-800">{{ mergeFieldToken(p) }}</code>
+                          }
+                        </p>
+                        <div class="space-y-2">
+                          <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-0.5">Subject</label>
+                            <input
+                              type="text"
+                              [ngModel]="$any(t).subject"
+                              (ngModelChange)="$any(t).subject = $event"
+                              [ngModelOptions]="{ standalone: true }"
+                              [name]="'subj-' + t.eventKey"
+                              class="w-full px-2.5 py-1.5 border border-gray-300 rounded text-sm"
+                            />
+                          </div>
+                          <div class="space-y-2">
+                            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                              <label class="block text-xs font-medium text-gray-700">HTML body (inner content)</label>
+                              <div class="inline-flex shrink-0 rounded-lg border border-gray-300 bg-slate-100 p-0.5 shadow-sm">
+                                <button
+                                  type="button"
+                                  [attr.aria-pressed]="isEmailHtmlPane(t.eventKey, 'split')"
+                                  (click)="setEmailHtmlPane(t.eventKey, 'split')"
+                                  class="rounded-md px-2 py-1 text-[11px] font-medium transition-colors"
+                                  [ngClass]="isEmailHtmlPane(t.eventKey, 'split')
+                                    ? 'bg-white text-gray-900 shadow-sm'
+                                    : 'text-gray-600 hover:text-gray-900'"
+                                >
+                                  Split
+                                </button>
+                                <button
+                                  type="button"
+                                  [attr.aria-pressed]="isEmailHtmlPane(t.eventKey, 'source')"
+                                  (click)="setEmailHtmlPane(t.eventKey, 'source')"
+                                  class="rounded-md px-2 py-1 text-[11px] font-medium transition-colors"
+                                  [ngClass]="isEmailHtmlPane(t.eventKey, 'source')
+                                    ? 'bg-white text-gray-900 shadow-sm'
+                                    : 'text-gray-600 hover:text-gray-900'"
+                                >
+                                  Source
+                                </button>
+                                <button
+                                  type="button"
+                                  [attr.aria-pressed]="isEmailHtmlPane(t.eventKey, 'preview')"
+                                  (click)="setEmailHtmlPane(t.eventKey, 'preview')"
+                                  class="rounded-md px-2 py-1 text-[11px] font-medium transition-colors"
+                                  [ngClass]="isEmailHtmlPane(t.eventKey, 'preview')
+                                    ? 'bg-white text-gray-900 shadow-sm'
+                                    : 'text-gray-600 hover:text-gray-900'"
+                                >
+                                  Preview
+                                </button>
+                              </div>
+                            </div>
+
+                            @if (isEmailHtmlPane(t.eventKey, 'split')) {
+                              <div class="grid grid-cols-1 gap-3 lg:grid-cols-2 lg:items-start">
+                                <div class="flex min-h-0 flex-col gap-1.5">
+                                  <span class="text-[10px] font-semibold uppercase tracking-wide text-slate-500">HTML source</span>
+                                  <!-- Multiline markup requires a textarea; styled as a code-friendly editor -->
+                                  <textarea
+                                    [name]="'html-split-' + t.eventKey"
+                                    spellcheck="false"
+                                    autocomplete="off"
+                                    autocorrect="off"
+                                    autocapitalize="off"
+                                    wrap="soft"
+                                    rows="14"
+                                    [ngModel]="$any(t).htmlBody"
+                                    (ngModelChange)="$any(t).htmlBody = $event"
+                                    [ngModelOptions]="{ standalone: true }"
+                                    class="email-html-source min-h-[260px] w-full resize-y rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 font-mono text-[13px] leading-relaxed text-slate-900 shadow-inner outline-none ring-primary focus:border-primary focus:ring-2 focus:ring-offset-0"
+                                  ></textarea>
+                                </div>
+                                <div class="flex min-h-0 flex-col gap-1.5 lg:sticky lg:top-2 lg:max-h-[min(420px,calc(100vh-220px))] lg:self-start">
+                                  <span class="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Live preview</span>
+                                  <div
+                                    class="email-html-preview overflow-auto rounded-lg border border-dashed border-slate-300 bg-white p-4 lg:max-h-[min(380px,calc(100vh-260px))]"
+                                    [innerHTML]="emailTemplatePreviewHtml(t.htmlBody)"
+                                  ></div>
+                                  <p class="text-[11px] text-gray-500">
+                                    Preview includes a header logo and resolves <code class="text-[11px]">{{ mergeFieldToken('LogoUrl') }}</code>; sent mail uses appsettings branding and full wrapper.
+                                  </p>
+                                </div>
+                              </div>
+                            }
+
+                            @if (isEmailHtmlPane(t.eventKey, 'source')) {
+                              <div class="flex flex-col gap-1.5">
+                                <span class="text-[10px] font-semibold uppercase tracking-wide text-slate-500">HTML source</span>
+                                <textarea
+                                  [name]="'html-src-' + t.eventKey"
+                                  spellcheck="false"
+                                  autocomplete="off"
+                                  autocorrect="off"
+                                  autocapitalize="off"
+                                  rows="16"
+                                  [ngModel]="$any(t).htmlBody"
+                                  (ngModelChange)="$any(t).htmlBody = $event"
+                                  [ngModelOptions]="{ standalone: true }"
+                                  class="email-html-source min-h-[320px] w-full resize-y rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 font-mono text-[13px] leading-relaxed text-slate-900 shadow-inner outline-none ring-primary focus:border-primary focus:ring-2 focus:ring-offset-0"
+                                ></textarea>
+                              </div>
+                            }
+
+                            @if (isEmailHtmlPane(t.eventKey, 'preview')) {
+                              <div class="flex flex-col gap-2">
+                                <span class="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Live preview</span>
+                                <div
+                                  class="email-html-preview overflow-auto rounded-lg border border-dashed border-slate-300 bg-white p-4 min-h-[280px]"
+                                  [innerHTML]="emailTemplatePreviewHtml(t.htmlBody)"
+                                ></div>
+                                <p class="text-[11px] text-gray-600">
+                                  Switch to <button type="button" class="font-medium text-primary underline" (click)="setEmailHtmlPane(t.eventKey, 'split')">Split</button>
+                                  or <button type="button" class="font-medium text-primary underline" (click)="setEmailHtmlPane(t.eventKey, 'source')">Source</button>
+                                  to edit markup.
+                                </p>
+                              </div>
+                            }
+                          </div>
+                          <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-0.5">Plain text (optional)</label>
+                            <textarea
+                              [name]="'txt-' + t.eventKey"
+                              rows="3"
+                              [ngModel]="$any(t).textBody"
+                              (ngModelChange)="$any(t).textBody = $event"
+                              [ngModelOptions]="{ standalone: true }"
+                              [placeholder]="'Leave empty to auto-generate from HTML when sending.'"
+                              class="w-full px-2.5 py-1.5 border border-gray-300 rounded text-sm font-mono text-xs"
+                            ></textarea>
+                          </div>
+                        </div>
+                        <div class="flex flex-wrap gap-2 mt-3">
+                          <button
+                            type="button"
+                            (click)="saveEmailTemplate(t)"
+                            [disabled]="!isSuperAdmin() || savingTemplateKey === t.eventKey"
+                            class="px-3 py-1.5 text-sm font-medium rounded-lg bg-primary text-white hover:opacity-90 disabled:opacity-50"
+                          >
+                            @if (savingTemplateKey === t.eventKey) {
+                              <i class="fas fa-spinner fa-spin"></i>
+                            } @else {
+                              Save template
+                            }
+                          </button>
+                          <button
+                            type="button"
+                            (click)="resetEmailTemplateToDefault(t)"
+                            [disabled]="!isSuperAdmin() || !t.isCustom || resettingTemplateKey === t.eventKey"
+                            class="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-300 text-gray-800 hover:bg-gray-50 disabled:opacity-50"
+                          >
+                            @if (resettingTemplateKey === t.eventKey) {
+                              <i class="fas fa-spinner fa-spin"></i>
+                            } @else {
+                              Reset to default
+                            }
+                          </button>
+                        </div>
+                      </div>
+                    }
                   </div>
                 }
               </div>
@@ -593,6 +728,8 @@
               <p class="text-xs text-amber-700 border border-amber-200 bg-amber-50 rounded p-2 mt-2">
                 Only Super Admin can save or reset templates.
               </p>
+            }
+            </div>
             }
           </div>
         }

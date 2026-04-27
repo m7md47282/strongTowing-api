@@ -162,7 +162,6 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
   /** Full lifecycle order — all statuses shown in job details (e.g. new job = Waiting current, rest upcoming). */
   readonly JOB_STATUS_ORDER_ALL = JOB_STATUS_ORDER;
   jobs: Job[] = [];
-  filteredJobs: Job[] = [];
   loading = false;
   error: string | null = null;
   /** Shown after assign succeeds but FCM push was not delivered (no token, Firebase off, etc.) */
@@ -214,6 +213,16 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
   // Filters
   statusFilter: string = '';
   searchTerm: string = '';
+
+  pageNumber = 1;
+  pageSize = 25;
+  totalCount = 0;
+  totalPages = 0;
+  hasPreviousPage = false;
+  hasNextPage = false;
+  /** @see users table */
+  Math = Math;
+  private searchDebounceTimer: ReturnType<typeof setTimeout> | undefined;
   
   // Data for dropdowns
   vehicles: Vehicle[] = [];
@@ -742,6 +751,7 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   ngOnDestroy(): void {
+    clearTimeout(this.searchDebounceTimer);
     this.jobsStickyResizeObserver?.disconnect();
     cancelAnimationFrame(this.jobsStickyMeasureRaf);
     this.pickupDestinationDistanceSub?.unsubscribe();
@@ -1109,8 +1119,14 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
   loadJobs(): void {
     this.loading = true;
     this.error = null;
-    
-    this.jobService.getAllJobs(this.statusFilter || undefined)
+
+    this.jobService
+      .getJobsPaged({
+        pageNumber: this.pageNumber,
+        pageSize: this.pageSize,
+        status: this.statusFilter || undefined,
+        search: this.searchTerm.trim() || undefined
+      })
       .pipe(
         finalize(() => {
           this.loading = false;
@@ -1119,14 +1135,33 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
             this.scheduleJobsStickyMeasure();
           }, 0);
         }),
-        catchError(error => {
+        catchError((error) => {
           this.error = error.error?.message || 'Failed to load jobs';
-          return of([]);
+          this.jobs = [];
+          this.totalCount = 0;
+          this.totalPages = 0;
+          this.hasPreviousPage = false;
+          this.hasNextPage = false;
+          return of({
+            data: [] as Job[],
+            pageNumber: 1,
+            pageSize: this.pageSize,
+            totalCount: 0,
+            totalPages: 0,
+            hasPreviousPage: false,
+            hasNextPage: false
+          });
         })
       )
-      .subscribe(jobs => {
-        this.jobs = jobs;
-        this.applyFilters();
+      .subscribe((response) => {
+        this.pageNumber = response.pageNumber;
+        this.pageSize = response.pageSize;
+        this.totalCount = response.totalCount;
+        this.totalPages = response.totalPages;
+        this.hasPreviousPage = response.hasPreviousPage;
+        this.hasNextPage = response.hasNextPage;
+        this.jobs = response.data;
+        this.cdr.markForCheck();
       });
   }
 
@@ -1291,26 +1326,75 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
       });
   }
 
-  applyFilters(): void {
-    this.filteredJobs = this.jobs.filter(job => {
-      const matchesStatus = !this.statusFilter || job.status === this.statusFilter;
-      const matchesSearch = !this.searchTerm || 
-        job.id.toString().includes(this.searchTerm) ||
-        job.vehicle?.make?.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
-        job.vehicle?.model?.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
-        job.driverName?.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
-        job.serviceType?.toLowerCase().includes(this.searchTerm.toLowerCase());
-      
-      return matchesStatus && matchesSearch;
-    });
-  }
-
   onStatusFilterChange(): void {
+    this.pageNumber = 1;
     this.loadJobs();
   }
 
   onSearchChange(): void {
-    this.applyFilters();
+    clearTimeout(this.searchDebounceTimer);
+    this.searchDebounceTimer = setTimeout(() => {
+      this.pageNumber = 1;
+      this.loadJobs();
+    }, 400);
+  }
+
+  /** Immediate search (Enter key) without waiting for debounce. */
+  submitJobSearchNow(): void {
+    clearTimeout(this.searchDebounceTimer);
+    this.pageNumber = 1;
+    this.loadJobs();
+  }
+
+  onPageSizeChange(): void {
+    this.pageNumber = 1;
+    this.loadJobs();
+  }
+
+  goToPage(page: number): void {
+    if (page >= 1 && page <= this.totalPages) {
+      this.pageNumber = page;
+      this.loadJobs();
+    }
+  }
+
+  nextPage(): void {
+    if (this.hasNextPage) {
+      this.pageNumber++;
+      this.loadJobs();
+    }
+  }
+
+  previousPage(): void {
+    if (this.hasPreviousPage) {
+      this.pageNumber--;
+      this.loadJobs();
+    }
+  }
+
+  getPageNumbers(): number[] {
+    const pages: number[] = [];
+    const maxPagesToShow = 5;
+    let startPage = Math.max(1, this.pageNumber - Math.floor(maxPagesToShow / 2));
+    let endPage = Math.min(this.totalPages, startPage + maxPagesToShow - 1);
+    if (endPage - startPage < maxPagesToShow - 1) {
+      startPage = Math.max(1, endPage - maxPagesToShow + 1);
+    }
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+    return pages;
+  }
+
+  clearJobFilters(): void {
+    this.statusFilter = '';
+    this.searchTerm = '';
+    this.pageNumber = 1;
+    this.loadJobs();
+  }
+
+  hasActiveJobFilters(): boolean {
+    return !!(this.statusFilter || this.searchTerm.trim());
   }
 
   openCreateJobModal(): void {

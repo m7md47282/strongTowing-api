@@ -15,8 +15,8 @@
 
   <!-- Filters and Search -->
   <div class="bg-white rounded-lg shadow-sm p-4 mb-6">
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div>
+    <div class="flex flex-wrap items-end gap-4">
+      <div class="flex-1 min-w-[140px]">
         <label class="block text-sm font-medium text-gray-700 mb-2">Status Filter</label>
         <select
           [(ngModel)]="statusFilter"
@@ -28,19 +28,29 @@
           }
         </select>
       </div>
-      <div class="md:col-span-2">
+      <div class="flex-1 min-w-[200px]">
         <label class="block text-sm font-medium text-gray-700 mb-2">Search</label>
         <div class="relative">
           <input
             type="text"
             [(ngModel)]="searchTerm"
+            (keyup.enter)="submitJobSearchNow()"
             (input)="onSearchChange()"
-            placeholder="Search by job ID, vehicle, driver, or service type..."
+            placeholder="Job ID, vehicle, driver, or service type..."
             class="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
           />
           <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
         </div>
       </div>
+      <button
+        type="button"
+        (click)="clearJobFilters()"
+        class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors shrink-0"
+        [disabled]="loading"
+      >
+        <i class="fas fa-times mr-1"></i>
+        Clear filters
+      </button>
     </div>
   </div>
 
@@ -78,8 +88,9 @@
   }
 
   <!-- Jobs Table -->
-  @if (!loading && filteredJobs.length > 0) {
-    <div #jobsTableWrap class="jobs-table-wrap bg-white rounded-lg shadow-sm overflow-x-auto">
+  @if (!loading && jobs.length > 0) {
+    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+    <div #jobsTableWrap class="jobs-table-wrap overflow-x-auto">
       <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
           <tr #jobsTableHeaderRow>
@@ -307,7 +318,7 @@
           </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
-          @for (job of filteredJobs; track job.id) {
+          @for (job of jobs; track job.id) {
             <tr class="group hover:bg-gray-50">
               <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 bg-white group-hover:bg-gray-50" [ngStyle]="getStickyTdStyle(0)">#{{ job.id }}</td>
               <td class="px-4 py-3 whitespace-nowrap bg-white group-hover:bg-gray-50" [ngStyle]="getStickyTdStyle(1)">
@@ -459,20 +470,104 @@
         </tbody>
       </table>
     </div>
+
+    <!-- Pagination -->
+    <div class="bg-gray-50 border-t border-gray-200 px-4 py-4">
+      <div class="flex items-center justify-between flex-wrap gap-4">
+        <div class="text-sm text-gray-600">
+          @if (totalCount > 0) {
+            <p>
+              Showing <span class="font-medium text-gray-900">{{ (pageNumber - 1) * pageSize + 1 }}</span>
+              to <span class="font-medium text-gray-900">{{ Math.min(pageNumber * pageSize, totalCount) }}</span>
+              of <span class="font-medium text-gray-900">{{ totalCount }}</span> jobs
+              @if (totalPages > 1) {
+                <span>(Page {{ pageNumber }} of {{ totalPages }})</span>
+              }
+            </p>
+          } @else {
+            <p class="text-gray-500">No jobs match your filters.</p>
+          }
+        </div>
+        <div class="flex items-center gap-2 flex-wrap justify-end">
+          @if (totalCount > 0) {
+            <div class="flex items-center gap-2">
+              <label class="text-sm text-gray-600">Per page:</label>
+              <select
+                [(ngModel)]="pageSize"
+                (change)="onPageSizeChange()"
+                class="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+              >
+                <option [ngValue]="10">10</option>
+                <option [ngValue]="25">25</option>
+                <option [ngValue]="50">50</option>
+                <option [ngValue]="100">100</option>
+              </select>
+            </div>
+          }
+          @if (totalPages > 1) {
+            <button
+              type="button"
+              (click)="previousPage()"
+              [disabled]="!hasPreviousPage || loading"
+              class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Previous page"
+            >
+              <i class="fas fa-chevron-left"></i>
+            </button>
+            <div class="flex items-center gap-1">
+              @for (page of getPageNumbers(); track page) {
+                <button
+                  type="button"
+                  (click)="goToPage(page)"
+                  [class.bg-primary]="page === pageNumber"
+                  [class.text-white]="page === pageNumber"
+                  [class.text-gray-700]="page !== pageNumber"
+                  class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+                  [disabled]="loading"
+                >
+                  {{ page }}
+                </button>
+              }
+            </div>
+            <button
+              type="button"
+              (click)="nextPage()"
+              [disabled]="!hasNextPage || loading"
+              class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Next page"
+            >
+              <i class="fas fa-chevron-right"></i>
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+    </div>
   }
 
   <!-- Empty State -->
-  @if (!loading && filteredJobs.length === 0) {
+  @if (!loading && jobs.length === 0) {
     <div class="bg-white rounded-lg shadow-sm p-12 text-center">
       <i class="fas fa-tasks text-6xl text-gray-300 mb-4"></i>
       <h3 class="text-xl font-semibold text-gray-900 mb-2">No jobs found</h3>
-      <p class="text-gray-600 mb-6">Get started by creating your first job</p>
-      <button
-        (click)="openCreateJobModal()"
-        class="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors font-medium"
-      >
-        <i class="fas fa-plus mr-2"></i>Create New Job
-      </button>
+      @if (!hasActiveJobFilters()) {
+        <p class="text-gray-600 mb-6">Get started by creating your first job</p>
+        <button
+          (click)="openCreateJobModal()"
+          class="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors font-medium"
+        >
+          <i class="fas fa-plus mr-2"></i>Create New Job
+        </button>
+      } @else {
+        <p class="text-gray-600 mb-6">Try adjusting status, search, or clear filters.</p>
+        <button
+          type="button"
+          (click)="clearJobFilters()"
+          class="px-6 py-3 border border-gray-300 text-gray-800 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+        >
+          Clear filters
+        </button>
+      }
     </div>
   }
 

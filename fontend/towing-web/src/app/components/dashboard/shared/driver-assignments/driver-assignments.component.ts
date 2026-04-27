@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpParams } from '@angular/common/http';
@@ -24,6 +24,11 @@ interface PagedResponse<T> {
   hasNextPage: boolean;
 }
 
+interface DriversPagedResponse extends PagedResponse<User> {
+  driversWithActiveJobCount: number;
+  driversWithoutActiveJobCount: number;
+}
+
 type AssignmentFilter = 'assigned' | 'unassigned' | '';
 
 interface DriverWithJob extends User {
@@ -37,19 +42,28 @@ interface DriverWithJob extends User {
   templateUrl: './driver-assignments.component.html',
   styleUrls: ['./driver-assignments.component.scss']
 })
-export class DriverAssignmentsComponent implements OnInit {
+export class DriverAssignmentsComponent implements OnInit, OnDestroy {
   drivers: DriverWithJob[] = [];
-  filteredDrivers: DriverWithJob[] = [];
   loading = false;
   error: string | null = null;
   searchTerm = '';
   assignmentFilter: AssignmentFilter = '';
 
+  pageNumber = 1;
+  pageSize = 25;
+  totalCount = 0;
+  totalPages = 0;
+  hasPreviousPage = false;
+  hasNextPage = false;
+  Math = Math;
+
   stats = {
-    total: 0,
+    eligibleTotal: 0,
     assigned: 0,
     unassigned: 0
   };
+
+  private searchDebounceTimer: ReturnType<typeof setTimeout> | undefined;
 
   private readonly activeStatuses: JobStatus[] = [...JOB_STATUS_ACTIVE];
 
@@ -62,103 +76,164 @@ export class DriverAssignmentsComponent implements OnInit {
     this.loadData();
   }
 
+  ngOnDestroy(): void {
+    clearTimeout(this.searchDebounceTimer);
+  }
+
+  private buildDriverListParams(): HttpParams {
+    let params = new HttpParams()
+      .set('pageNumber', String(this.pageNumber))
+      .set('pageSize', String(this.pageSize))
+      .set('isActive', 'true')
+      .set('availableForDispatchOnly', 'true');
+    const t = this.searchTerm.trim();
+    if (t) {
+      params = params.set('search', t);
+    }
+    if (this.assignmentFilter) {
+      params = params.set('assignment', this.assignmentFilter);
+    }
+    return params;
+  }
+
   loadData(): void {
     this.loading = true;
     this.error = null;
 
-    const params = new HttpParams()
-      .set('pageNumber', '1')
-      .set('pageSize', '100')
-      .set('isActive', 'true')
-      .set('availableForDispatchOnly', 'true');
-
     forkJoin({
-      drivers: this.apiService.get<PagedResponse<User>>('users/drivers', params).pipe(
-        catchError(err => {
-          this.error = err.error?.message || err.error?.error || 'Failed to load drivers';
-          return of({
-            data: [],
-            pageNumber: 1,
-            pageSize: 100,
-            totalCount: 0,
-            totalPages: 0,
-            hasPreviousPage: false,
-            hasNextPage: false
-          } as PagedResponse<User>);
-        })
-      ),
+      drivers: this.apiService
+        .get<DriversPagedResponse>('users/drivers', this.buildDriverListParams())
+        .pipe(
+          catchError((err) => {
+            this.error = err.error?.message || err.error?.error || 'Failed to load drivers';
+            return of({
+              data: [] as User[],
+              pageNumber: 1,
+              pageSize: this.pageSize,
+              totalCount: 0,
+              totalPages: 0,
+              hasPreviousPage: false,
+              hasNextPage: false,
+              driversWithActiveJobCount: 0,
+              driversWithoutActiveJobCount: 0
+            } as DriversPagedResponse);
+          })
+        ),
       jobs: this.jobService.getAllJobs().pipe(
-        catchError(err => {
+        catchError((err) => {
           console.error('Failed to load jobs for driver view:', err);
           return of([] as Job[]);
         })
       )
-    }).pipe(finalize(() => {
-      this.loading = false;
-    }))
-    .subscribe(({ drivers, jobs }) => {
-      const activeJobs = jobs.filter(job => this.activeStatuses.includes(job.status));
-      this.drivers = drivers.data.map(driver => ({
-        ...driver,
-        currentJob: this.findCurrentJob(driver, activeJobs)
-      }));
+    })
+      .pipe(finalize(() => {
+        this.loading = false;
+      }))
+      .subscribe(({ drivers, jobs }) => {
+        const activeJobs = jobs.filter((job) => this.activeStatuses.includes(job.status));
+        this.pageNumber = drivers.pageNumber;
+        this.pageSize = drivers.pageSize;
+        this.totalCount = drivers.totalCount;
+        this.totalPages = drivers.totalPages;
+        this.hasPreviousPage = drivers.hasPreviousPage;
+        this.hasNextPage = drivers.hasNextPage;
 
-      this.computeStats();
-      this.applyFilters();
-    });
+        this.stats.eligibleTotal =
+          (drivers.driversWithActiveJobCount ?? 0) +
+          (drivers.driversWithoutActiveJobCount ?? 0);
+        this.stats.assigned = drivers.driversWithActiveJobCount ?? 0;
+        this.stats.unassigned = drivers.driversWithoutActiveJobCount ?? 0;
+
+        this.drivers = (drivers.data || []).map((driver) => ({
+          ...driver,
+          currentJob: this.findCurrentJob(driver, activeJobs)
+        }));
+      });
   }
 
   findCurrentJob(driver: User, jobs: Job[]): Job | null {
-    const driverJobs = jobs.filter(job => job.driverId === driver.id);
+    const driverJobs = jobs.filter((job) => job.driverId === driver.id);
     if (driverJobs.length === 0) {
       return null;
     }
 
-    return driverJobs.sort((a, b) =>
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    return driverJobs.sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     )[0];
   }
 
-  applyFilters(): void {
-    this.filteredDrivers = this.drivers.filter(driver => {
-      const matchesSearch = this.matchesSearch(driver);
-      const matchesAssignment = this.matchesAssignment(driver);
-      return matchesSearch && matchesAssignment;
-    });
+  onSearchInput(): void {
+    clearTimeout(this.searchDebounceTimer);
+    this.searchDebounceTimer = setTimeout(() => {
+      this.pageNumber = 1;
+      this.loadData();
+    }, 400);
   }
 
-  private matchesSearch(driver: DriverWithJob): boolean {
-    if (!this.searchTerm.trim()) return true;
-    const term = this.searchTerm.toLowerCase();
-    return (
-      driver.fullName.toLowerCase().includes(term) ||
-      driver.email.toLowerCase().includes(term) ||
-      (driver.phoneNumber || '').toLowerCase().includes(term)
-    );
+  submitSearchNow(): void {
+    clearTimeout(this.searchDebounceTimer);
+    this.pageNumber = 1;
+    this.loadData();
   }
 
-  private matchesAssignment(driver: DriverWithJob): boolean {
-    if (!this.assignmentFilter) return true;
-    if (this.assignmentFilter === 'assigned') {
-      return !!driver.currentJob;
+  onAssignmentFilterChange(): void {
+    this.pageNumber = 1;
+    this.loadData();
+  }
+
+  onPageSizeChange(): void {
+    this.pageNumber = 1;
+    this.loadData();
+  }
+
+  goToPage(page: number): void {
+    if (page >= 1 && page <= this.totalPages) {
+      this.pageNumber = page;
+      this.loadData();
     }
-    return !driver.currentJob;
+  }
+
+  nextPage(): void {
+    if (this.hasNextPage) {
+      this.pageNumber++;
+      this.loadData();
+    }
+  }
+
+  previousPage(): void {
+    if (this.hasPreviousPage) {
+      this.pageNumber--;
+      this.loadData();
+    }
+  }
+
+  getPageNumbers(): number[] {
+    const pages: number[] = [];
+    const maxPagesToShow = 5;
+    let startPage = Math.max(1, this.pageNumber - Math.floor(maxPagesToShow / 2));
+    let endPage = Math.min(this.totalPages, startPage + maxPagesToShow - 1);
+    if (endPage - startPage < maxPagesToShow - 1) {
+      startPage = Math.max(1, endPage - maxPagesToShow + 1);
+    }
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+    return pages;
   }
 
   clearFilters(): void {
     this.searchTerm = '';
     this.assignmentFilter = '';
-    this.applyFilters();
+    this.pageNumber = 1;
+    this.loadData();
+  }
+
+  hasActiveFilters(): boolean {
+    return !!(this.searchTerm.trim() || this.assignmentFilter);
   }
 
   refresh(): void {
     this.loadData();
-  }
-
-  computeStats(): void {
-    this.stats.total = this.drivers.length;
-    this.stats.assigned = this.drivers.filter(d => d.currentJob).length;
-    this.stats.unassigned = this.stats.total - this.stats.assigned;
   }
 
   getJobBadgeClass(status?: JobStatus): string {
@@ -182,4 +257,3 @@ export class DriverAssignmentsComponent implements OnInit {
     }
   }
 }
-

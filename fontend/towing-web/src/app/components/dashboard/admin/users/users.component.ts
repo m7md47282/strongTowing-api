@@ -64,7 +64,18 @@ export class UsersComponent implements OnInit {
   editingRoleUserId: string | null = null;
   selectedEditRoleId: RoleId | null = null;
   updatingRole = false;
-  
+
+  deleteConfirmUserId: string | null = null;
+  deleteConfirmExpectedName = '';
+  deleteConfirmationInput = '';
+  removeSubmitting = false;
+
+  /** Target user for activate/deactivate modal (browser confirm removed). */
+  statusConfirmUser: User | null = null;
+  statusSubmitting = false;
+  /** Separate from {@link error} so table stays visible while modal shows failure. */
+  statusToggleModalError: string | null = null;
+
   temporaryPasswords: Map<string, string> = new Map();
 
   pageNumber: number = 1;
@@ -466,36 +477,123 @@ export class UsersComponent implements OnInit {
     });
   }
 
-  toggleUserStatus(user: User): void {
-    const newStatus = !user.isActive;
-    const action = newStatus ? 'activate' : 'deactivate';
-
-    if (!confirm(`Are you sure you want to ${action} ${user.fullName}?`)) {
+  confirmRemoveUser(user: User): void {
+    if (!this.canRemoveUsers() || this.isCurrentUser(user) || !user.isActive) {
       return;
     }
+    this.cancelStatusToggle();
+    this.deleteConfirmUserId = user.id;
+    this.deleteConfirmExpectedName = user.fullName;
+    this.deleteConfirmationInput = '';
+    this.error = null;
+  }
 
-    this.apiService.put<UserApiResponse>(`users/${user.id}`, {
-      isActive: newStatus
-    }).subscribe({
-      next: (response) => {
-        const index = this.users.findIndex(u => u.id === user.id);
-        if (index !== -1) {
-          this.users[index].isActive = newStatus;
-          this.users[index].updatedAt = response.updatedAt || new Date().toISOString();
+  cancelRemoveUser(): void {
+    this.deleteConfirmUserId = null;
+    this.deleteConfirmExpectedName = '';
+    this.deleteConfirmationInput = '';
+    this.error = null;
+  }
+
+  isRemovePhraseValid(): boolean {
+    return this.deleteConfirmationInput.trim() === this.deleteConfirmExpectedName.trim();
+  }
+
+  executeRemoveUser(): void {
+    if (this.deleteConfirmUserId == null || !this.isRemovePhraseValid()) {
+      return;
+    }
+    const id = this.deleteConfirmUserId;
+    this.removeSubmitting = true;
+    this.error = null;
+    this.apiService
+      .delete<void>(`users/${id}`)
+      .pipe(
+        finalize(() => {
+          this.removeSubmitting = false;
+        })
+      )
+      .subscribe({
+        next: () => {
+          this.deleteConfirmUserId = null;
+          this.deleteConfirmExpectedName = '';
+          this.deleteConfirmationInput = '';
+          this.successMessage = 'User deleted successfully.';
+          this.loadUsers();
+          setTimeout(() => {
+            this.successMessage = null;
+          }, 4000);
+        },
+        error: (err) => {
+          this.error =
+            err.error?.message || err.error?.error || 'Failed to remove user. Please try again.';
+          setTimeout(() => {
+            this.error = null;
+          }, 5000);
         }
-        this.successMessage = `User ${action}d successfully!`;
-        setTimeout(() => {
-          this.successMessage = null;
-        }, 3000);
-      },
-      error: (err) => {
-        this.error = err.error?.message || err.error?.error || `Failed to ${action} user. Please try again.`;
-        console.error(`Error ${action}ing user:`, err);
-        setTimeout(() => {
-          this.error = null;
-        }, 5000);
-      }
-    });
+      });
+  }
+
+  canRemoveUsers(): boolean {
+    return this.canEditRoles();
+  }
+
+  isCurrentUser(user: User): boolean {
+    const current = this.authService.getCurrentUser();
+    return !!current && current.id === user.id;
+  }
+
+  openStatusToggleConfirm(user: User): void {
+    if (this.deleteConfirmUserId !== null) {
+      this.cancelRemoveUser();
+    }
+    this.statusConfirmUser = user;
+    this.statusToggleModalError = null;
+  }
+
+  cancelStatusToggle(): void {
+    this.statusConfirmUser = null;
+    this.statusToggleModalError = null;
+  }
+
+  executeStatusToggle(): void {
+    if (!this.statusConfirmUser) return;
+    const user = this.statusConfirmUser;
+    const newStatus = !user.isActive;
+    const actionWord = newStatus ? 'activated' : 'deactivated';
+
+    this.statusSubmitting = true;
+    this.statusToggleModalError = null;
+
+    this.apiService
+      .put<UserApiResponse>(`users/${user.id}`, {
+        isActive: newStatus
+      })
+      .pipe(finalize(() => (this.statusSubmitting = false)))
+      .subscribe({
+        next: (response) => {
+          this.statusConfirmUser = null;
+          const index = this.users.findIndex(u => u.id === user.id);
+          if (index !== -1) {
+            this.users[index].isActive = newStatus;
+            this.users[index].updatedAt = response.updatedAt || new Date().toISOString();
+          }
+          this.successMessage = `User ${actionWord} successfully.`;
+          setTimeout(() => {
+            this.successMessage = null;
+          }, 3000);
+        },
+        error: (err) => {
+          this.statusToggleModalError =
+            err.error?.message || err.error?.error || `Could not ${newStatus ? 'activate' : 'deactivate'} user.`;
+          console.error(`Error updating user status:`, err);
+        }
+      });
+  }
+
+  /** Whether the confirmation modal will activate (vs deactivate) when confirmed. */
+  statusToggleWillActivate(): boolean {
+    return !!this.statusConfirmUser && !this.statusConfirmUser.isActive;
   }
 
   canEditRoles(): boolean {

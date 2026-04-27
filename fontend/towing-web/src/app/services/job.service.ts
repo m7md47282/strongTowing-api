@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
-import { Observable, throwError } from 'rxjs';
-import { catchError, map } from 'rxjs/operators';
+import { Observable, throwError, EMPTY } from 'rxjs';
+import { catchError, map, expand, reduce } from 'rxjs/operators';
 import { ApiService } from './api.service';
 import { AuthService } from './auth.service';
 import { RoleId } from '../constants/user-roles.constants';
@@ -367,6 +367,24 @@ export interface UpdateJobBillingPaymentRequest {
   payrollDeductionRecorded: boolean;
 }
 
+/** API / Angular list response for paged jobs (camelCase JSON). */
+export interface JobsPagedResponse {
+  data: Job[];
+  pageNumber: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+}
+
+export interface GetJobsPagedParams {
+  pageNumber: number;
+  pageSize: number;
+  status?: string;
+  search?: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -376,24 +394,103 @@ export class JobService {
     private authService: AuthService
   ) {}
 
-  /** Full job list (dispatch/admin only). Drivers are routed to {@link getMyJobs} so they never see other drivers' jobs. */
+  /**
+   * Paged job list for dispatch/admin (server-side filter + search).
+   * Drivers get client-paged results from {@link getMyJobs} (same rules as the jobs table search).
+   */
+  getJobsPaged(params: GetJobsPagedParams): Observable<JobsPagedResponse> {
+    const user = this.authService.getCurrentUser();
+    if (user && Number(user.roleId) === RoleId.Driver) {
+      return this.getMyJobs(params.status).pipe(
+        map((jobs) => this.applyDriverJobsPaging(jobs, params)),
+        catchError(error => {
+          console.error('Get jobs error:', error);
+          return throwError(() => error);
+        })
+      );
+    }
+
+    let httpParams = new HttpParams()
+      .set('pageNumber', String(params.pageNumber))
+      .set('pageSize', String(params.pageSize));
+    if (params.status) {
+      httpParams = httpParams.set('status', params.status);
+    }
+    if (params.search?.trim()) {
+      httpParams = httpParams.set('search', params.search.trim());
+    }
+    return this.apiService.get<JobsPagedResponse>('jobs', httpParams).pipe(
+      map((resp) => ({
+        ...resp,
+        data: (resp.data ?? []).map((j) => normalizeJob(j as Job & { Status?: string }))
+      })),
+      catchError(error => {
+        console.error('Get jobs error:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  /**
+   * Full job list by following all pages (dispatch/admin).
+   * Used by dashboard, payments, driver assignments — not the main jobs table.
+   * Drivers: single call to {@link getMyJobs}.
+   */
   getAllJobs(status?: string): Observable<Job[]> {
     const user = this.authService.getCurrentUser();
     if (user && Number(user.roleId) === RoleId.Driver) {
       return this.getMyJobs(status);
     }
 
-    let params = new HttpParams();
-    if (status) {
-      params = params.set('status', status);
-    }
-    return this.apiService.get<Job[]>('jobs', params).pipe(
-      map((jobs) => jobs.map((j) => normalizeJob(j as Job & { Status?: string }))),
+    const pageSize = 100;
+    return this.getJobsPaged({ pageNumber: 1, pageSize, status }).pipe(
+      expand((resp) =>
+        resp.hasNextPage
+          ? this.getJobsPaged({ pageNumber: resp.pageNumber + 1, pageSize, status })
+          : EMPTY
+      ),
+      reduce(
+        (acc: Job[], resp: JobsPagedResponse) => acc.concat(resp.data),
+        [] as Job[]
+      ),
       catchError(error => {
         console.error('Get jobs error:', error);
         return throwError(() => error);
       })
     );
+  }
+
+  private applyDriverJobsPaging(all: Job[], params: GetJobsPagedParams): JobsPagedResponse {
+    let list = all;
+    const raw = params.search?.trim();
+    if (raw) {
+      const term = raw.toLowerCase();
+      list = all.filter(
+        (job) =>
+          job.id.toString().includes(raw) ||
+          !!job.vehicle?.make?.toLowerCase().includes(term) ||
+          !!job.vehicle?.model?.toLowerCase().includes(term) ||
+          !!job.driverName?.toLowerCase().includes(term) ||
+          !!job.serviceType?.toLowerCase().includes(term)
+      );
+    }
+
+    const totalCount = list.length;
+    const pageSize = Math.max(1, params.pageSize);
+    const pageNumber = Math.max(1, params.pageNumber);
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+    const start = (pageNumber - 1) * pageSize;
+    const data = list.slice(start, start + pageSize);
+
+    return {
+      data,
+      pageNumber,
+      pageSize,
+      totalCount,
+      totalPages,
+      hasPreviousPage: pageNumber > 1,
+      hasNextPage: pageNumber < totalPages
+    };
   }
 
   /** Jobs assigned to the current driver (Driver role only). */

@@ -63,8 +63,6 @@ export interface SystemSettings {
   postmarkServerTokenConfigured: boolean;
   postmarkDefaultFromEmail?: string | null;
   postmarkMessageStream?: string | null;
-  /** Public https URL to your logo image (shown in HTML emails). */
-  emailBrandingLogoUrl?: string | null;
 
   emailDriverJobAssigned: boolean;
   emailDriverJobCompleted: boolean;
@@ -175,7 +173,6 @@ export interface UpdateSystemSettingsRequest {
   postmarkServerToken?: string | null;
   postmarkDefaultFromEmail?: string | null;
   postmarkMessageStream?: string | null;
-  emailBrandingLogoUrl?: string | null;
 
   emailDriverJobAssigned: boolean;
   emailDriverJobCompleted: boolean;

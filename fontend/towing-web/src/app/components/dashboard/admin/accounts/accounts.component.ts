@@ -33,6 +33,8 @@ export class AccountsComponent implements OnInit {
   accountForm: FormGroup;
 
   deleteConfirmId: number | null = null;
+  deleteConfirmExpectedName = '';
+  deleteConfirmationInput = '';
 
   constructor(
     private accountsService: AccountsService,
@@ -204,14 +206,23 @@ export class AccountsComponent implements OnInit {
 
   confirmDelete(account: InsuranceAccount): void {
     this.deleteConfirmId = account.id;
+    this.deleteConfirmExpectedName = account.name;
+    this.deleteConfirmationInput = '';
+    this.error = null;
   }
 
   cancelDelete(): void {
     this.deleteConfirmId = null;
+    this.deleteConfirmExpectedName = '';
+    this.deleteConfirmationInput = '';
+  }
+
+  isDeletePhraseValid(): boolean {
+    return this.deleteConfirmationInput.trim() === this.deleteConfirmExpectedName.trim();
   }
 
   executeDelete(): void {
-    if (this.deleteConfirmId == null) return;
+    if (this.deleteConfirmId == null || !this.isDeletePhraseValid()) return;
     const id = this.deleteConfirmId;
     this.submitting = true;
     this.error = null;
@@ -221,6 +232,8 @@ export class AccountsComponent implements OnInit {
       .subscribe({
         next: () => {
           this.deleteConfirmId = null;
+          this.deleteConfirmExpectedName = '';
+          this.deleteConfirmationInput = '';
           this.successMessage = 'Account deleted.';
           this.loadAccounts();
           setTimeout(() => (this.successMessage = null), 4000);
