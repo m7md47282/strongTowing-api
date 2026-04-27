@@ -112,7 +112,6 @@ public class AccountsController : ControllerBase
                 PostalCode = request.PostalCode?.Trim(),
                 Notes = request.Notes?.Trim(),
                 IsActive = request.IsActive,
-                HookupFee = request.HookupFee,
                 RateAB = request.RateAB,
                 RateBC = request.RateBC,
                 RateCA = request.RateCA,
@@ -182,7 +181,6 @@ public class AccountsController : ControllerBase
             account.PostalCode = request.PostalCode?.Trim();
             account.Notes = request.Notes?.Trim();
             account.IsActive = request.IsActive;
-            account.HookupFee = request.HookupFee;
             account.RateAB = request.RateAB;
             account.RateBC = request.RateBC;
             account.RateCA = request.RateCA;
@@ -329,7 +327,6 @@ public class AccountsController : ControllerBase
             PostalCode = account.PostalCode,
             Notes = account.Notes,
             IsActive = account.IsActive,
-            HookupFee = account.HookupFee,
             RateAB = account.RateAB,
             RateBC = account.RateBC,
             RateCA = account.RateCA,

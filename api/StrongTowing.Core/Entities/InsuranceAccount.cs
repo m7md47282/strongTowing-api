@@ -44,9 +44,6 @@ public class InsuranceAccount
     public bool IsActive { get; set; } = true;
 
     [Column(TypeName = "decimal(18,2)")]
-    public decimal HookupFee { get; set; } = 0m;
-
-    [Column(TypeName = "decimal(18,2)")]
     public decimal RateAB { get; set; } = 0m;
 
     [Column(TypeName = "decimal(18,2)")]

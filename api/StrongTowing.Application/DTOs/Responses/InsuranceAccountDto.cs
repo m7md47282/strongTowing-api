@@ -15,7 +15,6 @@ public class InsuranceAccountDto
     public string? PostalCode { get; set; }
     public string? Notes { get; set; }
     public bool IsActive { get; set; }
-    public decimal HookupFee { get; set; }
     public decimal RateAB { get; set; }
     public decimal RateBC { get; set; }
     public decimal RateCA { get; set; }

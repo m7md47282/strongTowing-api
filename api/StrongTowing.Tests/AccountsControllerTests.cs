@@ -26,7 +26,6 @@ public class AccountsControllerTests
         {
             Name = "Trouble A",
             IsActive = true,
-            HookupFee = 0m,
             RateAB = 0m,
             RateBC = 0m,
             RateCA = 0m
@@ -80,7 +79,6 @@ public class AccountsControllerTests
         {
             Name = "Second Account",
             IsActive = true,
-            HookupFee = 0m,
             RateAB = 0m,
             RateBC = 0m,
             RateCA = 0m

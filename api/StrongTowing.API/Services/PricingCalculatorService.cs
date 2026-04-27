@@ -76,7 +76,8 @@ public class PricingCalculatorService : IPricingCalculatorService
         }
         else
         {
-            hookupLineAmount = account?.HookupFee ?? settings.DefaultPricingHookupFee;
+            // Legacy: no service catalog; hookup line uses system default (Admin → Settings) only.
+            hookupLineAmount = settings.DefaultPricingHookupFee;
             hookupLineApplies = hookupLineAmount > 0m;
         }
 

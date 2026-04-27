@@ -22,7 +22,6 @@ public class PricingCalculatorServiceTests
         context.InsuranceAccounts.Add(new InsuranceAccount
         {
             Name = "Insurance A",
-            HookupFee = 60m,
             RateAB = 5m,
             RateBC = 10m,
             RateCA = 3m
@@ -40,18 +39,18 @@ public class PricingCalculatorServiceTests
             DiscountAmount = 10m
         });
 
-        // BC-only mileage: RateBC $/mi from account; AB/CA not billed; hook from account.
+        // BC-only mileage: RateBC $/mi from account; AB/CA not billed; hookup line from DefaultPricingHookupFee (75).
         // Tax/service use SystemSettings defaults (10% tax, 0% service charge), not the insurance account.
         Assert.Equal(2m, result.MilesAB);
         Assert.Equal(0m, result.ChargeAB);
         Assert.Equal(30m, result.ChargeBC);
         Assert.Equal(0m, result.ChargeCA);
-        Assert.Equal(110m, result.BaseSubtotal);
+        Assert.Equal(125m, result.BaseSubtotal);
         Assert.Equal(10m, result.DiscountAmount);
-        Assert.Equal(100m, result.AfterDiscount);
+        Assert.Equal(115m, result.AfterDiscount);
         Assert.Equal(0m, result.ServiceChargeAmount);
-        Assert.Equal(10m, result.TaxAmount);
-        Assert.Equal(110m, result.GrandTotal);
+        Assert.Equal(11.5m, result.TaxAmount);
+        Assert.Equal(126.5m, result.GrandTotal);
     }
 
     [Fact]
