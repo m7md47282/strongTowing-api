@@ -42,6 +42,15 @@ public class EmailTemplateTests
     }
 
     [Fact]
+    public void EmailTemplateMerge_LogoUrl_replaced_in_markup()
+    {
+        var s = EmailTemplateMerge.Apply(
+            """<img src="{{LogoUrl}}" alt="x"/>""",
+            new Dictionary<string, string> { ["LogoUrl"] = "https://example.com/images/logo.svg" });
+        Assert.Contains("https://example.com/images/logo.svg", s, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void EmailLayout_WrapInFormalLayout_includes_inner_and_brand_text_when_no_logo()
     {
         var html = EmailLayout.WrapInFormalLayout(null, "<p>Inner</p>");

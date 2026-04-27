@@ -571,12 +571,16 @@ public class SettingsController : ControllerBase
             foreach (var def in EmailTemplateDefinitions.All)
             {
                 byKey.TryGetValue(def.EventKey, out var row);
+                var placeholders = def.Placeholders.ToList();
+                if (!placeholders.Contains("LogoUrl", StringComparer.Ordinal))
+                    placeholders.Add("LogoUrl");
+
                 list.Add(new EmailTemplateItemDto
                 {
                     EventKey = def.EventKey,
                     DisplayName = def.DisplayName,
                     Description = def.Description,
-                    Placeholders = def.Placeholders,
+                    Placeholders = placeholders,
                     Subject = row is { Subject: { Length: > 0 } s } ? s : def.DefaultSubject,
                     HtmlBody = row is { HtmlBody: { Length: > 0 } h } ? h : def.DefaultInnerHtml,
                     TextBody = row?.TextBody,

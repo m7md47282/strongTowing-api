@@ -59,14 +59,23 @@ public class JobsController : ControllerBase
     }
 
     /// <summary>
-    /// Get All Jobs (SuperAdmin/Admin/Dispatcher only)
+    /// Get jobs with pagination and filters (SuperAdmin/Admin/Dispatcher only).
+    /// Search matches job id (substring), vehicle make/model, driver name, or service type.
     /// </summary>
     [HttpGet]
     [Authorize(Roles = $"{UserRoles.SuperAdmin},{UserRoles.Administrator},{UserRoles.Dispatcher}")]
-    public async Task<ActionResult<IEnumerable<JobDto>>> GetAllJobs([FromQuery] string? status = null)
+    public async Task<ActionResult<PagedResponse<JobDto>>> GetAllJobs(
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 25,
+        [FromQuery] string? status = null,
+        [FromQuery] string? search = null)
     {
         try
         {
+            if (pageNumber < 1) pageNumber = 1;
+            if (pageSize < 1) pageSize = 25;
+            if (pageSize > 100) pageSize = 100;
+
             var query = _context.Jobs
                 .Include(j => j.Vehicle)
                     .ThenInclude(v => v.Owner)
@@ -83,13 +92,35 @@ public class JobsController : ControllerBase
                 }
             }
 
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var t = search.Trim();
+                var tl = t.ToLower();
+                query = query.Where(j =>
+                    j.Id.ToString().Contains(t) ||
+                    (j.Vehicle != null && j.Vehicle.Make != null && j.Vehicle.Make.ToLower().Contains(tl)) ||
+                    (j.Vehicle != null && j.Vehicle.Model != null && j.Vehicle.Model.ToLower().Contains(tl)) ||
+                    (j.Driver != null && j.Driver.FullName != null && j.Driver.FullName.ToLower().Contains(tl)) ||
+                    (j.ServiceType != null && j.ServiceType.ToLower().Contains(tl)));
+            }
+
+            var totalCount = await query.CountAsync();
+
             var jobs = await query
                 .OrderByDescending(j => j.CreatedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
 
             var jobDtos = jobs.Select(j => MapToJobDto(j)).ToList();
 
-            return Ok(jobDtos);
+            return Ok(new PagedResponse<JobDto>
+            {
+                Data = jobDtos,
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+                TotalCount = totalCount
+            });
         }
         catch (Exception ex)
         {

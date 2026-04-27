@@ -33,20 +33,26 @@ public sealed class EmailEventTemplateService : IEmailEventTemplateService
 
         var logo = _emailBranding.ResolveLogoAbsoluteUrl();
 
+        var mergeWithBranding = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var kv in mergeFields)
+            mergeWithBranding[kv.Key] = kv.Value;
+        // Reserved: absolute URL for the email header logo; also available as {{LogoUrl}} in inner HTML if needed.
+        mergeWithBranding["LogoUrl"] = logo ?? string.Empty;
+
         var row = await _db.SystemEmailTemplates.AsNoTracking()
             .FirstOrDefaultAsync(t => t.EventKey == eventKey, cancellationToken);
 
         var subjectSrc = (row is { Subject: not null } s && s.Subject.Length > 0) ? s.Subject : def.DefaultSubject;
         var innerSrc = (row is { HtmlBody: not null } h && h.HtmlBody.Length > 0) ? h.HtmlBody : def.DefaultInnerHtml;
 
-        var mergedSubject = EmailTemplateMerge.Apply(subjectSrc, mergeFields);
-        var mergedInner = EmailTemplateMerge.Apply(innerSrc, mergeFields);
+        var mergedSubject = EmailTemplateMerge.Apply(subjectSrc, mergeWithBranding);
+        var mergedInner = EmailTemplateMerge.Apply(innerSrc, mergeWithBranding);
         var html = EmailLayout.WrapInFormalLayout(logo, mergedInner);
 
         string plain;
         if (row is { TextBody: not null } t && t.TextBody.Trim().Length > 0)
         {
-            plain = EmailTemplateMerge.Apply(t.TextBody, mergeFields);
+            plain = EmailTemplateMerge.Apply(t.TextBody, mergeWithBranding);
         }
         else
         {

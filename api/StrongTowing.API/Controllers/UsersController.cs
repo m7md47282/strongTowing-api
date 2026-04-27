@@ -7,6 +7,7 @@ using StrongTowing.Application.DTOs.Responses;
 using StrongTowing.Core.Entities;
 using StrongTowing.Core.Constants;
 using StrongTowing.Infrastructure.Data;
+using StrongTowing.Core.Enums;
 
 namespace StrongTowing.API.Controllers;
 
@@ -271,16 +272,17 @@ public class UsersController : ControllerBase
     }
 
     /// <summary>
-    /// Get Drivers (Users with role=Driver) - For Dispatchers to assign drivers to jobs
+    /// Get Drivers (Users with role=Driver) — pagination, search, optional assignment filter (assigned / unassigned active jobs).
     /// </summary>
     [HttpGet("drivers")]
     [Authorize(Roles = $"{UserRoles.SuperAdmin},{UserRoles.Administrator},{UserRoles.Dispatcher}")]
-    public async Task<ActionResult<PagedResponse<UserDto>>> GetDrivers(
+    public async Task<ActionResult<DriversPagedResponse>> GetDrivers(
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10,
         [FromQuery] bool? isActive = null,
         [FromQuery] string? search = null,
-        [FromQuery] bool? availableForDispatchOnly = null)
+        [FromQuery] bool? availableForDispatchOnly = null,
+        [FromQuery] string? assignment = null)
     {
         try
         {
@@ -304,35 +306,71 @@ public class UsersController : ControllerBase
 
             // Build query - Only get Users with role=Driver
             var driverRoleId = UserRoles.GetRoleId(UserRoles.Driver);
-            var query = _userManager.Users
+            var baseQuery = _userManager.Users
                 .Where(u => u.RoleId == driverRoleId)
                 .AsQueryable();
 
-            // Apply filters
+            // Apply filters (excluding assignment — applied later)
             if (isActive.HasValue)
             {
-                query = query.Where(u => u.IsActive == isActive.Value);
+                baseQuery = baseQuery.Where(u => u.IsActive == isActive.Value);
             }
 
             if (!string.IsNullOrEmpty(search))
             {
-                search = search.Trim().ToLower();
-                query = query.Where(u =>
-                    (u.Email != null && u.Email.ToLower().Contains(search)) ||
-                    (u.FullName != null && u.FullName.ToLower().Contains(search)) ||
-                    (u.PhoneNumber != null && u.PhoneNumber.Contains(search)));
+                var term = search.Trim().ToLower();
+                baseQuery = baseQuery.Where(u =>
+                    (u.Email != null && u.Email.ToLower().Contains(term)) ||
+                    (u.FullName != null && u.FullName.ToLower().Contains(term)) ||
+                    (u.PhoneNumber != null && u.PhoneNumber.Contains(term)));
             }
 
             if (availableForDispatchOnly == true)
             {
-                query = query.Where(u => u.IsAvailableForDispatch);
+                baseQuery = baseQuery.Where(u => u.IsAvailableForDispatch);
             }
 
-            // Get total count before pagination
-            var totalCount = await query.CountAsync();
+            // Active job = not Completed / Cancelled (matches dispatcher UI JOB_STATUS_ACTIVE semantics)
+            var withActiveJobCount = await baseQuery
+                .Where(u => _context.Jobs.Any(j =>
+                    j.DriverId == u.Id &&
+                    j.Status != JobStatus.Completed &&
+                    j.Status != JobStatus.Cancelled))
+                .CountAsync();
 
-            // Apply pagination
-            var users = await query
+            var withoutActiveJobCount = await baseQuery
+                .Where(u => !_context.Jobs.Any(j =>
+                    j.DriverId == u.Id &&
+                    j.Status != JobStatus.Completed &&
+                    j.Status != JobStatus.Cancelled))
+                .CountAsync();
+
+            var filteredQuery = baseQuery;
+
+            if (!string.IsNullOrWhiteSpace(assignment))
+            {
+                var a = assignment.Trim().ToLowerInvariant();
+                if (a == "assigned")
+                {
+                    filteredQuery = filteredQuery.Where(u =>
+                        _context.Jobs.Any(j =>
+                            j.DriverId == u.Id &&
+                            j.Status != JobStatus.Completed &&
+                            j.Status != JobStatus.Cancelled));
+                }
+                else if (a == "unassigned")
+                {
+                    filteredQuery = filteredQuery.Where(u =>
+                        !_context.Jobs.Any(j =>
+                            j.DriverId == u.Id &&
+                            j.Status != JobStatus.Completed &&
+                            j.Status != JobStatus.Cancelled));
+                }
+            }
+
+            var totalCount = await filteredQuery.CountAsync();
+
+            var users = await filteredQuery
                 .OrderBy(u => u.FullName)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
@@ -359,12 +397,14 @@ public class UsersController : ControllerBase
                 });
             }
 
-            var response = new PagedResponse<UserDto>
+            var response = new DriversPagedResponse
             {
                 Data = userDtos,
                 PageNumber = pageNumber,
                 PageSize = pageSize,
-                TotalCount = totalCount
+                TotalCount = totalCount,
+                DriversWithActiveJobCount = withActiveJobCount,
+                DriversWithoutActiveJobCount = withoutActiveJobCount
             };
 
             return Ok(response);
@@ -527,6 +567,7 @@ public class UsersController : ControllerBase
             {
                 UserName = request.Email,
                 Email = request.Email,
+                EmailConfirmed = true,
                 FullName = request.FullName,
                 PhoneNumber = request.PhoneNumber,
                 IsActive = true,
@@ -762,14 +803,14 @@ public class UsersController : ControllerBase
     }
 
     /// <summary>
-    /// Deactivate User (Admin only)
+    /// Permanently delete user (Admin only). Related jobs are unassigned where applicable.
+    /// Blocked while the user owns vehicles or has cash-collection / payroll records tied as driver.
     /// </summary>
     [HttpDelete("{id}")]
-    public async Task<ActionResult> DeactivateUser(string id)
+    public async Task<ActionResult> DeleteUser(string id)
     {
         try
         {
-            // Get current user
             var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(currentUserId))
             {
@@ -782,42 +823,74 @@ public class UsersController : ControllerBase
                 return Unauthorized(new { error = "Unauthorized", message = "User not found or inactive" });
             }
 
-            // Check if user is Admin or SuperAdmin
             if (!await IsAdminOrSuperAdminAsync(currentUser))
             {
-                return StatusCode(403, new { error = "Forbidden", message = "Only Administrators can deactivate users" });
+                return StatusCode(403, new { error = "Forbidden", message = "Only Administrators can delete users" });
             }
 
-            // Get user to deactivate
             var user = await _userManager.FindByIdAsync(id);
             if (user == null)
             {
                 return NotFound(new { error = "Not Found", message = "User not found" });
             }
 
-            // Prevent deactivating yourself
             if (user.Id == currentUserId)
             {
-                return BadRequest(new { error = "Bad Request", message = "You cannot deactivate your own account" });
+                return BadRequest(new { error = "Bad Request", message = "You cannot delete your own account" });
             }
 
-            // Deactivate user
-            user.IsActive = false;
-            user.UpdatedAt = DateTime.UtcNow;
-
-            var updateResult = await _userManager.UpdateAsync(user);
-            if (!updateResult.Succeeded)
+            if (await _context.Vehicles.AnyAsync(v => v.OwnerId == id))
             {
-                var errors = string.Join(", ", updateResult.Errors.Select(e => e.Description));
-                return BadRequest(new { error = "Bad Request", message = $"Failed to deactivate user: {errors}" });
+                return Conflict(new
+                {
+                    error = "Conflict",
+                    message = "Cannot delete this user while they still own vehicles. Transfer ownership or delete those vehicles first."
+                });
             }
 
-            return Ok(new { message = "User deactivated successfully" });
+            if (await _context.CashCollections.AnyAsync(c => c.DriverId == id))
+            {
+                return Conflict(new
+                {
+                    error = "Conflict",
+                    message = "Cannot delete this driver while cash collection records reference them."
+                });
+            }
+
+            if (await _context.DriverPayrolls.AnyAsync(p => p.DriverId == id))
+            {
+                return Conflict(new
+                {
+                    error = "Conflict",
+                    message = "Cannot delete this driver while payroll records reference them."
+                });
+            }
+
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+
+            await _context.Jobs
+                .Where(j => j.DriverId == id)
+                .ExecuteUpdateAsync(s => s.SetProperty(j => j.DriverId, (string?)null));
+
+            await _context.Jobs
+                .Where(j => j.StatusUpdatedById == id)
+                .ExecuteUpdateAsync(s => s.SetProperty(j => j.StatusUpdatedById, (string?)null));
+
+            var deleteResult = await _userManager.DeleteAsync(user);
+            if (!deleteResult.Succeeded)
+            {
+                await transaction.RollbackAsync();
+                var errors = string.Join(", ", deleteResult.Errors.Select(e => e.Description));
+                return BadRequest(new { error = "Bad Request", message = $"Failed to delete user: {errors}" });
+            }
+
+            await transaction.CommitAsync();
+            return NoContent();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error deactivating user: {UserId}", id);
-            return StatusCode(500, new { error = "Internal Server Error", message = "An error occurred while deactivating user" });
+            _logger.LogError(ex, "Error deleting user: {UserId}", id);
+            return StatusCode(500, new { error = "Internal Server Error", message = "An error occurred while deleting user" });
         }
     }
 }
