@@ -14,9 +14,8 @@ public class UserFcmToken
 
     public ApplicationUser User { get; set; } = null!;
 
-    /// <summary>FCM registration token (unique per browser/device).</summary>
+    /// <summary>FCM registration token (per browser/device). Stored as nvarchar(max) for SQL Server.</summary>
     [Required]
-    [MaxLength(4096)]
     public string Token { get; set; } = string.Empty;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

@@ -6,6 +6,6 @@ public class RegisterFcmTokenRequest
 {
     [Required]
     [MinLength(20)]
-    [MaxLength(4096)]
+    [MaxLength(8192)]
     public string Token { get; set; } = string.Empty;
 }

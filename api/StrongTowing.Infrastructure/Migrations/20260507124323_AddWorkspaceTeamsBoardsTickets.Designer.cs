@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using StrongTowing.Infrastructure.Data;
 
@@ -11,9 +12,11 @@ using StrongTowing.Infrastructure.Data;
 namespace StrongTowing.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260507124323_AddWorkspaceTeamsBoardsTickets")]
+    partial class AddWorkspaceTeamsBoardsTickets
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -652,34 +655,6 @@ namespace StrongTowing.Infrastructure.Migrations
                     b.HasIndex("JobId");
 
                     b.ToTable("Invoices");
-                });
-
-            modelBuilder.Entity("StrongTowing.Core.Entities.InvoiceImage", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("ImageUrl")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("InvoiceId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("UploadedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("InvoiceId", "SortOrder");
-
-                    b.ToTable("InvoiceImages");
                 });
 
             modelBuilder.Entity("StrongTowing.Core.Entities.InvoiceLineItem", b =>
@@ -1680,7 +1655,8 @@ namespace StrongTowing.Infrastructure.Migrations
 
                     b.Property<string>("Token")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(4096)
+                        .HasColumnType("nvarchar(4096)");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -1690,6 +1666,9 @@ namespace StrongTowing.Infrastructure.Migrations
                         .HasColumnType("nvarchar(450)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Token")
+                        .IsUnique();
 
                     b.HasIndex("UserId");
 
@@ -2034,17 +2013,6 @@ namespace StrongTowing.Infrastructure.Migrations
                     b.Navigation("Job");
                 });
 
-            modelBuilder.Entity("StrongTowing.Core.Entities.InvoiceImage", b =>
-                {
-                    b.HasOne("StrongTowing.Core.Entities.Invoice", "Invoice")
-                        .WithMany("Images")
-                        .HasForeignKey("InvoiceId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Invoice");
-                });
-
             modelBuilder.Entity("StrongTowing.Core.Entities.InvoiceLineItem", b =>
                 {
                     b.HasOne("StrongTowing.Core.Entities.Invoice", "Invoice")
@@ -2181,7 +2149,7 @@ namespace StrongTowing.Infrastructure.Migrations
                     b.HasOne("StrongTowing.Core.Entities.ApplicationUser", "Assignee")
                         .WithMany()
                         .HasForeignKey("AssigneeUserId")
-                        .OnDelete(DeleteBehavior.NoAction);
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("StrongTowing.Core.Entities.TaskBoard", "Board")
                         .WithMany("Tickets")
@@ -2198,7 +2166,7 @@ namespace StrongTowing.Infrastructure.Migrations
                     b.HasOne("StrongTowing.Core.Entities.ApplicationUser", "CreatedBy")
                         .WithMany()
                         .HasForeignKey("CreatedByUserId")
-                        .OnDelete(DeleteBehavior.NoAction);
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Assignee");
 
@@ -2291,8 +2259,6 @@ namespace StrongTowing.Infrastructure.Migrations
 
             modelBuilder.Entity("StrongTowing.Core.Entities.Invoice", b =>
                 {
-                    b.Navigation("Images");
-
                     b.Navigation("LineItems");
                 });
 

@@ -206,10 +206,6 @@ namespace StrongTowing.Infrastructure.Data
                 .HasIndex(rt => rt.UserId);
 
             builder.Entity<UserFcmToken>()
-                .HasIndex(t => t.Token)
-                .IsUnique();
-
-            builder.Entity<UserFcmToken>()
                 .HasOne(t => t.User)
                 .WithMany(u => u.FcmTokens)
                 .HasForeignKey(t => t.UserId)
@@ -399,17 +395,19 @@ namespace StrongTowing.Infrastructure.Data
                 .HasForeignKey(t => t.ColumnId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // NoAction: SQL Server rejects multiple cascade/set-null paths from TaskTickets to AspNetUsers
+            // when BoardId cascades from TaskBoards (which links to users elsewhere).
             builder.Entity<TaskTicket>()
                 .HasOne(t => t.Assignee)
                 .WithMany()
                 .HasForeignKey(t => t.AssigneeUserId)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.NoAction);
 
             builder.Entity<TaskTicket>()
                 .HasOne(t => t.CreatedBy)
                 .WithMany()
                 .HasForeignKey(t => t.CreatedByUserId)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.NoAction);
         }
         
     }
