@@ -12,8 +12,8 @@ using StrongTowing.Infrastructure.Data;
 namespace StrongTowing.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260506221322_AddInvoicesAndLineItems")]
-    partial class AddInvoicesAndLineItems
+    [Migration("20260507003904_AddServicePricingSegmentRates")]
+    partial class AddServicePricingSegmentRates
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -521,8 +521,17 @@ namespace StrongTowing.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<decimal?>("DeadheadPricePerMile")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("EnroutePricePerMile")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<int>("InsuranceAccountId")
                         .HasColumnType("int");
+
+                    b.Property<decimal?>("LoadedPricePerMile")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("PricePerMile")
                         .HasColumnType("decimal(18,2)");
@@ -1097,8 +1106,17 @@ namespace StrongTowing.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<decimal?>("DeadheadPricePerMile")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("EnroutePricePerMile")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<bool>("IsAvailable")
                         .HasColumnType("bit");
+
+                    b.Property<decimal?>("LoadedPricePerMile")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("Name")
                         .IsRequired()
