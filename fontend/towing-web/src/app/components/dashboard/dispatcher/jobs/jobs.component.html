@@ -922,7 +922,10 @@
                   }
                   @if (getSelectedServicePricingProfile(); as pricingProfile) {
                     <p class="mt-1 text-xs text-gray-600">
-                      Service defaults: base {{ pricingProfile.basePrice | number:'1.2-2' }}, {{ pricingProfile.pricePerMile | number:'1.2-2' }}/mi loaded.
+                      Service defaults: base {{ pricingProfile.basePrice | number:'1.2-2' }};
+                      $/mi enroute {{ (pricingProfile.enroutePricePerMile ?? 0) | number:'1.2-2' }},
+                      loaded {{ (pricingProfile.loadedPricePerMile ?? pricingProfile.pricePerMile) | number:'1.2-2' }},
+                      deadhead {{ (pricingProfile.deadheadPricePerMile ?? 0) | number:'1.2-2' }}.
                     </p>
                   }
                 </div>

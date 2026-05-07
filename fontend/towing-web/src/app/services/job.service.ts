@@ -382,7 +382,35 @@ export interface GetJobsPagedParams {
   pageNumber: number;
   pageSize: number;
   status?: string;
+  /** Comma-separated JobStatus enum names (include list). */
+  statuses?: string;
+  /** Comma-separated JobStatus enum names (exclude list). */
+  excludeStatuses?: string;
+  /** When true, excludes Completed and Cancelled (dispatch pipeline). */
+  activePipelineOnly?: boolean;
+  createdFrom?: string;
+  createdTo?: string;
+  completedFrom?: string;
+  completedTo?: string;
+  /** Minimum job Cost (server-side filter). */
+  minCost?: number;
   search?: string;
+}
+
+/** Response from GET api/dashboard/summary (camelCase JSON). */
+export interface AdminDashboardSummary {
+  activeRequests: number;
+  completedToday: number;
+  recentActiveJobs: Job[];
+  serviceBreakdown: {
+    towing: number;
+    roadside: number;
+    jumpStart: number;
+    tireChange: number;
+    other: number;
+    total: number;
+  };
+  jobsCreatedLast7Days: Array<{ dateLabel: string; dateKey: string; count: number }>;
 }
 
 @Injectable({
@@ -416,6 +444,30 @@ export class JobService {
     if (params.status) {
       httpParams = httpParams.set('status', params.status);
     }
+    if (params.statuses?.trim()) {
+      httpParams = httpParams.set('statuses', params.statuses.trim());
+    }
+    if (params.excludeStatuses?.trim()) {
+      httpParams = httpParams.set('excludeStatuses', params.excludeStatuses.trim());
+    }
+    if (params.activePipelineOnly) {
+      httpParams = httpParams.set('activePipelineOnly', 'true');
+    }
+    if (params.createdFrom) {
+      httpParams = httpParams.set('createdFrom', params.createdFrom);
+    }
+    if (params.createdTo) {
+      httpParams = httpParams.set('createdTo', params.createdTo);
+    }
+    if (params.completedFrom) {
+      httpParams = httpParams.set('completedFrom', params.completedFrom);
+    }
+    if (params.completedTo) {
+      httpParams = httpParams.set('completedTo', params.completedTo);
+    }
+    if (params.minCost != null && params.minCost !== undefined) {
+      httpParams = httpParams.set('minCost', String(params.minCost));
+    }
     if (params.search?.trim()) {
       httpParams = httpParams.set('search', params.search.trim());
     }
@@ -432,9 +484,70 @@ export class JobService {
   }
 
   /**
-   * Full job list by following all pages (dispatch/admin).
-   * Used by dashboard, payments, driver assignments — not the main jobs table.
-   * Drivers: single call to {@link getMyJobs}.
+   * Aggregated admin dashboard metrics (bounded server queries).
+   */
+  getAdminDashboardSummary(query: Record<string, string>): Observable<AdminDashboardSummary> {
+    let httpParams = new HttpParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value) {
+        httpParams = httpParams.set(key, value);
+      }
+    }
+    return this.apiService.get<AdminDashboardSummary>('dashboard/summary', httpParams).pipe(
+      map((resp) => ({
+        ...resp,
+        recentActiveJobs: (resp.recentActiveJobs ?? []).map((j) =>
+          normalizeJob(j as Job & { Status?: string })
+        )
+      })),
+      catchError((error) => {
+        console.error('Dashboard summary error:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  /**
+   * Jobs in the active dispatch pipeline (excludes Completed/Cancelled). Pages until drained — safe when pipeline volume is bounded.
+   */
+  getActivePipelineJobs(): Observable<Job[]> {
+    return this.collectAllJobsMatchingPages({
+      pageSize: 100,
+      activePipelineOnly: true
+    });
+  }
+
+  /**
+   * Follow all pages for the given filters. Intended for bounded queries (status/date/activePipelineOnly); avoid unfiltered use.
+   */
+  collectAllJobsMatchingPages(
+    params: Omit<GetJobsPagedParams, 'pageNumber'> & { pageNumber?: number }
+  ): Observable<Job[]> {
+    const pageSize = Math.min(params.pageSize ?? 100, 100);
+    const startPage = params.pageNumber ?? 1;
+
+    const page = (n: number): Observable<JobsPagedResponse> =>
+      this.getJobsPaged({
+        ...params,
+        pageNumber: n,
+        pageSize
+      });
+
+    return page(startPage).pipe(
+      expand((resp) =>
+        resp.hasNextPage ? page(resp.pageNumber + 1) : EMPTY
+      ),
+      reduce((acc: Job[], resp: JobsPagedResponse) => acc.concat(resp.data), [] as Job[]),
+      catchError((error) => {
+        console.error('Collect jobs pages error:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  /**
+   * Loads every job page from the API (unbounded). Prefer {@link collectAllJobsMatchingPages} with filters or dedicated endpoints.
+   * Retained for rare reporting/export callers only.
    */
   getAllJobs(status?: string): Observable<Job[]> {
     const user = this.authService.getCurrentUser();
@@ -442,22 +555,7 @@ export class JobService {
       return this.getMyJobs(status);
     }
 
-    const pageSize = 100;
-    return this.getJobsPaged({ pageNumber: 1, pageSize, status }).pipe(
-      expand((resp) =>
-        resp.hasNextPage
-          ? this.getJobsPaged({ pageNumber: resp.pageNumber + 1, pageSize, status })
-          : EMPTY
-      ),
-      reduce(
-        (acc: Job[], resp: JobsPagedResponse) => acc.concat(resp.data),
-        [] as Job[]
-      ),
-      catchError(error => {
-        console.error('Get jobs error:', error);
-        return throwError(() => error);
-      })
-    );
+    return this.collectAllJobsMatchingPages({ pageSize: 100, status });
   }
 
   private applyDriverJobsPaging(all: Job[], params: GetJobsPagedParams): JobsPagedResponse {

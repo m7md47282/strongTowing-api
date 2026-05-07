@@ -7,7 +7,7 @@ import { environment } from '../../environments/environment';
   providedIn: 'root'
 })
 export class ApiService {
-  private baseUrl = environment.apiUrl || 'https://localhost:7000/api';
+  private baseUrl = environment.apiUrl ;
 
   constructor(private http: HttpClient) { }
 
@@ -45,6 +45,12 @@ export class ApiService {
 
   put<T>(endpoint: string, data: any): Observable<T> {
     return this.http.put<T>(`${this.baseUrl}/${endpoint}`, data, {
+      headers: this.getHeaders()
+    });
+  }
+
+  patch<T>(endpoint: string, data: unknown): Observable<T> {
+    return this.http.patch<T>(`${this.baseUrl}/${endpoint}`, data, {
       headers: this.getHeaders()
     });
   }

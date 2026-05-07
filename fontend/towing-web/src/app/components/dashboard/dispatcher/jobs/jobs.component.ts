@@ -1475,7 +1475,7 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
 
   /**
    * Matches server `PricingCalculatorService`: account×service row → service catalog → legacy account BC + hookup.
-   * Base (fixed) appears as a service line item; per-mile and hookup go on invoice charge fields; AB/CA rates stay 0.
+   * Base (fixed) appears as a service line item; per-mile rates prefilled on invoice charge fields when catalog defines them.
    */
   private applySelectedServicePricing(): void {
     const serviceTypeRaw = this.createJobForm.get('serviceType')?.value;
@@ -1512,26 +1512,36 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
         : undefined;
 
     let basePrice = 0;
-    let pricePerMile = 0;
+    let rateEnroute = 0;
+    let rateLoaded = 0;
+    let rateDeadhead = 0;
     let hookEnabled = false;
     let hookAmount = 0;
     let baseLabel = '';
 
     if (matrixRow) {
       basePrice = Number(matrixRow.basePrice) || 0;
-      pricePerMile = Number(matrixRow.pricePerMile) || 0;
+      rateLoaded = Number(matrixRow.loadedPricePerMile ?? matrixRow.pricePerMile) || 0;
+      rateEnroute =
+        Number(matrixRow.enroutePricePerMile ?? profile?.enroutePricePerMile ?? null) || 0;
+      rateDeadhead =
+        Number(matrixRow.deadheadPricePerMile ?? profile?.deadheadPricePerMile ?? null) || 0;
       hookEnabled = false;
       hookAmount = 0;
       baseLabel = (matrixRow.serviceName || profile?.name || selectedServiceType).trim();
     } else if (profile) {
       basePrice = Number(profile.basePrice) || 0;
-      pricePerMile = Number(profile.pricePerMile) || 0;
+      rateLoaded = Number(profile.loadedPricePerMile ?? profile.pricePerMile) || 0;
+      rateEnroute = Number(profile.enroutePricePerMile ?? null) || 0;
+      rateDeadhead = Number(profile.deadheadPricePerMile ?? null) || 0;
       hookEnabled = false;
       hookAmount = 0;
       baseLabel = profile.name;
     } else if (account) {
       basePrice = 0;
-      pricePerMile = Number(account.rateBC) || 0;
+      rateEnroute = 0;
+      rateLoaded = Number(account.rateBC) || 0;
+      rateDeadhead = 0;
       hookAmount = this.defaultHookupFromSettings;
       hookEnabled = hookAmount > 0;
       baseLabel = (selectedServiceType || account.name || 'Account').trim();
@@ -1547,9 +1557,9 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
     }
 
     charges.patchValue({
-      unloadedEnrouteMileagePrice: 0,
-      deadHeadMileagePrice: 0,
-      loadedHookedMileagePrice: pricePerMile,
+      unloadedEnrouteMileagePrice: rateEnroute,
+      deadHeadMileagePrice: rateDeadhead,
+      loadedHookedMileagePrice: rateLoaded,
       hookupFee: hookEnabled ? hookAmount : 0
     });
 

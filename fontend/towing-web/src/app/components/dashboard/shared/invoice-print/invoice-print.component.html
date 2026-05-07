@@ -1,0 +1,109 @@
+<div class="invoice-root">
+  <div class="print-actions no-print">
+    @if (loading) {
+      <span class="muted">Loading…</span>
+    } @else if (error) {
+      <span class="err">{{ error }}</span>
+    } @else {
+      <button type="button" class="btn-print" (click)="triggerPrint()">Print</button>
+    }
+  </div>
+
+  @if (!loading && !error && invoice) {
+    <article class="invoice-sheet">
+      <header class="invoice-header">
+        <div class="brand-col">
+          <img class="brand-logo" src="/images/logo.svg" alt="Strong Towing" />
+        </div>
+        <div class="meta-col">
+          <div class="meta-title">INVOICE</div>
+          <div class="meta-num">#{{ invoice.invoiceNumber }}</div>
+          <div class="meta-issued">Issued {{ formatIssued(invoice.issuedDate) }}</div>
+        </div>
+      </header>
+
+      <section class="address-grid">
+        <div>
+          <div class="addr-label">FROM</div>
+          @for (line of fromLines; track line) {
+            <div class="addr-line">{{ line }}</div>
+          }
+        </div>
+        <div>
+          <div class="addr-label">BILL TO</div>
+          <div class="addr-line bill-name">{{ invoice.clientName }}</div>
+          @if (invoice.clientPhone) {
+            <div class="addr-line">{{ invoice.clientPhone }}</div>
+          }
+          @if (invoice.clientEmail) {
+            <div class="addr-line">{{ invoice.clientEmail }}</div>
+          }
+          @if (invoice.clientAddress) {
+            <div class="addr-line">{{ invoice.clientAddress }}</div>
+          }
+        </div>
+      </section>
+
+      <table class="lines">
+        <thead>
+          <tr>
+            <th class="col-desc">Description</th>
+            <th class="col-qty">QTY</th>
+            <th class="col-price">Price, USD</th>
+            <th class="col-amt">Amount, USD</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (line of invoice.lineItems; track line.id) {
+            <tr>
+              <td class="col-desc">
+                <span class="svc">{{ line.serviceName }}</span>
+                @if (line.details) {
+                  <span class="det">{{ line.details }}</span>
+                }
+              </td>
+              <td class="col-qty num">{{ line.quantity | number: '1.0-2' }}</td>
+              <td class="col-price num">{{ formatMoney(line.unitPrice) }}</td>
+              <td class="col-amt num">{{ formatMoney(line.total) }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+
+      <div class="summary-block">
+        <div class="summary-inner">
+          <div class="sum-row">
+            <span>Subtotal</span>
+            <span class="num">{{ formatMoney(invoice.subTotal) }}</span>
+          </div>
+          <div class="sum-row">
+            <span>Tax {{ invoice.taxRate | number: '1.0-2' }}%</span>
+            <span class="num">{{ formatMoney(invoice.taxAmount) }}</span>
+          </div>
+          <div class="sum-row sum-total">
+            <span>Total</span>
+            <span class="num">{{ formatMoney(invoice.total) }}</span>
+          </div>
+        </div>
+      </div>
+
+      @if (invoice.notes) {
+        <section class="notes-block">
+          <div class="notes-title">NOTES &amp; PAYMENTS INSTRUCTIONS</div>
+          <div class="notes-body">{{ invoice.notes }}</div>
+        </section>
+      }
+
+      <footer class="invoice-footer">
+        <div class="qr-block">
+          <img [src]="qrSrc" width="120" height="120" alt="QR code" />
+          <div class="qr-copy">
+            For online payment, scan QR code or visit<br />
+            <span class="url">{{ printUrl }}</span>
+          </div>
+        </div>
+        <div class="page-meta">Inv. #{{ invoice.invoiceNumber }} 1 of 1</div>
+      </footer>
+    </article>
+  }
+</div>

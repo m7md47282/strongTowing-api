@@ -51,13 +51,19 @@ export class ServicesComponent implements OnInit {
     this.form = this.fb.group({
       name: ['', [Validators.required, Validators.maxLength(100)]],
       basePrice: [0, [Validators.required, Validators.min(0)]],
-      pricePerMile: [0, [Validators.required, Validators.min(0)]],
+      enroutePricePerMile: [null as number | null],
+      loadedPricePerMile: [null as number | null],
+      deadheadPricePerMile: [null as number | null],
       isAvailable: [true]
     });
   }
 
   ngOnInit(): void {
     this.loadProfiles();
+  }
+
+  effectiveLoaded(p: ServicePricingProfile): number {
+    return p.loadedPricePerMile ?? p.pricePerMile ?? 0;
   }
 
   loadProfiles(): void {
@@ -101,7 +107,9 @@ export class ServicesComponent implements OnInit {
     this.form.reset({
       name: '',
       basePrice: 0,
-      pricePerMile: 0,
+      enroutePricePerMile: null,
+      loadedPricePerMile: null,
+      deadheadPricePerMile: null,
       isAvailable: true
     });
     this.error = null;
@@ -113,7 +121,9 @@ export class ServicesComponent implements OnInit {
     this.form.patchValue({
       name: profile.name,
       basePrice: profile.basePrice,
-      pricePerMile: profile.pricePerMile,
+      enroutePricePerMile: profile.enroutePricePerMile,
+      loadedPricePerMile: profile.loadedPricePerMile ?? (profile.pricePerMile > 0 ? profile.pricePerMile : null),
+      deadheadPricePerMile: profile.deadheadPricePerMile,
       isAvailable: profile.isAvailable
     });
     this.error = null;
@@ -125,6 +135,17 @@ export class ServicesComponent implements OnInit {
     this.editingId = null;
   }
 
+  private optionalRate(raw: unknown): number | null {
+    if (raw === '' || raw === null || raw === undefined) {
+      return null;
+    }
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < 0) {
+      return null;
+    }
+    return n;
+  }
+
   saveProfile(): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -132,25 +153,33 @@ export class ServicesComponent implements OnInit {
     }
 
     const raw = this.form.getRawValue();
+    const enroutePricePerMile = this.optionalRate(raw.enroutePricePerMile);
+    const loadedPricePerMile = this.optionalRate(raw.loadedPricePerMile);
+    const deadheadPricePerMile = this.optionalRate(raw.deadheadPricePerMile);
+    const pricePerMile = loadedPricePerMile ?? 0;
+
     const payload: CreateServicePricingProfilePayload = {
       name: String(raw.name || '').trim(),
       basePrice: Number(raw.basePrice ?? 0),
-      pricePerMile: Number(raw.pricePerMile ?? 0),
+      pricePerMile,
+      enroutePricePerMile,
+      loadedPricePerMile,
+      deadheadPricePerMile,
       isAvailable: Boolean(raw.isAvailable)
     };
 
     this.submitting = true;
     this.error = null;
 
-    const req = this.editingId == null
-      ? this.servicePricingService.create(payload)
-      : this.servicePricingService.update(this.editingId, payload);
+    const req =
+      this.editingId == null
+        ? this.servicePricingService.create(payload)
+        : this.servicePricingService.update(this.editingId, payload);
 
     req.pipe(finalize(() => (this.submitting = false))).subscribe({
       next: () => {
-        this.successMessage = this.editingId == null
-          ? 'Service pricing profile created.'
-          : 'Service pricing profile updated.';
+        this.successMessage =
+          this.editingId == null ? 'Service pricing profile created.' : 'Service pricing profile updated.';
         this.closeModal();
         this.loadProfiles();
         setTimeout(() => (this.successMessage = null), 4000);

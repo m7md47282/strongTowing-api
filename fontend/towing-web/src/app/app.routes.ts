@@ -1,199 +1,301 @@
 import { Routes } from '@angular/router';
-import { HomeComponent } from './components/home/home.component';
-import { LoginComponent } from './components/auth/login/login.component';
-import { RegisterComponent } from './components/auth/register/register.component';
-import { ForgotPasswordComponent } from './components/auth/forgot-password/forgot-password.component';
-import { AdminComponent } from './components/dashboard/admin/admin.component';
-import { DashboardComponent } from './components/dashboard/admin/dashboard/dashboard.component';
-import { UsersComponent } from './components/dashboard/admin/users/users.component';
-import { DispatcherComponent } from './components/dashboard/dispatcher/dispatcher.component';
-import { JobsComponent } from './components/dashboard/dispatcher/jobs/jobs.component';
-import { VehiclesComponent } from './components/dashboard/dispatcher/vehicles/vehicles.component';
-import { TrucksComponent } from './components/dashboard/dispatcher/trucks/trucks.component';
-import { PaymentsComponent } from './components/dashboard/dispatcher/payments/payments.component';
-import { DriverComponent } from './components/dashboard/driver/driver.component';
-import { DriverHomeComponent } from './components/dashboard/driver/driver-home/driver-home.component';
-import { DriverJobsComponent } from './components/dashboard/driver/driver-jobs/driver-jobs.component';
-import { DriverJobDetailComponent } from './components/dashboard/driver/driver-job-detail/driver-job-detail.component';
-import { DriverProfileComponent } from './components/dashboard/driver/driver-profile/driver-profile.component';
-import { DriverEarningsComponent } from './components/dashboard/driver/driver-earnings/driver-earnings.component';
-import { CustomerComponent } from './components/dashboard/customer/customer.component';
-import { ServicesComponent } from './components/services/services.component';
-import { AboutComponent } from './components/about/about.component';
-import { RequestServiceComponent } from './components/request-service/request-service.component';
 import { roleGuard } from './guards/role.guard';
 import { authGuard } from './guards/auth.guard';
 import { guestGuard } from './guards/guest.guard';
 import { RoleId } from './constants/user-roles.constants';
-import { DriverAssignmentsComponent } from './components/dashboard/shared/driver-assignments/driver-assignments.component';
-import { SettingsComponent } from './components/dashboard/admin/settings/settings.component';
-import { FinancialReportComponent } from './components/dashboard/admin/reports/financial-report/financial-report.component';
-import { PayrollReportComponent } from './components/dashboard/admin/reports/payroll-report/payroll-report.component';
-import { AccountsComponent } from './components/dashboard/admin/accounts/accounts.component';
-import { ServicesComponent as AdminServicesComponent } from './components/dashboard/admin/services/services.component';
-import { LocationPickerComponent } from './components/shared/location-picker/location-picker.component';
-import { LegalDocumentComponent } from './components/legal/legal-document.component';
-import { AccountCashCallRatesComponent } from './components/dashboard/shared/account-cash-call-rates/account-cash-call-rates.component';
+
+/** Shared lazy loaders — identical import() strings dedupe into one chunk. */
+const loadDashboard = () =>
+  import('./components/dashboard/admin/dashboard/dashboard.component').then(
+    (m) => m.DashboardComponent
+  );
+const loadJobs = () =>
+  import('./components/dashboard/dispatcher/jobs/jobs.component').then((m) => m.JobsComponent);
+const loadDriverAssignments = () =>
+  import('./components/dashboard/shared/driver-assignments/driver-assignments.component').then(
+    (m) => m.DriverAssignmentsComponent
+  );
+const loadVehicles = () =>
+  import('./components/dashboard/dispatcher/vehicles/vehicles.component').then(
+    (m) => m.VehiclesComponent
+  );
+const loadTrucks = () =>
+  import('./components/dashboard/dispatcher/trucks/trucks.component').then((m) => m.TrucksComponent);
+const loadPayments = () =>
+  import('./components/dashboard/dispatcher/payments/payments.component').then(
+    (m) => m.PaymentsComponent
+  );
+const loadAdminInvoices = () =>
+  import('./components/dashboard/admin/invoices/invoices.component').then(
+    (m) => m.AdminInvoicesComponent
+  );
+const loadAccountCashCall = () =>
+  import('./components/dashboard/shared/account-cash-call-rates/account-cash-call-rates.component').then(
+    (m) => m.AccountCashCallRatesComponent
+  );
+const loadLegalDocument = () =>
+  import('./components/legal/legal-document.component').then((m) => m.LegalDocumentComponent);
 
 export const routes: Routes = [
-  { 
-    path: '', 
-    component: HomeComponent,
-    canActivate: [guestGuard]
+  {
+    path: '',
+    loadComponent: () =>
+      import('./components/home/home.component').then((m) => m.HomeComponent),
+    canActivate: [guestGuard],
   },
-  { 
-    path: 'home', 
-    component: HomeComponent,
-    canActivate: [guestGuard]
+  {
+    path: 'home',
+    loadComponent: () =>
+      import('./components/home/home.component').then((m) => m.HomeComponent),
+    canActivate: [guestGuard],
   },
-  { path: 'login', component: LoginComponent },
-  { path: 'register', component: RegisterComponent },
-  { path: 'forgot-password', component: ForgotPasswordComponent },
-  { 
-    path: 'admin', 
-    component: AdminComponent,
+  {
+    path: 'login',
+    loadComponent: () =>
+      import('./components/auth/login/login.component').then((m) => m.LoginComponent),
+  },
+  {
+    path: 'register',
+    loadComponent: () =>
+      import('./components/auth/register/register.component').then((m) => m.RegisterComponent),
+  },
+  {
+    path: 'forgot-password',
+    loadComponent: () =>
+      import('./components/auth/forgot-password/forgot-password.component').then(
+        (m) => m.ForgotPasswordComponent
+      ),
+  },
+  {
+    path: 'invoice-print/:id',
+    loadComponent: () =>
+      import('./components/dashboard/shared/invoice-print/invoice-print.component').then(
+        (m) => m.InvoicePrintComponent
+      ),
+    canActivate: [authGuard, roleGuard],
+    data: { roles: [RoleId.SuperAdmin, RoleId.Admin, RoleId.Dispatcher] },
+  },
+  {
+    path: 'admin',
+    loadComponent: () =>
+      import('./components/dashboard/admin/admin.component').then((m) => m.AdminComponent),
     canActivate: [roleGuard, authGuard],
     data: { roles: [RoleId.SuperAdmin, RoleId.Admin] },
     children: [
-      { path: '', component: DashboardComponent },
-      { 
-        path: 'users', 
-        component: UsersComponent,
+      { path: '', loadComponent: loadDashboard },
+      {
+        path: 'users',
+        loadComponent: () =>
+          import('./components/dashboard/admin/users/users.component').then((m) => m.UsersComponent),
         canActivate: [roleGuard, authGuard],
-        data: { roles: [RoleId.SuperAdmin, RoleId.Admin] }
+        data: { roles: [RoleId.SuperAdmin, RoleId.Admin] },
       },
       {
         path: 'accounts',
-        component: AccountsComponent,
+        loadComponent: () =>
+          import('./components/dashboard/admin/accounts/accounts.component').then(
+            (m) => m.AccountsComponent
+          ),
         canActivate: [roleGuard, authGuard],
-        data: { roles: [RoleId.SuperAdmin, RoleId.Admin] }
+        data: { roles: [RoleId.SuperAdmin, RoleId.Admin] },
       },
       {
         path: 'services',
-        component: AdminServicesComponent,
+        loadComponent: () =>
+          import('./components/dashboard/admin/services/services.component').then(
+            (m) => m.ServicesComponent
+          ),
         canActivate: [roleGuard, authGuard],
-        data: { roles: [RoleId.SuperAdmin, RoleId.Admin] }
+        data: { roles: [RoleId.SuperAdmin, RoleId.Admin] },
       },
-      { 
+      {
         path: 'drivers',
-        component: DriverAssignmentsComponent,
+        loadComponent: loadDriverAssignments,
         canActivate: [roleGuard, authGuard],
-        data: { roles: [RoleId.SuperAdmin, RoleId.Admin] }
+        data: { roles: [RoleId.SuperAdmin, RoleId.Admin] },
       },
-      { 
+      {
         path: 'jobs',
-        component: JobsComponent,
+        loadComponent: loadJobs,
         canActivate: [roleGuard, authGuard],
-        data: { roles: [RoleId.SuperAdmin, RoleId.Admin] }
+        data: { roles: [RoleId.SuperAdmin, RoleId.Admin] },
       },
       {
         path: 'vehicles',
-        component: VehiclesComponent,
+        loadComponent: loadVehicles,
         canActivate: [roleGuard, authGuard],
-        data: { roles: [RoleId.SuperAdmin, RoleId.Admin] }
+        data: { roles: [RoleId.SuperAdmin, RoleId.Admin] },
       },
       {
         path: 'trucks',
-        component: TrucksComponent,
+        loadComponent: loadTrucks,
         canActivate: [roleGuard, authGuard],
-        data: { roles: [RoleId.SuperAdmin, RoleId.Admin] }
+        data: { roles: [RoleId.SuperAdmin, RoleId.Admin] },
       },
-      { 
+      {
         path: 'payments',
-        component: PaymentsComponent,
+        loadComponent: loadPayments,
         canActivate: [roleGuard, authGuard],
-        data: { roles: [RoleId.SuperAdmin, RoleId.Admin] }
+        data: { roles: [RoleId.SuperAdmin, RoleId.Admin] },
+      },
+      {
+        path: 'invoices',
+        loadComponent: loadAdminInvoices,
+        canActivate: [roleGuard, authGuard],
+        data: { roles: [RoleId.SuperAdmin, RoleId.Admin] },
       },
       {
         path: 'reports',
         redirectTo: 'reports/financial',
-        pathMatch: 'full'
+        pathMatch: 'full',
       },
       {
         path: 'reports/financial',
-        component: FinancialReportComponent,
+        loadComponent: () =>
+          import('./components/dashboard/admin/reports/financial-report/financial-report.component').then(
+            (m) => m.FinancialReportComponent
+          ),
         canActivate: [roleGuard, authGuard],
-        data: { roles: [RoleId.SuperAdmin, RoleId.Admin] }
+        data: { roles: [RoleId.SuperAdmin, RoleId.Admin] },
       },
       {
         path: 'reports/payroll',
-        component: PayrollReportComponent,
+        loadComponent: () =>
+          import('./components/dashboard/admin/reports/payroll-report/payroll-report.component').then(
+            (m) => m.PayrollReportComponent
+          ),
         canActivate: [roleGuard, authGuard],
-        data: { roles: [RoleId.SuperAdmin, RoleId.Admin] }
+        data: { roles: [RoleId.SuperAdmin, RoleId.Admin] },
       },
       {
         path: 'settings',
-        component: SettingsComponent,
+        loadComponent: () =>
+          import('./components/dashboard/admin/settings/settings.component').then(
+            (m) => m.SettingsComponent
+          ),
         canActivate: [roleGuard, authGuard],
-        data: { roles: [RoleId.SuperAdmin, RoleId.Admin] }
+        data: { roles: [RoleId.SuperAdmin, RoleId.Admin] },
       },
       {
         path: 'accounts/:accountId/cash-call',
-        component: AccountCashCallRatesComponent,
+        loadComponent: loadAccountCashCall,
         canActivate: [roleGuard, authGuard],
-        data: { roles: [RoleId.SuperAdmin, RoleId.Admin] }
-      }
-    ]
+        data: { roles: [RoleId.SuperAdmin, RoleId.Admin] },
+      },
+    ],
   },
-  { 
-    path: 'dispatcher', 
-    component: DispatcherComponent,
+  {
+    path: 'dispatcher',
+    loadComponent: () =>
+      import('./components/dashboard/dispatcher/dispatcher.component').then(
+        (m) => m.DispatcherComponent
+      ),
     canActivate: [roleGuard, authGuard],
     data: { roles: [RoleId.Dispatcher, RoleId.SuperAdmin, RoleId.Admin] },
     children: [
-      { path: '', component: DashboardComponent },
-      { path: 'jobs', component: JobsComponent },
-      { path: 'drivers', component: DriverAssignmentsComponent },
-      { path: 'vehicles', component: VehiclesComponent },
-      { path: 'trucks', component: TrucksComponent },
-      { path: 'payments', component: PaymentsComponent },
-      { path: 'accounts/:accountId/cash-call', component: AccountCashCallRatesComponent }
-    ]
+      { path: '', loadComponent: loadDashboard },
+      { path: 'jobs', loadComponent: loadJobs },
+      { path: 'drivers', loadComponent: loadDriverAssignments },
+      { path: 'vehicles', loadComponent: loadVehicles },
+      { path: 'trucks', loadComponent: loadTrucks },
+      { path: 'payments', loadComponent: loadPayments },
+      { path: 'invoices', loadComponent: loadAdminInvoices },
+      { path: 'accounts/:accountId/cash-call', loadComponent: loadAccountCashCall },
+    ],
   },
   {
     path: 'driver',
-    component: DriverComponent,
+    loadComponent: () =>
+      import('./components/dashboard/driver/driver.component').then((m) => m.DriverComponent),
     canActivate: [roleGuard, authGuard],
     data: { roles: [RoleId.Driver, RoleId.SuperAdmin, RoleId.Admin] },
     children: [
-      { path: '', component: DriverHomeComponent },
-      { path: 'jobs', component: DriverJobsComponent },
-      { path: 'jobs/:id', component: DriverJobDetailComponent },
-      { path: 'profile', component: DriverProfileComponent },
-      { path: 'earnings', component: DriverEarningsComponent }
-    ]
+      {
+        path: '',
+        loadComponent: () =>
+          import('./components/dashboard/driver/driver-home/driver-home.component').then(
+            (m) => m.DriverHomeComponent
+          ),
+      },
+      {
+        path: 'jobs',
+        loadComponent: () =>
+          import('./components/dashboard/driver/driver-jobs/driver-jobs.component').then(
+            (m) => m.DriverJobsComponent
+          ),
+      },
+      {
+        path: 'jobs/:id',
+        loadComponent: () =>
+          import('./components/dashboard/driver/driver-job-detail/driver-job-detail.component').then(
+            (m) => m.DriverJobDetailComponent
+          ),
+      },
+      {
+        path: 'profile',
+        loadComponent: () =>
+          import('./components/dashboard/driver/driver-profile/driver-profile.component').then(
+            (m) => m.DriverProfileComponent
+          ),
+      },
+      {
+        path: 'earnings',
+        loadComponent: () =>
+          import('./components/dashboard/driver/driver-earnings/driver-earnings.component').then(
+            (m) => m.DriverEarningsComponent
+          ),
+      },
+    ],
   },
-  { 
-    path: 'customer', 
-    component: CustomerComponent,
-    canActivate: [authGuard]
+  {
+    path: 'customer',
+    loadComponent: () =>
+      import('./components/dashboard/customer/customer.component').then((m) => m.CustomerComponent),
+    canActivate: [authGuard],
   },
-  { path: 'services', component: ServicesComponent },
-  { path: 'about', component: AboutComponent },
+  {
+    path: 'services',
+    loadComponent: () =>
+      import('./components/services/services.component').then((m) => m.ServicesComponent),
+  },
+  {
+    path: 'about',
+    loadComponent: () =>
+      import('./components/about/about.component').then((m) => m.AboutComponent),
+  },
   {
     path: 'request-service',
-    component: RequestServiceComponent
+    loadComponent: () =>
+      import('./components/request-service/request-service.component').then(
+        (m) => m.RequestServiceComponent
+      ),
   },
-  { path: 'map-calculator', component: LocationPickerComponent },
+  {
+    path: 'map-calculator',
+    loadComponent: () =>
+      import('./components/shared/location-picker/location-picker.component').then(
+        (m) => m.LocationPickerComponent
+      ),
+  },
   {
     path: 'sms-consent',
-    component: LegalDocumentComponent,
+    loadComponent: loadLegalDocument,
     data: { legalPageId: 'sms-consent' },
   },
   {
     path: 'privacy-policy',
-    component: LegalDocumentComponent,
+    loadComponent: loadLegalDocument,
     data: { legalPageId: 'privacy-policy' },
   },
   {
     path: 'terms-of-service',
-    component: LegalDocumentComponent,
+    loadComponent: loadLegalDocument,
     data: { legalPageId: 'terms-of-service' },
   },
   {
     path: 'cancellation-policy',
-    component: LegalDocumentComponent,
+    loadComponent: loadLegalDocument,
     data: { legalPageId: 'cancellation-policy' },
   },
-  { path: '**', redirectTo: '' }
+  { path: '**', redirectTo: '' },
 ];

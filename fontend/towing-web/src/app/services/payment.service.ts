@@ -121,8 +121,18 @@ export interface PaymentFilters {
   endDate?: string;
   driverId?: string;
   searchTerm?: string;
-  page?: number;
+  pageNumber?: number;
   pageSize?: number;
+}
+
+export interface PagedPaymentsResponse {
+  data: PaymentListItem[];
+  pageNumber: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
 }
 
 // ─── Stripe-specific interfaces ───────────────────────────────────────────────
@@ -360,7 +370,7 @@ export class PaymentService {
     );
   }
 
-  getAllPayments(filters?: PaymentFilters): Observable<PaymentListItem[]> {
+  getAllPayments(filters?: PaymentFilters): Observable<PagedPaymentsResponse> {
     let params = new HttpParams();
     if (filters) {
       if (filters.paymentMethod) params = params.set('paymentMethod', filters.paymentMethod);
@@ -369,10 +379,10 @@ export class PaymentService {
       if (filters.endDate) params = params.set('endDate', filters.endDate);
       if (filters.driverId) params = params.set('driverId', filters.driverId);
       if (filters.searchTerm) params = params.set('searchTerm', filters.searchTerm);
-      if (filters.page) params = params.set('page', filters.page.toString());
-      if (filters.pageSize) params = params.set('pageSize', filters.pageSize.toString());
+      if (filters.pageNumber != null) params = params.set('pageNumber', filters.pageNumber.toString());
+      if (filters.pageSize != null) params = params.set('pageSize', filters.pageSize.toString());
     }
-    return this.apiService.get<PaymentListItem[]>('payments', params).pipe(
+    return this.apiService.get<PagedPaymentsResponse>('payments', params).pipe(
       catchError(error => {
         console.error('Get payments error:', error);
         return throwError(() => error);

@@ -1,0 +1,294 @@
+.invoice-root {
+  min-height: 100vh;
+  background: #f4f4f5;
+  padding: 1rem;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif;
+  color: #111;
+}
+
+.print-actions {
+  max-width: 900px;
+  margin: 0 auto 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.btn-print {
+  padding: 0.5rem 1.25rem;
+  border-radius: 8px;
+  border: none;
+  background: #111;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-print:hover {
+  opacity: 0.92;
+}
+
+.muted {
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.err {
+  color: #b91c1c;
+  font-size: 0.875rem;
+}
+
+.invoice-sheet {
+  max-width: 900px;
+  margin: 0 auto;
+  background: #fff;
+  padding: 2.5rem 2.75rem 2rem;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.08);
+}
+
+.invoice-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 2rem;
+  margin-bottom: 2.5rem;
+}
+
+.brand-col {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.brand-logo {
+  width: 250px;
+  height: auto;
+  object-fit: cover;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.brand-name {
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #1e3a5f;
+}
+
+.brand-sub {
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  color: #2563eb;
+  margin-top: 0.2rem;
+}
+
+.meta-col {
+  text-align: right;
+  align-self: flex-start;
+  padding-top: 0.25rem;
+}
+
+.meta-title {
+  font-weight: 800;
+  font-size: 0.95rem;
+  letter-spacing: 0.06em;
+}
+
+.meta-num {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-top: 0.25rem;
+}
+
+.meta-issued {
+  font-size: 0.85rem;
+  color: #374151;
+  margin-top: 0.35rem;
+}
+
+.address-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-bottom: 2.25rem;
+}
+
+.addr-label {
+  font-size: 0.65rem;
+  letter-spacing: 0.14em;
+  color: #9ca3af;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.addr-line {
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: #111;
+}
+
+.bill-name {
+  font-weight: 700;
+}
+
+.lines {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  margin-bottom: 1.5rem;
+}
+
+.lines thead th {
+  text-align: left;
+  font-weight: 700;
+  padding: 0.35rem 0 0.65rem;
+  border-bottom: 2px solid #111;
+}
+
+.lines tbody td {
+  padding: 0.55rem 0;
+  border-bottom: 1px solid #e5e7eb;
+  vertical-align: top;
+}
+
+.col-desc {
+  width: 52%;
+}
+
+.col-qty {
+  width: 12%;
+  text-align: right;
+}
+
+.col-price,
+.col-amt {
+  width: 18%;
+  text-align: right;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.svc {
+  display: block;
+  font-weight: 500;
+}
+
+.det {
+  display: block;
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 0.15rem;
+}
+
+.summary-block {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 2rem;
+}
+
+.summary-inner {
+  min-width: 220px;
+}
+
+.sum-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 2rem;
+  font-size: 0.85rem;
+  padding: 0.25rem 0;
+  color: #374151;
+}
+
+.sum-total {
+  margin-top: 0.35rem;
+  padding-top: 0.5rem;
+  border-top: 2px solid #111;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #111;
+}
+
+.notes-block {
+  margin-bottom: 2.5rem;
+}
+
+.notes-title {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.5rem;
+}
+
+.notes-body {
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: #1f2937;
+  white-space: pre-wrap;
+}
+
+.invoice-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.qr-block {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.qr-copy {
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: #4b5563;
+  max-width: 320px;
+}
+
+.url {
+  word-break: break-all;
+  font-size: 0.68rem;
+}
+
+.page-meta {
+  font-size: 0.75rem;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  .invoice-root {
+    background: #fff;
+    padding: 0;
+  }
+
+  .invoice-sheet {
+    box-shadow: none;
+    max-width: none;
+    margin: 0;
+    padding: 0.5in;
+  }
+
+  .brand-logo {
+    width: 2.35in;
+    height: 2.35in;
+    max-width: 2.35in;
+    max-height: 2.35in;
+  }
+}

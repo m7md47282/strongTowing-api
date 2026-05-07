@@ -112,6 +112,14 @@ export class AccountsService {
 }
 
 function mapServiceRateDto(raw: Record<string, unknown>): InsuranceAccountServiceRate {
+  const optNum = (k: string, k2: string): number | null => {
+    const v = raw[k] ?? raw[k2];
+    if (v === null || v === undefined || v === '') {
+      return null;
+    }
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
   return {
     id: Number(raw['id'] ?? raw['Id']),
     insuranceAccountId: Number(raw['insuranceAccountId'] ?? raw['InsuranceAccountId']),
@@ -119,6 +127,9 @@ function mapServiceRateDto(raw: Record<string, unknown>): InsuranceAccountServic
     serviceName: String(raw['serviceName'] ?? raw['ServiceName'] ?? ''),
     basePrice: Number(raw['basePrice'] ?? raw['BasePrice'] ?? 0),
     pricePerMile: Number(raw['pricePerMile'] ?? raw['PricePerMile'] ?? 0),
+    enroutePricePerMile: optNum('enroutePricePerMile', 'EnroutePricePerMile'),
+    loadedPricePerMile: optNum('loadedPricePerMile', 'LoadedPricePerMile'),
+    deadheadPricePerMile: optNum('deadheadPricePerMile', 'DeadheadPricePerMile'),
     createdAt: String(raw['createdAt'] ?? raw['CreatedAt'] ?? ''),
     updatedAt: String(raw['updatedAt'] ?? raw['UpdatedAt'] ?? '')
   };

@@ -119,7 +119,7 @@ export class DriverAssignmentsComponent implements OnInit, OnDestroy {
             } as DriversPagedResponse);
           })
         ),
-      jobs: this.jobService.getAllJobs().pipe(
+      jobs: this.jobService.getActivePipelineJobs().pipe(
         catchError((err) => {
           console.error('Failed to load jobs for driver view:', err);
           return of([] as Job[]);

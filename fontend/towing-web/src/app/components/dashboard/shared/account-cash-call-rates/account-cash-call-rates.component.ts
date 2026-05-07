@@ -45,7 +45,9 @@ export class AccountCashCallRatesComponent implements OnInit {
     this.form = this.fb.group({
       servicePricingProfileId: [null as number | null, [Validators.required]],
       basePrice: [0, [Validators.required, Validators.min(0)]],
-      pricePerMile: [0, [Validators.required, Validators.min(0)]]
+      enroutePricePerMile: [null as number | null],
+      loadedPricePerMile: [null as number | null],
+      deadheadPricePerMile: [null as number | null]
     });
   }
 
@@ -107,6 +109,10 @@ export class AccountCashCallRatesComponent implements OnInit {
     void this.router.navigate(['/admin/accounts']);
   }
 
+  effectiveLoaded(row: InsuranceAccountServiceRate): number {
+    return row.loadedPricePerMile ?? row.pricePerMile ?? 0;
+  }
+
   startEdit(row: InsuranceAccountServiceRate): void {
     if (!this.canEdit) return;
     this.editingRateId = row.id;
@@ -115,7 +121,9 @@ export class AccountCashCallRatesComponent implements OnInit {
     this.form.patchValue({
       servicePricingProfileId: row.servicePricingProfileId,
       basePrice: row.basePrice,
-      pricePerMile: row.pricePerMile
+      enroutePricePerMile: row.enroutePricePerMile,
+      loadedPricePerMile: row.loadedPricePerMile ?? (row.pricePerMile > 0 ? row.pricePerMile : null),
+      deadheadPricePerMile: row.deadheadPricePerMile
     });
   }
 
@@ -132,8 +140,21 @@ export class AccountCashCallRatesComponent implements OnInit {
     this.form.reset({
       servicePricingProfileId: null,
       basePrice: 0,
-      pricePerMile: 0
+      enroutePricePerMile: null,
+      loadedPricePerMile: null,
+      deadheadPricePerMile: null
     });
+  }
+
+  private optionalRate(raw: unknown): number | null {
+    if (raw === '' || raw === null || raw === undefined) {
+      return null;
+    }
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < 0) {
+      return null;
+    }
+    return n;
   }
 
   save(): void {
@@ -144,10 +165,16 @@ export class AccountCashCallRatesComponent implements OnInit {
     }
 
     const raw = this.form.getRawValue();
+    const enroutePricePerMile = this.optionalRate(raw.enroutePricePerMile);
+    const loadedPricePerMile = this.optionalRate(raw.loadedPricePerMile);
+    const deadheadPricePerMile = this.optionalRate(raw.deadheadPricePerMile);
     const payload: UpsertInsuranceAccountServiceRatePayload = {
       servicePricingProfileId: Number(raw.servicePricingProfileId),
       basePrice: Number(raw.basePrice ?? 0),
-      pricePerMile: Number(raw.pricePerMile ?? 0)
+      pricePerMile: loadedPricePerMile ?? 0,
+      enroutePricePerMile,
+      loadedPricePerMile,
+      deadheadPricePerMile
     };
 
     this.submitting = true;

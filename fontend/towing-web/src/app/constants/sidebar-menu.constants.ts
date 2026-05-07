@@ -118,9 +118,21 @@ export const SIDEBAR_MENU_ITEMS: MenuItem[] = [
     roles: [RoleId.SuperAdmin, RoleId.Admin]
   },
   {
+    label: 'Invoices',
+    icon: 'fas fa-file-invoice',
+    route: '/admin/invoices',
+    roles: [RoleId.SuperAdmin, RoleId.Admin]
+  },
+  {
     label: 'Payments',
     icon: 'fas fa-credit-card',
     route: '/dispatcher/payments',
+    roles: [RoleId.Dispatcher]
+  },
+  {
+    label: 'Invoices',
+    icon: 'fas fa-file-invoice',
+    route: '/dispatcher/invoices',
     roles: [RoleId.Dispatcher]
   },
   {

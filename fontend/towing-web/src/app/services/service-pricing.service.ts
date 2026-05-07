@@ -9,12 +9,23 @@ import {
   UpdateServicePricingProfilePayload
 } from '../models/service-pricing.model';
 
+function numOrNull(raw: unknown): number | null {
+  if (raw === null || raw === undefined || raw === '') {
+    return null;
+  }
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
 function mapProfileDto(raw: Record<string, unknown>): ServicePricingProfile {
   return {
     id: Number(raw['id'] ?? raw['Id']),
     name: String(raw['name'] ?? raw['Name'] ?? ''),
     basePrice: Number(raw['basePrice'] ?? raw['BasePrice'] ?? 0),
     pricePerMile: Number(raw['pricePerMile'] ?? raw['PricePerMile'] ?? 0),
+    enroutePricePerMile: numOrNull(raw['enroutePricePerMile'] ?? raw['EnroutePricePerMile']),
+    loadedPricePerMile: numOrNull(raw['loadedPricePerMile'] ?? raw['LoadedPricePerMile']),
+    deadheadPricePerMile: numOrNull(raw['deadheadPricePerMile'] ?? raw['DeadheadPricePerMile']),
     isAvailable: Boolean(raw['isAvailable'] ?? raw['IsAvailable']),
     createdAt: String(raw['createdAt'] ?? raw['CreatedAt'] ?? ''),
     updatedAt: String(raw['updatedAt'] ?? raw['UpdatedAt'] ?? '')

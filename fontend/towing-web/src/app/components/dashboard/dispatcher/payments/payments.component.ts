@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
 import { HttpParams } from '@angular/common/http';
@@ -9,7 +9,8 @@ import {
   PaymentListItem,
   PaymentStatistics,
   PaymentFilters,
-  Payment
+  Payment,
+  PagedPaymentsResponse
 } from '../../../../services/payment.service';
 import { JobService, Job } from '../../../../services/job.service';
 import { ApiService } from '../../../../services/api.service';
@@ -32,15 +33,14 @@ interface PagedResponse<T> {
   templateUrl: './payments.component.html',
   styleUrls: ['./payments.component.scss']
 })
-export class PaymentsComponent implements OnInit {
+export class PaymentsComponent implements OnInit, OnDestroy {
+  Math = Math;
+
   // Payment data
-  payments: PaymentListItem[] = [];
   filteredPayments: PaymentListItem[] = [];
   paymentLinks: any[] = [];
   statistics: PaymentStatistics | null = null;
   
-  // Jobs and drivers
-  jobs: Job[] = [];
   drivers: User[] = [];
   
   // Loading states
@@ -64,9 +64,11 @@ export class PaymentsComponent implements OnInit {
   filtersForm: FormGroup;
   submitting = false;
   
-  // Job search for payment link
   jobSearchTerm: string = '';
   filteredJobsForLink: Job[] = [];
+  loadingJobsForLink = false;
+
+  private jobSearchDebounceTimer?: ReturnType<typeof setTimeout>;
   
   // Filters
   searchTerm: string = '';
@@ -76,6 +78,16 @@ export class PaymentsComponent implements OnInit {
   dateRangeStart: string = '';
   dateRangeEnd: string = '';
   showingFraudQueue = false;
+
+  /** Main list pagination (not used for fraud queue view). */
+  pageNumber = 1;
+  pageSize = 25;
+  totalCount = 0;
+  totalPages = 0;
+  hasPreviousPage = false;
+  hasNextPage = false;
+
+  private paymentSearchDebounceTimer?: ReturnType<typeof setTimeout>;
 
   constructor(
     private paymentService: PaymentService,
@@ -103,6 +115,11 @@ export class PaymentsComponent implements OnInit {
     this.setupDateRange();
   }
 
+  ngOnDestroy(): void {
+    clearTimeout(this.jobSearchDebounceTimer);
+    clearTimeout(this.paymentSearchDebounceTimer);
+  }
+
   setupDateRange(): void {
     // Default to current month
     const now = new Date();
@@ -121,7 +138,6 @@ export class PaymentsComponent implements OnInit {
   loadData(): void {
     this.loadPayments();
     this.loadStatistics();
-    this.loadJobs();
     this.loadDrivers();
   }
 
@@ -135,7 +151,9 @@ export class PaymentsComponent implements OnInit {
       startDate: this.dateRangeStart || undefined,
       endDate: this.dateRangeEnd || undefined,
       driverId: this.driverFilter || undefined,
-      searchTerm: this.searchTerm || undefined
+      searchTerm: this.searchTerm?.trim() || undefined,
+      pageNumber: this.pageNumber,
+      pageSize: this.pageSize
     };
 
     this.paymentService.getAllPayments(filters)
@@ -143,12 +161,33 @@ export class PaymentsComponent implements OnInit {
         finalize(() => this.loading = false),
         catchError(error => {
           this.error = error.error?.message || 'Failed to load payments';
-          return of([]);
+          const empty: PagedPaymentsResponse = {
+            data: [],
+            pageNumber: this.pageNumber,
+            pageSize: this.pageSize,
+            totalCount: 0,
+            totalPages: 0,
+            hasPreviousPage: false,
+            hasNextPage: false
+          };
+          return of(empty);
         })
       )
-      .subscribe(payments => {
-        this.payments = payments;
-        this.applyFilters();
+      .subscribe(response => {
+        const totalPages = response.totalPages ?? 0;
+        if (response.totalCount > 0 && response.data.length === 0 && this.pageNumber > 1 && totalPages >= 1) {
+          this.pageNumber = totalPages;
+          this.loadPayments();
+          return;
+        }
+        this.showingFraudQueue = false;
+        this.filteredPayments = response.data ?? [];
+        this.pageNumber = response.pageNumber;
+        this.pageSize = response.pageSize;
+        this.totalCount = response.totalCount;
+        this.totalPages = response.totalPages;
+        this.hasPreviousPage = response.hasPreviousPage;
+        this.hasNextPage = response.hasNextPage;
       });
   }
 
@@ -173,16 +212,36 @@ export class PaymentsComponent implements OnInit {
       });
   }
 
-  loadJobs(): void {
-    this.jobService.getAllJobs()
+  /** Loads jobs with positive cost from API (server-side filter + search). */
+  private fetchJobsForPaymentLinkModal(): void {
+    this.loadingJobsForLink = true;
+    const term = this.jobSearchTerm.trim();
+    this.jobService
+      .getJobsPaged({
+        pageNumber: 1,
+        pageSize: 50,
+        search: term || undefined,
+        minCost: 0.01
+      })
       .pipe(
-        catchError(error => {
-          console.error('Failed to load jobs:', error);
-          return of([]);
+        finalize(() => {
+          this.loadingJobsForLink = false;
+        }),
+        catchError((error) => {
+          console.error('Failed to load jobs for payment link:', error);
+          return of({
+            data: [] as Job[],
+            pageNumber: 1,
+            pageSize: 50,
+            totalCount: 0,
+            totalPages: 0,
+            hasPreviousPage: false,
+            hasNextPage: false
+          });
         })
       )
-      .subscribe(jobs => {
-        this.jobs = jobs.filter(job => job.cost > 0);
+      .subscribe((resp) => {
+        this.filteredJobsForLink = resp.data || [];
       });
   }
 
@@ -213,45 +272,66 @@ export class PaymentsComponent implements OnInit {
       });
   }
 
-  applyFilters(): void {
-    let filtered = [...this.payments];
-
-    // Search filter
-    if (this.searchTerm) {
-      const search = this.searchTerm.toLowerCase();
-      filtered = filtered.filter(p => 
-        p.jobNumber.toLowerCase().includes(search) ||
-        p.clientName.toLowerCase().includes(search) ||
-        (p.transactionId && p.transactionId.toLowerCase().includes(search))
-      );
-    }
-
-    // Payment method filter
-    if (this.paymentMethodFilter) {
-      filtered = filtered.filter(p => p.paymentMethod === this.paymentMethodFilter);
-    }
-
-    // Payment status filter
-    if (this.paymentStatusFilter) {
-      filtered = filtered.filter(p => p.paymentStatus === this.paymentStatusFilter);
-    }
-
-    // Driver filter
-    if (this.driverFilter) {
-      filtered = filtered.filter(p => p.driverId === this.driverFilter);
-    }
-
-    this.filteredPayments = filtered;
-  }
-
   onFilterChange(): void {
     this.showingFraudQueue = false;
+    this.pageNumber = 1;
     this.loadPayments();
     this.loadStatistics();
   }
 
+  onPaymentSearchInput(): void {
+    clearTimeout(this.paymentSearchDebounceTimer);
+    this.paymentSearchDebounceTimer = setTimeout(() => {
+      this.showingFraudQueue = false;
+      this.pageNumber = 1;
+      this.loadPayments();
+    }, 400);
+  }
+
+  onPageSizeChange(): void {
+    this.showingFraudQueue = false;
+    this.pageNumber = 1;
+    this.loadPayments();
+  }
+
+  goToPage(page: number): void {
+    if (page >= 1 && page <= this.totalPages) {
+      this.pageNumber = page;
+      this.loadPayments();
+    }
+  }
+
+  nextPage(): void {
+    if (this.hasNextPage) {
+      this.pageNumber++;
+      this.loadPayments();
+    }
+  }
+
+  previousPage(): void {
+    if (this.hasPreviousPage) {
+      this.pageNumber--;
+      this.loadPayments();
+    }
+  }
+
+  getPageNumbers(): number[] {
+    const pages: number[] = [];
+    const maxPagesToShow = 5;
+    let startPage = Math.max(1, this.pageNumber - Math.floor(maxPagesToShow / 2));
+    let endPage = Math.min(this.totalPages, startPage + maxPagesToShow - 1);
+    if (endPage - startPage < maxPagesToShow - 1) {
+      startPage = Math.max(1, endPage - maxPagesToShow + 1);
+    }
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+    return pages;
+  }
+
   viewFraudQueue(): void {
     this.showingFraudQueue = true;
+    clearTimeout(this.paymentSearchDebounceTimer);
     this.loading = true;
     this.paymentService.getFraudReviewQueue()
       .pipe(
@@ -266,10 +346,6 @@ export class PaymentsComponent implements OnInit {
       });
   }
 
-  onSearchChange(): void {
-    this.applyFilters();
-  }
-
   openCreateLinkModal(): void {
     this.showCreateLinkModal = true;
     this.createPaymentLinkForm.reset({ expiresInDays: 7 });
@@ -277,8 +353,8 @@ export class PaymentsComponent implements OnInit {
     this.successMessage = null;
     this.selectedJobForLink = null;
     this.jobSearchTerm = '';
-    // Filter to show only jobs with cost > 0
-    this.filteredJobsForLink = this.jobs.filter(job => job.cost > 0);
+    this.filteredJobsForLink = [];
+    this.fetchJobsForPaymentLinkModal();
   }
 
   closeCreateLinkModal(): void {
@@ -287,26 +363,14 @@ export class PaymentsComponent implements OnInit {
   }
 
   onJobSelectedForLink(jobId: number): void {
-    const job = this.jobs.find(j => j.id === jobId);
+    const job = this.filteredJobsForLink.find((j) => j.id === jobId);
     this.selectedJobForLink = job || null;
     this.createPaymentLinkForm.patchValue({ jobId });
   }
 
   filterJobsForLink(): void {
-    if (!this.jobSearchTerm) {
-      // Show all jobs with cost > 0
-      this.filteredJobsForLink = this.jobs.filter(job => job.cost > 0);
-    } else {
-      const search = this.jobSearchTerm.toLowerCase();
-      this.filteredJobsForLink = this.jobs.filter(job => 
-        job.cost > 0 &&
-        (
-          job.id.toString().includes(search) ||
-          (job.clientName && job.clientName.toLowerCase().includes(search)) ||
-          (job.serviceType && job.serviceType.toLowerCase().includes(search))
-        )
-      );
-    }
+    clearTimeout(this.jobSearchDebounceTimer);
+    this.jobSearchDebounceTimer = setTimeout(() => this.fetchJobsForPaymentLinkModal(), 300);
   }
 
   onCreatePaymentLink(): void {
@@ -543,9 +607,7 @@ export class PaymentsComponent implements OnInit {
   }
 
   getJobDisplay(jobId: number): string {
-    const job = this.jobs.find(j => j.id === jobId);
-    if (!job) return `Job #${jobId}`;
-    return `Job #${jobId} - ${job.serviceType || 'Service'}`;
+    return `Job #${jobId}`;
   }
 
   getDriverName(driverId?: string): string {

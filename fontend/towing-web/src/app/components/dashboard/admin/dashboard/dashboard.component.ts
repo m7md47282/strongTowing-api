@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../../../services/auth.service';
-import { JobService, Job, JOB_STATUS } from '../../../../services/job.service';
+import { AdminDashboardSummary, JobService, Job, JOB_STATUS } from '../../../../services/job.service';
 import { PaymentService } from '../../../../services/payment.service';
 import { ApiService } from '../../../../services/api.service';
 import { User } from '../../../../models/user.model';
@@ -70,9 +70,6 @@ export class DashboardComponent implements OnInit {
     driversChange: 0
   };
 
-  // Jobs data
-  allJobs: Job[] = [];
-  activeJobs: Job[] = [];
   recentActiveJobs: Job[] = [];
 
   // Service type breakdown
@@ -203,18 +200,32 @@ export class DashboardComponent implements OnInit {
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString().split('T')[0];
 
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const endOfToday = new Date(today);
+    endOfToday.setHours(23, 59, 59, 999);
+
+    const chartPeriodStart = new Date(today);
+    chartPeriodStart.setDate(chartPeriodStart.getDate() - 6);
+    chartPeriodStart.setHours(0, 0, 0, 0);
+
     const startOfMonthStr = startOfMonth.toISOString().split('T')[0];
     const endOfMonthStr = today.toISOString().split('T')[0];
 
-    // Fetch all data in parallel
+    const summaryParams: Record<string, string> = {
+      monthStart: startOfMonth.toISOString(),
+      monthEnd: endOfToday.toISOString(),
+      dayStart: today.toISOString(),
+      dayEnd: endOfToday.toISOString(),
+      chartPeriodStart: chartPeriodStart.toISOString(),
+      chartPeriodEnd: endOfToday.toISOString()
+    };
+
     forkJoin({
-      jobs: this.jobService.getAllJobs().pipe(
+      summary: this.jobService.getAdminDashboardSummary(summaryParams).pipe(
         catchError(error => {
-          console.error('Error loading jobs:', error);
-          return of([] as Job[]);
+          console.error('Error loading dashboard summary:', error);
+          return of(null as AdminDashboardSummary | null);
         })
       ),
       paymentStats: this.paymentService.getPaymentStatistics({
@@ -247,8 +258,12 @@ export class DashboardComponent implements OnInit {
       )
     }).subscribe({
       next: (data) => {
-        this.allJobs = data.jobs;
-        this.calculateStatistics(data.jobs, data.paymentStats, data.drivers.data, today);
+        if (!data.summary) {
+          this.error = 'Failed to load dashboard metrics.';
+          this.loading = false;
+          return;
+        }
+        this.applyDashboardSummary(data.summary, data.paymentStats, data.drivers.data);
         this.loading = false;
       },
       error: (error) => {
@@ -259,75 +274,37 @@ export class DashboardComponent implements OnInit {
     });
   }
 
-  calculateStatistics(jobs: Job[], paymentStats: any, drivers: User[], today: Date): void {
-    // Active requests (not completed)
-    this.activeJobs = jobs.filter(job => 
-      job.status !== JOB_STATUS.Completed
-    );
-    this.stats.activeRequests = this.activeJobs.length;
-
-    // Completed today
-    const completedToday = jobs.filter(job => {
-      if (job.status !== JOB_STATUS.Completed || !job.completedAt) return false;
-      const completedDate = new Date(job.completedAt);
-      return completedDate >= today;
-    });
-    this.stats.completedToday = completedToday.length;
-
-    // Monthly revenue
+  private applyDashboardSummary(summary: AdminDashboardSummary, paymentStats: any, drivers: User[]): void {
+    this.stats.activeRequests = summary.activeRequests;
+    this.stats.completedToday = summary.completedToday;
     this.stats.monthlyRevenue = paymentStats.totalRevenue || 0;
+    this.stats.activeDrivers = drivers.filter((d) => d.isActive).length;
+    this.stats.activeRequestsChange = 0;
+    this.stats.completedChange = 0;
+    this.stats.revenueChange = 0;
+    this.stats.driversChange = 0;
 
-    // Active drivers
-    this.stats.activeDrivers = drivers.filter(d => d.isActive).length;
+    this.recentActiveJobs = summary.recentActiveJobs || [];
 
-    // Recent active jobs (limit to 10)
-    this.recentActiveJobs = this.activeJobs
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .slice(0, 10);
+    const sb = summary.serviceBreakdown;
+    this.serviceBreakdown = {
+      towing: sb?.towing ?? 0,
+      roadside: sb?.roadside ?? 0,
+      jumpStart: sb?.jumpStart ?? 0,
+      tireChange: sb?.tireChange ?? 0,
+      other: sb?.other ?? 0,
+      total: sb?.total ?? 0
+    };
 
-    // Service type breakdown
-    this.calculateServiceBreakdown(jobs);
+    const daily = summary.jobsCreatedLast7Days || [];
+    const lineLabels = daily.map((d) => d.dateLabel);
+    const lineCounts = daily.map((d) => d.count);
 
-    // Update chart data
-    this.updateChartData(jobs, today);
-
-    // Calculate changes (simplified - in real app, compare with previous period)
-    // For now, we'll set them to 0 or calculate based on available data
-    this.stats.activeRequestsChange = 0; // Would need historical data
-    this.stats.completedChange = 0; // Would need historical data
-    this.stats.revenueChange = 0; // Would need historical data
-    this.stats.driversChange = 0; // Would need historical data
-  }
-
-  updateChartData(jobs: Job[], today: Date): void {
-    // Get last 7 days of data
-    const days: string[] = [];
-    const counts: number[] = [];
-    
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      days.push(dateStr);
-      
-      const dayStart = new Date(date);
-      dayStart.setHours(0, 0, 0, 0);
-      const dayEnd = new Date(date);
-      dayEnd.setHours(23, 59, 59, 999);
-      
-      const dayJobs = jobs.filter(job => {
-        const jobDate = new Date(job.createdAt);
-        return jobDate >= dayStart && jobDate <= dayEnd;
-      });
-      
-      counts.push(dayJobs.length);
-    }
-    
     this.lineChartData = {
-      labels: days,
+      labels: lineLabels,
       datasets: [
         {
-          data: counts,
+          data: lineCounts,
           label: 'Service Requests',
           borderColor: 'rgb(59, 130, 246)',
           backgroundColor: 'rgba(59, 130, 246, 0.1)',
@@ -337,58 +314,28 @@ export class DashboardComponent implements OnInit {
       ]
     };
 
-    // Update pie chart data
     this.pieChartData = {
       labels: ['Towing', 'Roadside Assistance', 'Jump Start', 'Tire Change', 'Other'],
-      datasets: [{
-        data: [
-          this.serviceBreakdown.towing,
-          this.serviceBreakdown.roadside,
-          this.serviceBreakdown.jumpStart,
-          this.serviceBreakdown.tireChange,
-          this.serviceBreakdown.other
-        ],
-        backgroundColor: [
-          'rgb(59, 130, 246)',  // Primary blue
-          'rgb(249, 115, 22)',  // Orange
-          'rgb(59, 130, 246)',  // Blue
-          'rgb(34, 197, 94)',   // Green
-          'rgb(107, 114, 128)'  // Gray
-        ],
-        borderWidth: 0
-      }]
+      datasets: [
+        {
+          data: [
+            this.serviceBreakdown.towing,
+            this.serviceBreakdown.roadside,
+            this.serviceBreakdown.jumpStart,
+            this.serviceBreakdown.tireChange,
+            this.serviceBreakdown.other
+          ],
+          backgroundColor: [
+            'rgb(59, 130, 246)',
+            'rgb(249, 115, 22)',
+            'rgb(59, 130, 246)',
+            'rgb(34, 197, 94)',
+            'rgb(107, 114, 128)'
+          ],
+          borderWidth: 0
+        }
+      ]
     };
-  }
-
-  calculateServiceBreakdown(jobs: Job[]): void {
-    this.serviceBreakdown = {
-      towing: 0,
-      roadside: 0,
-      jumpStart: 0,
-      tireChange: 0,
-      other: 0,
-      total: jobs.length
-    };
-
-    jobs.forEach(job => {
-      const serviceType = (job.serviceType || '').toLowerCase().trim();
-      if (!serviceType) {
-        this.serviceBreakdown.other++;
-        return;
-      }
-
-      if (serviceType.includes('tow') || serviceType.includes('towing')) {
-        this.serviceBreakdown.towing++;
-      } else if (serviceType.includes('roadside') || serviceType.includes('assistance') || serviceType.includes('road side')) {
-        this.serviceBreakdown.roadside++;
-      } else if (serviceType.includes('jump') || serviceType.includes('start') || serviceType.includes('battery')) {
-        this.serviceBreakdown.jumpStart++;
-      } else if (serviceType.includes('tire') || serviceType.includes('flat')) {
-        this.serviceBreakdown.tireChange++;
-      } else {
-        this.serviceBreakdown.other++;
-      }
-    });
   }
 
   getServiceTypePercentage(type: keyof Omit<ServiceTypeBreakdown, 'total'>): number {
