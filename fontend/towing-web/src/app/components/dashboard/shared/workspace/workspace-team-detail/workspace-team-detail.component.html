@@ -1,0 +1,151 @@
+<div class="p-8 min-h-screen bg-white m-4 rounded-xl border border-gray-100 shadow-sm">
+  <nav class="text-sm text-gray-500 mb-4">
+    <a [routerLink]="[shell(), 'workspace']" class="text-primary hover:underline">Workspace</a>
+    <span class="mx-2">/</span>
+    <span class="text-gray-900">{{ team?.name || 'Team' }}</span>
+  </nav>
+
+  @if (error) {
+    <div class="mb-4 rounded-lg bg-red-50 text-red-800 text-sm px-4 py-3">{{ error }}</div>
+  }
+
+  @if (loading) {
+    <p class="text-gray-600 text-sm">Loading…</p>
+  } @else if (team) {
+    <div class="mb-8">
+      <h1 class="text-2xl font-bold text-gray-900 mb-4">Team settings</h1>
+      <div class="flex flex-wrap gap-3 items-end max-w-3xl">
+        <div class="flex flex-col gap-1 flex-1 min-w-[200px]">
+          <label class="text-xs font-medium text-gray-600">Name</label>
+          <input
+            type="text"
+            [(ngModel)]="editTeamName"
+            class="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          />
+        </div>
+        <div class="flex flex-col gap-1 flex-1 min-w-[200px]">
+          <label class="text-xs font-medium text-gray-600">Description</label>
+          <input
+            type="text"
+            [(ngModel)]="editTeamDescription"
+            class="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          />
+        </div>
+        <button
+          type="button"
+          (click)="saveTeam()"
+          [disabled]="savingTeam || !editTeamName.trim()"
+          class="px-4 py-2.5 bg-gray-900 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
+        >
+          {{ savingTeam ? 'Saving…' : 'Save' }}
+        </button>
+      </div>
+    </div>
+
+    <section class="mb-10">
+      <h2 class="text-lg font-semibold text-gray-900 mb-3">Team members</h2>
+      <p class="text-sm text-gray-600 mb-4">
+        People must be on the
+        <a [routerLink]="[shell(), 'workspace']" class="text-primary underline">employee roster</a>
+        first.
+      </p>
+      <div class="flex flex-wrap gap-3 items-end mb-4">
+        <select
+          class="rounded-lg border border-gray-300 px-3 py-2 text-sm min-w-[240px]"
+          [(ngModel)]="memberUserId"
+        >
+          <option value="">Add roster member…</option>
+          @for (e of rosterNotOnTeam(); track e.userId) {
+            <option [value]="e.userId">{{ e.fullName }} — {{ e.role }}</option>
+          }
+        </select>
+        <button
+          type="button"
+          (click)="addMember()"
+          [disabled]="!memberUserId || addingMember"
+          class="px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-medium disabled:opacity-50"
+        >
+          {{ addingMember ? 'Adding…' : 'Add to team' }}
+        </button>
+      </div>
+      <ul class="divide-y divide-gray-100 rounded-xl border border-gray-200 overflow-hidden">
+        @for (m of members; track m.userId) {
+          <li class="flex items-center justify-between px-4 py-3 bg-white hover:bg-gray-50/80">
+            <div>
+              <div class="font-medium text-gray-900">{{ m.fullName }}</div>
+              <div class="text-xs text-gray-500">{{ m.email }} · {{ m.role }}</div>
+            </div>
+            <button
+              type="button"
+              (click)="removeMember(m.userId)"
+              class="text-red-600 text-xs font-medium hover:underline"
+            >
+              Remove
+            </button>
+          </li>
+        } @empty {
+          <li class="px-4 py-8 text-center text-gray-500 text-sm">No members yet.</li>
+        }
+      </ul>
+    </section>
+
+    <section>
+      <h2 class="text-lg font-semibold text-gray-900 mb-3">Task boards</h2>
+      <div class="rounded-xl border border-gray-200 p-4 bg-gray-50/80 mb-4">
+        <div class="flex flex-wrap gap-3 items-end">
+          <div class="flex flex-col gap-1 flex-1 min-w-[200px]">
+            <label class="text-xs font-medium text-gray-600">Board name</label>
+            <input
+              type="text"
+              [(ngModel)]="newBoardName"
+              class="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              placeholder="e.g. Sprint board"
+            />
+          </div>
+          <div class="flex flex-col gap-1 flex-1 min-w-[200px]">
+            <label class="text-xs font-medium text-gray-600">Description</label>
+            <input
+              type="text"
+              [(ngModel)]="newBoardDescription"
+              class="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              placeholder="Optional"
+            />
+          </div>
+          <button
+            type="button"
+            (click)="createBoard()"
+            [disabled]="!newBoardName.trim() || creatingBoard"
+            class="px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-medium disabled:opacity-50"
+          >
+            {{ creatingBoard ? 'Creating…' : 'Create board & open' }}
+          </button>
+        </div>
+      </div>
+      <ul class="space-y-2">
+        @for (b of boards; track b.id) {
+          <li
+            class="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 bg-white"
+          >
+            <div>
+              <a
+                [routerLink]="[shell(), 'workspace', 'board', b.id]"
+                class="font-medium text-primary hover:underline"
+                >{{ b.name }}</a
+              >
+              <div class="text-xs text-gray-500">{{ b.memberCount }} people on board</div>
+            </div>
+            <button
+              type="button"
+              (click)="deleteBoard(b)"
+              class="text-red-600 text-xs font-medium hover:underline"
+            >
+              Delete
+            </button>
+          </li>
+        } @empty {
+          <li class="text-sm text-gray-500 py-4">No boards yet.</li>
+        }
+      </ul>
+    </section>
+  }
+</div>

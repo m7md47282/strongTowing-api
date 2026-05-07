@@ -6,6 +6,7 @@ import { ApiService } from './api.service';
 import {
   CreateInvoicePayload,
   InvoiceDetail,
+  InvoiceImage,
   InvoiceLineItem,
   InvoiceListItem,
   PagedInvoicesResponse,
@@ -95,6 +96,19 @@ export class InvoiceService {
     return this.api.delete<{ message: string }>(`invoices/${id}`);
   }
 
+  /** Multipart upload; returns full invoice (same shape as getById). */
+  uploadImage(invoiceId: number, file: File): Observable<InvoiceDetail> {
+    const formData = new FormData();
+    formData.append('file', file, file.name);
+    return this.api.uploadFile(`invoices/${invoiceId}/images`, formData).pipe(
+      map((raw) => this.mapDetail(raw as Record<string, unknown>))
+    );
+  }
+
+  deleteImage(invoiceId: number, imageId: number): Observable<{ message: string }> {
+    return this.api.delete<{ message: string }>(`invoices/${invoiceId}/images/${imageId}`);
+  }
+
   private mapListItem(raw: Record<string, unknown>): InvoiceListItem {
     return {
       id: Number(raw['id'] ?? raw['Id']),
@@ -114,6 +128,8 @@ export class InvoiceService {
   private mapDetail(raw: Record<string, unknown>): InvoiceDetail {
     const lineRaw = raw['lineItems'] ?? raw['LineItems'];
     const lines = Array.isArray(lineRaw) ? lineRaw : [];
+    const imgRaw = raw['images'] ?? raw['Images'];
+    const imgs = Array.isArray(imgRaw) ? imgRaw : [];
     return {
       id: Number(raw['id'] ?? raw['Id']),
       invoiceNumber: String(raw['invoiceNumber'] ?? raw['InvoiceNumber'] ?? ''),
@@ -134,7 +150,18 @@ export class InvoiceService {
       createdByName: (raw['createdByName'] ?? raw['CreatedByName']) != null ? String(raw['createdByName'] ?? raw['CreatedByName']) : null,
       createdAt: String(raw['createdAt'] ?? raw['CreatedAt'] ?? ''),
       updatedAt: String(raw['updatedAt'] ?? raw['UpdatedAt'] ?? ''),
-      lineItems: lines.map((li) => this.mapLineItem(li as Record<string, unknown>))
+      lineItems: lines.map((li) => this.mapLineItem(li as Record<string, unknown>)),
+      images: imgs.map((img) => this.mapImage(img as Record<string, unknown>))
+    };
+  }
+
+  private mapImage(raw: Record<string, unknown>): InvoiceImage {
+    return {
+      id: Number(raw['id'] ?? raw['Id']),
+      invoiceId: Number(raw['invoiceId'] ?? raw['InvoiceId']),
+      imageUrl: String(raw['imageUrl'] ?? raw['ImageUrl'] ?? ''),
+      sortOrder: Number(raw['sortOrder'] ?? raw['SortOrder'] ?? 0),
+      uploadedAt: String(raw['uploadedAt'] ?? raw['UploadedAt'] ?? '')
     };
   }
 

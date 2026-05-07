@@ -46,5 +46,7 @@ namespace StrongTowing.Core.Entities
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
         public ICollection<InvoiceLineItem> LineItems { get; set; } = new List<InvoiceLineItem>();
+
+        public ICollection<InvoiceImage> Images { get; set; } = new List<InvoiceImage>();
     }
 }

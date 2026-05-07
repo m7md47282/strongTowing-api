@@ -146,10 +146,20 @@
 }
 
 .lines thead th {
-  text-align: left;
   font-weight: 700;
   padding: 0.35rem 0 0.65rem;
   border-bottom: 2px solid #111;
+}
+
+/* Per-column alignment: avoid blanket thead text-align (it overrides .col-* with higher specificity). */
+.lines thead th.col-desc {
+  text-align: left;
+}
+
+.lines thead th.col-qty,
+.lines thead th.col-price,
+.lines thead th.col-amt {
+  text-align: right;
 }
 
 .lines tbody td {
@@ -187,6 +197,40 @@
   font-size: 0.75rem;
   color: #6b7280;
   margin-top: 0.15rem;
+}
+
+.gallery-block {
+  margin-bottom: 1.75rem;
+}
+
+.gallery-title {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.65rem;
+  color: #111;
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.gallery-item {
+  margin: 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  overflow: hidden;
+  aspect-ratio: 1;
+  break-inside: avoid;
+}
+
+.gallery-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .summary-block {

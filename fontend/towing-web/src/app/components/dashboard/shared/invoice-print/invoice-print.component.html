@@ -87,6 +87,19 @@
         </div>
       </div>
 
+      @if (invoice.images.length > 0) {
+        <section class="gallery-block">
+          <div class="gallery-title">Photo gallery</div>
+          <div class="gallery-grid">
+            @for (img of invoice.images; track img.id) {
+              <figure class="gallery-item">
+                <img [src]="resolveImageUrl(img.imageUrl)" alt="Invoice attachment" loading="lazy" />
+              </figure>
+            }
+          </div>
+        </section>
+      }
+
       @if (invoice.notes) {
         <section class="notes-block">
           <div class="notes-title">NOTES &amp; PAYMENTS INSTRUCTIONS</div>

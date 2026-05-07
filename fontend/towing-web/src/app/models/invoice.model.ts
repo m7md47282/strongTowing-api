@@ -12,6 +12,14 @@ export interface InvoiceListItem {
   lineItemCount: number;
 }
 
+export interface InvoiceImage {
+  id: number;
+  invoiceId: number;
+  imageUrl: string;
+  sortOrder: number;
+  uploadedAt: string;
+}
+
 export interface InvoiceLineItem {
   id: number;
   invoiceId: number;
@@ -49,6 +57,7 @@ export interface InvoiceDetail {
   createdAt: string;
   updatedAt: string;
   lineItems: InvoiceLineItem[];
+  images: InvoiceImage[];
 }
 
 export interface PagedInvoicesResponse {

@@ -1,4 +1,6 @@
+using System.IO;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -15,17 +17,22 @@ namespace StrongTowing.API.Controllers;
 [Authorize]
 public class InvoicesController : ControllerBase
 {
+    private const int MaxInvoiceImages = 20;
+
     private readonly ApplicationDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly IWebHostEnvironment _environment;
     private readonly ILogger<InvoicesController> _logger;
 
     public InvoicesController(
         ApplicationDbContext context,
         UserManager<ApplicationUser> userManager,
+        IWebHostEnvironment environment,
         ILogger<InvoicesController> logger)
     {
         _context = context;
         _userManager = userManager;
+        _environment = environment;
         _logger = logger;
     }
 
@@ -106,6 +113,7 @@ public class InvoicesController : ControllerBase
         var invoice = await _context.Invoices
             .AsNoTracking()
             .Include(i => i.LineItems)
+            .Include(i => i.Images)
             .Include(i => i.CreatedBy)
             .FirstOrDefaultAsync(i => i.Id == id);
 
@@ -188,6 +196,7 @@ public class InvoicesController : ControllerBase
 
         var invoice = await _context.Invoices
             .Include(i => i.LineItems)
+            .Include(i => i.Images)
             .FirstOrDefaultAsync(i => i.Id == id);
 
         if (invoice == null)
@@ -265,15 +274,121 @@ public class InvoicesController : ControllerBase
     {
         var invoice = await _context.Invoices
             .Include(i => i.LineItems)
+            .Include(i => i.Images)
             .FirstOrDefaultAsync(i => i.Id == id);
 
         if (invoice == null)
             return NotFound(new { message = "Invoice not found." });
 
+        foreach (var img in invoice.Images)
+            TryDeleteInvoiceImagePhysicalFile(img.ImageUrl);
+
         _context.Invoices.Remove(invoice);
         await _context.SaveChangesAsync();
 
         return Ok(new { message = "Invoice deleted." });
+    }
+
+    /// <summary>Upload a gallery image for an invoice (JPEG, PNG, WebP). Max 20 images per invoice.</summary>
+    [HttpPost("{id:int}/images")]
+    [RequestSizeLimit(10 * 1024 * 1024)]
+    [Authorize(Roles = $"{UserRoles.SuperAdmin},{UserRoles.Administrator},{UserRoles.Dispatcher}")]
+    public async Task<IActionResult> UploadInvoiceImage(int id, IFormFile? file)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest(new { message = "No file was uploaded." });
+
+        const long maxBytes = 8 * 1024 * 1024;
+        if (file.Length > maxBytes)
+            return BadRequest(new { message = "File is too large (max 8 MB)." });
+
+        var contentType = file.ContentType?.ToLowerInvariant() ?? string.Empty;
+        var ext = contentType switch
+        {
+            "image/jpeg" or "image/jpg" or "image/pjpeg" => ".jpg",
+            "image/png" => ".png",
+            "image/webp" => ".webp",
+            _ => string.Empty
+        };
+
+        if (string.IsNullOrEmpty(ext))
+            return BadRequest(new { message = "Only JPEG, PNG, or WebP images are allowed." });
+
+        var invoice = await _context.Invoices
+            .Include(i => i.Images)
+            .FirstOrDefaultAsync(i => i.Id == id);
+
+        if (invoice == null)
+            return NotFound(new { message = "Invoice not found." });
+
+        if (invoice.Images.Count >= MaxInvoiceImages)
+            return BadRequest(new { message = $"This invoice already has the maximum of {MaxInvoiceImages} images." });
+
+        var webRoot = _environment.WebRootPath;
+        if (string.IsNullOrEmpty(webRoot))
+            webRoot = Path.Combine(_environment.ContentRootPath, "wwwroot");
+
+        var relativeDir = Path.Combine("uploads", "invoice-images", id.ToString());
+        var physicalDir = Path.Combine(webRoot, relativeDir);
+        Directory.CreateDirectory(physicalDir);
+
+        var fileName = $"{Guid.NewGuid():N}{ext}";
+        var physicalPath = Path.Combine(physicalDir, fileName);
+
+        await using (var stream = new FileStream(physicalPath, FileMode.CreateNew))
+        {
+            await file.CopyToAsync(stream);
+        }
+
+        var publicPath = $"/uploads/invoice-images/{id}/{fileName}";
+        var nextOrder = invoice.Images.Count == 0
+            ? 0
+            : invoice.Images.Max(x => x.SortOrder) + 1;
+
+        var row = new InvoiceImage
+        {
+            InvoiceId = invoice.Id,
+            ImageUrl = publicPath,
+            SortOrder = nextOrder,
+            UploadedAt = DateTime.UtcNow
+        };
+
+        _context.InvoiceImages.Add(row);
+        invoice.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        var refreshed = await _context.Invoices
+            .AsNoTracking()
+            .Include(i => i.LineItems)
+            .Include(i => i.Images)
+            .Include(i => i.CreatedBy)
+            .FirstAsync(i => i.Id == id);
+
+        return Ok(MapToDto(refreshed));
+    }
+
+    [HttpDelete("{id:int}/images/{imageId:int}")]
+    [Authorize(Roles = $"{UserRoles.SuperAdmin},{UserRoles.Administrator},{UserRoles.Dispatcher}")]
+    public async Task<IActionResult> DeleteInvoiceImage(int id, int imageId)
+    {
+        var image = await _context.InvoiceImages
+            .FirstOrDefaultAsync(img => img.Id == imageId && img.InvoiceId == id);
+
+        if (image == null)
+            return NotFound(new { message = "Image not found." });
+
+        var url = image.ImageUrl;
+        _context.InvoiceImages.Remove(image);
+
+        var invoice = await _context.Invoices.FindAsync(id);
+        if (invoice != null)
+            invoice.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        TryDeleteInvoiceImagePhysicalFile(url);
+
+        return Ok(new { message = "Image removed." });
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
@@ -339,6 +454,46 @@ public class InvoicesController : ControllerBase
                 IsTaxable = li.IsTaxable,
                 Total = li.Total
             })
+            .ToList(),
+        Images = (invoice.Images ?? Enumerable.Empty<InvoiceImage>())
+            .OrderBy(img => img.SortOrder)
+            .ThenBy(img => img.Id)
+            .Select(img => new InvoiceImageDto
+            {
+                Id = img.Id,
+                InvoiceId = img.InvoiceId,
+                ImageUrl = img.ImageUrl,
+                SortOrder = img.SortOrder,
+                UploadedAt = img.UploadedAt
+            })
             .ToList()
     };
+
+    private void TryDeleteInvoiceImagePhysicalFile(string? imageUrl)
+    {
+        if (string.IsNullOrEmpty(imageUrl))
+            return;
+
+        if (!imageUrl.StartsWith("/uploads/invoice-images/", StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogWarning("Skipped deleting unexpected invoice image path: {Path}", imageUrl);
+            return;
+        }
+
+        try
+        {
+            var webRoot = _environment.WebRootPath;
+            if (string.IsNullOrEmpty(webRoot))
+                webRoot = Path.Combine(_environment.ContentRootPath, "wwwroot");
+
+            var relative = imageUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
+            var fullPath = Path.Combine(webRoot, relative);
+            if (System.IO.File.Exists(fullPath))
+                System.IO.File.Delete(fullPath);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not delete invoice image file: {Path}", imageUrl);
+        }
+    }
 }

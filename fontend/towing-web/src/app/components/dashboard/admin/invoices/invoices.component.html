@@ -263,14 +263,19 @@
 </div>
 
 @if (createModalOpen) {
-  <div class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40" (click)="closeCreateModal()">
+  <div class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40" (click)="onCreateModalBackdropClick()">
     <div
       class="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[92vh] overflow-hidden flex flex-col"
       (click)="$event.stopPropagation()"
     >
       <div class="p-5 border-b border-gray-200 flex items-center justify-between shrink-0">
         <h2 class="text-lg font-semibold text-gray-900">New invoice</h2>
-        <button type="button" (click)="closeCreateModal()" class="text-gray-500 hover:text-gray-700" [disabled]="createSubmitting">
+        <button
+          type="button"
+          (click)="onCreateModalBackdropClick()"
+          class="text-gray-500 hover:text-gray-700 disabled:opacity-40"
+          [disabled]="createSubmitting"
+        >
           <i class="fas fa-times text-xl"></i>
         </button>
       </div>
@@ -326,6 +331,53 @@
               <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
               <textarea formControlName="notes" rows="2" class="w-full px-3 py-2 border rounded-lg"></textarea>
             </div>
+          </div>
+
+          <div class="border border-gray-200 rounded-lg p-4 bg-gray-50/60">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+              <h3 class="text-sm font-semibold text-gray-800">Gallery <span class="font-normal text-gray-500">(optional)</span></h3>
+              <div class="flex items-center gap-2">
+                <input
+                  #createGalleryInput
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  multiple
+                  class="hidden"
+                  (change)="onCreateGalleryFilesSelected($event)"
+                />
+                <button
+                  type="button"
+                  (click)="createGalleryInput.click()"
+                  class="px-3 py-1.5 rounded-lg border border-gray-300 text-xs font-medium text-gray-800 hover:bg-white disabled:opacity-50"
+                  [disabled]="createSubmitting || createPendingImages.length >= maxInvoiceImages"
+                >
+                  <i class="fas fa-image mr-1"></i>
+                  Add images
+                </button>
+                <span class="text-xs text-gray-500">{{ createPendingImages.length }} / {{ maxInvoiceImages }}</span>
+              </div>
+            </div>
+            <p class="text-xs text-gray-500 mb-3">
+              Images are attached after the invoice is created (same as job photos: JPEG, PNG, or WebP, up to 8 MB each).
+            </p>
+            @if (createPendingImages.length > 0) {
+              <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                @for (row of createPendingImages; track row.id; let idx = $index) {
+                  <div class="relative rounded-lg border border-gray-200 overflow-hidden aspect-square bg-white">
+                    <img [src]="row.objectUrl" alt="" class="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      (click)="removeCreatePendingImage(idx)"
+                      class="absolute top-1 right-1 w-7 h-7 rounded-full bg-black/55 text-white text-xs flex items-center justify-center hover:bg-black/70 disabled:opacity-40"
+                      [disabled]="createSubmitting"
+                      title="Remove"
+                    >
+                      <i class="fas fa-times"></i>
+                    </button>
+                  </div>
+                }
+              </div>
+            }
           </div>
 
           <div>
@@ -400,7 +452,12 @@
         </div>
 
         <div class="p-5 border-t border-gray-200 flex justify-end gap-3 shrink-0 bg-gray-50">
-          <button type="button" (click)="closeCreateModal()" class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700" [disabled]="createSubmitting">
+          <button
+            type="button"
+            (click)="closeCreateModal()"
+            class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700"
+            [disabled]="createSubmitting"
+          >
             Cancel
           </button>
           <button
@@ -410,8 +467,14 @@
           >
             @if (createSubmitting) {
               <i class="fas fa-spinner fa-spin mr-2"></i>
+              @if (createUploadingImages) {
+                Uploading images…
+              } @else {
+                Creating…
+              }
+            } @else {
+              Create invoice
             }
-            Create invoice
           </button>
         </div>
       </form>
@@ -535,6 +598,63 @@
                 }
               </tbody>
             </table>
+          </div>
+
+          <div class="mt-6 border-t border-gray-100 pt-4">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <h3 class="text-sm font-semibold text-gray-800">Gallery</h3>
+              <div class="flex items-center gap-2">
+                <input
+                  #galleryFileInput
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                  class="hidden"
+                  (change)="onGalleryFilesSelected($event)"
+                />
+                <button
+                  type="button"
+                  (click)="galleryFileInput.click()"
+                  class="px-3 py-1.5 rounded-lg border border-gray-300 text-xs font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-50"
+                  [disabled]="imageUploading || !selectedDetail || selectedDetail.images.length >= maxInvoiceImages"
+                >
+                  @if (imageUploading) {
+                    <i class="fas fa-spinner fa-spin mr-1"></i>
+                  } @else {
+                    <i class="fas fa-image mr-1"></i>
+                  }
+                  Add images
+                </button>
+                <span class="text-xs text-gray-500">{{ selectedDetail.images.length }} / {{ maxInvoiceImages }}</span>
+              </div>
+            </div>
+            @if (imageError) {
+              <p class="text-sm text-red-700 mb-2">{{ imageError }}</p>
+            }
+            @if (selectedDetail.images.length === 0 && !imageUploading) {
+              <p class="text-xs text-gray-500 mb-0">No photos yet. Images appear on the printed invoice.</p>
+            }
+            @if (selectedDetail.images.length > 0) {
+              <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                @for (img of selectedDetail.images; track img.id) {
+                  <div class="relative group rounded-lg border border-gray-200 overflow-hidden aspect-square bg-gray-50">
+                    <img
+                      [src]="resolveInvoiceImageUrl(img.imageUrl)"
+                      alt="Invoice photo"
+                      class="w-full h-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      (click)="removeInvoiceImage(img)"
+                      class="absolute top-1 right-1 w-7 h-7 rounded-full bg-black/55 text-white text-xs flex items-center justify-center opacity-90 hover:opacity-100"
+                      title="Remove"
+                    >
+                      <i class="fas fa-times"></i>
+                    </button>
+                  </div>
+                }
+              </div>
+            }
           </div>
 
           <div class="mt-6 flex justify-end gap-6 text-sm border-t border-gray-100 pt-4">

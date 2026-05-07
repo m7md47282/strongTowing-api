@@ -33,6 +33,14 @@ namespace StrongTowing.Infrastructure.Data
         public DbSet<Truck> Trucks { get; set; }
         public DbSet<Invoice> Invoices { get; set; }
         public DbSet<InvoiceLineItem> InvoiceLineItems { get; set; }
+        public DbSet<InvoiceImage> InvoiceImages { get; set; }
+        public DbSet<CompanyEmployee> CompanyEmployees { get; set; }
+        public DbSet<WorkspaceTeam> WorkspaceTeams { get; set; }
+        public DbSet<WorkspaceTeamMember> WorkspaceTeamMembers { get; set; }
+        public DbSet<TaskBoard> TaskBoards { get; set; }
+        public DbSet<TaskBoardMember> TaskBoardMembers { get; set; }
+        public DbSet<TaskBoardColumn> TaskBoardColumns { get; set; }
+        public DbSet<TaskTicket> TaskTickets { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -302,6 +310,106 @@ namespace StrongTowing.Infrastructure.Data
                 .WithMany(i => i.LineItems)
                 .HasForeignKey(li => li.InvoiceId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<InvoiceImage>()
+                .HasOne(img => img.Invoice)
+                .WithMany(i => i.Images)
+                .HasForeignKey(img => img.InvoiceId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<InvoiceImage>()
+                .HasIndex(img => new { img.InvoiceId, img.SortOrder });
+
+            builder.Entity<CompanyEmployee>()
+                .HasIndex(e => e.UserId)
+                .IsUnique();
+
+            builder.Entity<CompanyEmployee>()
+                .HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<WorkspaceTeam>()
+                .HasOne(t => t.CreatedBy)
+                .WithMany()
+                .HasForeignKey(t => t.CreatedByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<WorkspaceTeamMember>()
+                .HasKey(m => new { m.TeamId, m.UserId });
+
+            builder.Entity<WorkspaceTeamMember>()
+                .HasOne(m => m.Team)
+                .WithMany(t => t.Members)
+                .HasForeignKey(m => m.TeamId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<WorkspaceTeamMember>()
+                .HasOne(m => m.User)
+                .WithMany()
+                .HasForeignKey(m => m.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<TaskBoard>()
+                .HasOne(b => b.Team)
+                .WithMany(t => t.Boards)
+                .HasForeignKey(b => b.TeamId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<TaskBoard>()
+                .HasOne(b => b.CreatedBy)
+                .WithMany()
+                .HasForeignKey(b => b.CreatedByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<TaskBoardMember>()
+                .HasKey(m => new { m.BoardId, m.UserId });
+
+            builder.Entity<TaskBoardMember>()
+                .HasOne(m => m.Board)
+                .WithMany(b => b.Members)
+                .HasForeignKey(m => m.BoardId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<TaskBoardMember>()
+                .HasOne(m => m.User)
+                .WithMany()
+                .HasForeignKey(m => m.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<TaskBoardColumn>()
+                .HasOne(c => c.Board)
+                .WithMany(b => b.Columns)
+                .HasForeignKey(c => c.BoardId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<TaskBoardColumn>()
+                .HasIndex(c => new { c.BoardId, c.SortOrder });
+
+            builder.Entity<TaskTicket>()
+                .HasOne(t => t.Board)
+                .WithMany(b => b.Tickets)
+                .HasForeignKey(t => t.BoardId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<TaskTicket>()
+                .HasOne(t => t.Column)
+                .WithMany(c => c.Tickets)
+                .HasForeignKey(t => t.ColumnId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<TaskTicket>()
+                .HasOne(t => t.Assignee)
+                .WithMany()
+                .HasForeignKey(t => t.AssigneeUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<TaskTicket>()
+                .HasOne(t => t.CreatedBy)
+                .WithMany()
+                .HasForeignKey(t => t.CreatedByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
         }
         
     }

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { InvoiceService } from '../../../../services/invoice.service';
+import { resolvePublicAssetUrl } from '../../../../services/job.service';
 import { InvoiceDetail } from '../../../../models/invoice.model';
 import { CONTACT_INFO } from '../../../../constants/contact-info.constants';
 
@@ -86,5 +87,9 @@ export class InvoicePrintComponent implements OnInit {
 
   triggerPrint(): void {
     setTimeout(() => window.print(), 200);
+  }
+
+  resolveImageUrl(path: string): string {
+    return resolvePublicAssetUrl(path);
   }
 }

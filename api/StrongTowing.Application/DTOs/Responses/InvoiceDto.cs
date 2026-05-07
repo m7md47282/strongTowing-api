@@ -28,6 +28,17 @@ public class InvoiceDto
     public DateTime UpdatedAt { get; set; }
 
     public List<InvoiceLineItemDto> LineItems { get; set; } = new();
+
+    public List<InvoiceImageDto> Images { get; set; } = new();
+}
+
+public class InvoiceImageDto
+{
+    public int Id { get; set; }
+    public int InvoiceId { get; set; }
+    public string ImageUrl { get; set; } = string.Empty;
+    public int SortOrder { get; set; }
+    public DateTime UploadedAt { get; set; }
 }
 
 public class InvoiceLineItemDto

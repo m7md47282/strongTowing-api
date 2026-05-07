@@ -5,7 +5,13 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { finalize } from 'rxjs/operators';
 import { InvoiceService } from '../../../../services/invoice.service';
 import { AuthService } from '../../../../services/auth.service';
-import { CreateInvoicePayload, InvoiceDetail, InvoiceListItem } from '../../../../models/invoice.model';
+import { resolvePublicAssetUrl } from '../../../../services/job.service';
+import {
+  CreateInvoicePayload,
+  InvoiceDetail,
+  InvoiceImage,
+  InvoiceListItem
+} from '../../../../models/invoice.model';
 
 @Component({
   selector: 'app-admin-invoices',
@@ -41,8 +47,17 @@ export class AdminInvoicesComponent implements OnInit {
 
   createModalOpen = false;
   createSubmitting = false;
+  createUploadingImages = false;
   createError: string | null = null;
   createForm: FormGroup;
+
+  /** Queued files for the New invoice modal; uploaded right after POST /invoices succeeds. */
+  createPendingImages: { id: number; file: File; objectUrl: string }[] = [];
+  private createPendingImageIdSeq = 0;
+
+  imageUploading = false;
+  imageError: string | null = null;
+  readonly maxInvoiceImages = 20;
 
   constructor(
     private invoiceService: InvoiceService,
@@ -225,6 +240,7 @@ export class AdminInvoicesComponent implements OnInit {
 
   openCreateModal(): void {
     this.createError = null;
+    this.clearCreatePendingImages();
     this.createForm.patchValue({
       issuedDate: this.todayIsoDate(),
       dueDate: '',
@@ -242,12 +258,73 @@ export class AdminInvoicesComponent implements OnInit {
     }
     this.lineItems.push(this.newLineItemGroup());
     this.createModalOpen = true;
+    this.createUploadingImages = false;
+  }
+
+  onCreateModalBackdropClick(): void {
+    if (this.createSubmitting) {
+      return;
+    }
+    this.closeCreateModal();
   }
 
   closeCreateModal(): void {
     this.createModalOpen = false;
     this.createSubmitting = false;
+    this.createUploadingImages = false;
     this.createError = null;
+    this.clearCreatePendingImages();
+  }
+
+  private clearCreatePendingImages(): void {
+    for (const row of this.createPendingImages) {
+      URL.revokeObjectURL(row.objectUrl);
+    }
+    this.createPendingImages = [];
+  }
+
+  onCreateGalleryFilesSelected(ev: Event): void {
+    const input = ev.target as HTMLInputElement;
+    // Snapshot into an array BEFORE clearing input.value — FileList is a live object
+    // and gets wiped when value is reset.
+    const files = Array.from(input.files ?? []);
+    input.value = '';
+    if (!files.length) {
+      return;
+    }
+    this.createError = null;
+    const allowed = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/pjpeg']);
+    const picked = files.filter((f) => allowed.has((f.type || '').toLowerCase()));
+    if (!picked.length) {
+      this.createError = 'Only JPEG, PNG, or WebP images are allowed.';
+      return;
+    }
+    const room = this.maxInvoiceImages - this.createPendingImages.length;
+    if (room <= 0) {
+      this.createError = `You can add at most ${this.maxInvoiceImages} images per invoice.`;
+      return;
+    }
+    const toAdd = picked.slice(0, room);
+    if (picked.length > room) {
+      this.createError = `Only the first ${room} file(s) were added (max ${this.maxInvoiceImages} per invoice).`;
+    }
+    for (const file of toAdd) {
+      this.createPendingImageIdSeq += 1;
+      this.createPendingImages.push({
+        id: this.createPendingImageIdSeq,
+        file,
+        objectUrl: URL.createObjectURL(file)
+      });
+    }
+  }
+
+  removeCreatePendingImage(index: number): void {
+    const row = this.createPendingImages[index];
+    if (!row) {
+      return;
+    }
+    URL.revokeObjectURL(row.objectUrl);
+    this.createPendingImages.splice(index, 1);
   }
 
   addLineItem(): void {
@@ -320,21 +397,61 @@ export class AdminInvoicesComponent implements OnInit {
     };
 
     this.createSubmitting = true;
+    this.createUploadingImages = false;
+    const filesToUpload = this.createPendingImages.map((r) => r.file);
     this.invoiceService.create(payload).subscribe({
       next: (inv) => {
-        this.createSubmitting = false;
-        this.closeCreateModal();
-        this.successMessage = `Invoice ${inv.invoiceNumber} created.`;
-        setTimeout(() => (this.successMessage = null), 5000);
-        this.page = 1;
-        this.load();
-        this.showCreatedDetail(inv);
+        this.clearCreatePendingImages();
+        if (filesToUpload.length === 0) {
+          this.finishCreateSuccess(inv, null);
+          return;
+        }
+        this.createUploadingImages = true;
+        this.uploadImagesAfterCreate(inv.id, filesToUpload, 0, inv);
       },
       error: (err: HttpErrorResponse) => {
         this.createSubmitting = false;
+        this.createUploadingImages = false;
         this.createError = this.createFormHttpError(err);
       }
     });
+  }
+
+  private uploadImagesAfterCreate(
+    invoiceId: number,
+    files: File[],
+    index: number,
+    lastGood: InvoiceDetail
+  ): void {
+    if (index >= files.length) {
+      this.finishCreateSuccess(lastGood, null);
+      return;
+    }
+    this.invoiceService.uploadImage(invoiceId, files[index]).subscribe({
+      next: (updated) => {
+        this.uploadImagesAfterCreate(invoiceId, files, index + 1, updated);
+      },
+      error: (err: HttpErrorResponse) => {
+        const msg = this.httpErrorMessage(err);
+        this.finishCreateSuccess(
+          lastGood,
+          `Invoice ${lastGood.invoiceNumber} was saved, but not all images uploaded (${msg}). Open the invoice to add or retry.`
+        );
+      }
+    });
+  }
+
+  private finishCreateSuccess(inv: InvoiceDetail, imageWarning: string | null): void {
+    this.createSubmitting = false;
+    this.createUploadingImages = false;
+    this.closeCreateModal();
+    this.successMessage = imageWarning
+      ? `Invoice ${inv.invoiceNumber} created. ${imageWarning}`
+      : `Invoice ${inv.invoiceNumber} created.`;
+    setTimeout(() => (this.successMessage = null), imageWarning ? 8000 : 5000);
+    this.page = 1;
+    this.load();
+    this.showCreatedDetail(inv);
   }
 
   private showCreatedDetail(inv: InvoiceDetail): void {
@@ -343,10 +460,15 @@ export class AdminInvoicesComponent implements OnInit {
     this.selectedDetail = inv;
   }
 
+  resolveInvoiceImageUrl(path: string): string {
+    return resolvePublicAssetUrl(path);
+  }
+
   openDetail(row: InvoiceListItem): void {
     this.detailOpen = true;
     this.detailLoading = true;
     this.selectedDetail = null;
+    this.imageError = null;
     this.error = null;
     this.invoiceService.getById(row.id).subscribe({
       next: (inv) => {
@@ -365,6 +487,70 @@ export class AdminInvoicesComponent implements OnInit {
     this.detailOpen = false;
     this.selectedDetail = null;
     this.detailLoading = false;
+    this.imageError = null;
+    this.imageUploading = false;
+  }
+
+  onGalleryFilesSelected(ev: Event): void {
+    const input = ev.target as HTMLInputElement;
+    // Snapshot before clearing — FileList is live and gets wiped with input.value = ''.
+    const files = Array.from(input.files ?? []);
+    input.value = '';
+    if (!files.length || !this.selectedDetail) {
+      return;
+    }
+    this.imageError = null;
+    const list = files.filter((f) => f.type.startsWith('image/'));
+    if (!list.length) {
+      this.imageError = 'Choose JPEG, PNG, or WebP images.';
+      return;
+    }
+    this.uploadGalleryFilesSequential(this.selectedDetail.id, list, 0);
+  }
+
+  private uploadGalleryFilesSequential(invoiceId: number, files: File[], index: number): void {
+    if (index >= files.length) {
+      this.imageUploading = false;
+      return;
+    }
+    const count = this.selectedDetail?.images?.length ?? 0;
+    if (count >= this.maxInvoiceImages) {
+      this.imageError = `Maximum ${this.maxInvoiceImages} images per invoice.`;
+      this.imageUploading = false;
+      return;
+    }
+
+    this.imageUploading = true;
+    this.invoiceService.uploadImage(invoiceId, files[index]).subscribe({
+      next: (inv) => {
+        this.selectedDetail = inv;
+        this.uploadGalleryFilesSequential(invoiceId, files, index + 1);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.imageUploading = false;
+        this.imageError = this.httpErrorMessage(err);
+      }
+    });
+  }
+
+  removeInvoiceImage(img: InvoiceImage): void {
+    if (!this.selectedDetail) {
+      return;
+    }
+    const ok = confirm('Remove this photo from the invoice?');
+    if (!ok) {
+      return;
+    }
+    this.imageError = null;
+    this.invoiceService.deleteImage(this.selectedDetail.id, img.id).subscribe({
+      next: () => {
+        this.invoiceService.getById(this.selectedDetail!.id).subscribe({
+          next: (inv) => (this.selectedDetail = inv),
+          error: (err: HttpErrorResponse) => (this.imageError = this.httpErrorMessage(err))
+        });
+      },
+      error: (err: HttpErrorResponse) => (this.imageError = this.httpErrorMessage(err))
+    });
   }
 
   private createFormHttpError(err: HttpErrorResponse): string {
