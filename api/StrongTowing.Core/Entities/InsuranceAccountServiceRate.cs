@@ -20,6 +20,15 @@ public class InsuranceAccountServiceRate
     [Column(TypeName = "decimal(18,2)")]
     public decimal PricePerMile { get; set; }
 
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal? EnroutePricePerMile { get; set; }
+
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal? LoadedPricePerMile { get; set; }
+
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal? DeadheadPricePerMile { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }

@@ -31,6 +31,8 @@ namespace StrongTowing.Infrastructure.Data
         public DbSet<AuthOtpRecord> AuthOtpRecords { get; set; }
         public DbSet<TruckType> TruckTypes { get; set; }
         public DbSet<Truck> Trucks { get; set; }
+        public DbSet<Invoice> Invoices { get; set; }
+        public DbSet<InvoiceLineItem> InvoiceLineItems { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -72,6 +74,14 @@ namespace StrongTowing.Infrastructure.Data
                 .WithMany()
                 .HasForeignKey(j => j.StatusUpdatedById)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<Job>()
+                .HasIndex(j => new { j.Status, j.CreatedAt })
+                .HasDatabaseName("IX_Jobs_Status_CreatedAt");
+
+            builder.Entity<Job>()
+                .HasIndex(j => new { j.DriverId, j.Status })
+                .HasDatabaseName("IX_Jobs_DriverId_Status");
             
             // Payment relationships
             builder.Entity<Payment>()
@@ -266,6 +276,32 @@ namespace StrongTowing.Infrastructure.Data
                 .WithMany(t => t.Jobs)
                 .HasForeignKey(j => j.TruckId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            // Invoice relationships
+            builder.Entity<Invoice>()
+                .HasOne(i => i.CreatedBy)
+                .WithMany()
+                .HasForeignKey(i => i.CreatedById)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<Invoice>()
+                .HasOne(i => i.Job)
+                .WithMany()
+                .HasForeignKey(i => i.JobId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<Invoice>()
+                .HasIndex(i => i.InvoiceNumber)
+                .IsUnique();
+
+            builder.Entity<Invoice>()
+                .HasIndex(i => i.CreatedAt);
+
+            builder.Entity<InvoiceLineItem>()
+                .HasOne(li => li.Invoice)
+                .WithMany(i => i.LineItems)
+                .HasForeignKey(li => li.InvoiceId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
         
     }

@@ -11,6 +11,7 @@ using StrongTowing.Core.Constants;
 using StrongTowing.Core.Enums;
 using StrongTowing.Infrastructure.Data;
 using System.Text.Json;
+using StrongTowing.API.Mapping;
 using StrongTowing.API.Services;
 using StrongTowing.Application.Abstractions;
 using System.IO;
@@ -61,6 +62,8 @@ public class JobsController : ControllerBase
     /// <summary>
     /// Get jobs with pagination and filters (SuperAdmin/Admin/Dispatcher only).
     /// Search matches job id (substring), vehicle make/model, driver name, or service type.
+    /// Optional: comma-separated <paramref name="statuses"/> (include) or <paramref name="excludeStatuses"/> (exclude),
+    /// <paramref name="activePipelineOnly"/> (exclude Completed/Cancelled), date ranges, <paramref name="minCost"/>.
     /// </summary>
     [HttpGet]
     [Authorize(Roles = $"{UserRoles.SuperAdmin},{UserRoles.Administrator},{UserRoles.Dispatcher}")]
@@ -68,6 +71,14 @@ public class JobsController : ControllerBase
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 25,
         [FromQuery] string? status = null,
+        [FromQuery] string? statuses = null,
+        [FromQuery] string? excludeStatuses = null,
+        [FromQuery] bool activePipelineOnly = false,
+        [FromQuery] DateTime? createdFrom = null,
+        [FromQuery] DateTime? createdTo = null,
+        [FromQuery] DateTime? completedFrom = null,
+        [FromQuery] DateTime? completedTo = null,
+        [FromQuery] decimal? minCost = null,
         [FromQuery] string? search = null)
     {
         try
@@ -76,33 +87,18 @@ public class JobsController : ControllerBase
             if (pageSize < 1) pageSize = 25;
             if (pageSize > 100) pageSize = 100;
 
-            var query = _context.Jobs
-                .Include(j => j.Vehicle)
-                    .ThenInclude(v => v.Owner)
-                .Include(j => j.Driver)
-                .Include(j => j.Truck)
-                    .ThenInclude(t => t!.TruckType)
-                .AsQueryable();
-
-            if (!string.IsNullOrEmpty(status))
-            {
-                if (Enum.TryParse<JobStatus>(status, out var statusEnum))
-                {
-                    query = query.Where(j => j.Status == statusEnum);
-                }
-            }
-
-            if (!string.IsNullOrWhiteSpace(search))
-            {
-                var t = search.Trim();
-                var tl = t.ToLower();
-                query = query.Where(j =>
-                    j.Id.ToString().Contains(t) ||
-                    (j.Vehicle != null && j.Vehicle.Make != null && j.Vehicle.Make.ToLower().Contains(tl)) ||
-                    (j.Vehicle != null && j.Vehicle.Model != null && j.Vehicle.Model.ToLower().Contains(tl)) ||
-                    (j.Driver != null && j.Driver.FullName != null && j.Driver.FullName.ToLower().Contains(tl)) ||
-                    (j.ServiceType != null && j.ServiceType.ToLower().Contains(tl)));
-            }
+            var query = ApplyJobListFilters(
+                _context.Jobs.AsNoTracking(),
+                status,
+                statuses,
+                excludeStatuses,
+                activePipelineOnly,
+                createdFrom,
+                createdTo,
+                completedFrom,
+                completedTo,
+                minCost,
+                search);
 
             var totalCount = await query.CountAsync();
 
@@ -110,9 +106,15 @@ public class JobsController : ControllerBase
                 .OrderByDescending(j => j.CreatedAt)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
+                .Include(j => j.Vehicle)
+                    .ThenInclude(v => v.Owner)
+                .Include(j => j.Driver)
+                .Include(j => j.Truck)
+                    .ThenInclude(t => t!.TruckType)
+                .AsSplitQuery()
                 .ToListAsync();
 
-            var jobDtos = jobs.Select(j => MapToJobDto(j)).ToList();
+            var jobDtos = jobs.Select(j => JobEntityMapper.MapToDto(j)).ToList();
 
             return Ok(new PagedResponse<JobDto>
             {
@@ -127,6 +129,101 @@ public class JobsController : ControllerBase
             _logger.LogError(ex, "Error retrieving jobs");
             return StatusCode(500, new { error = "Internal Server Error", message = "An error occurred while retrieving jobs." });
         }
+    }
+
+    private static IQueryable<Job> ApplyJobListFilters(
+        IQueryable<Job> query,
+        string? status,
+        string? statuses,
+        string? excludeStatuses,
+        bool activePipelineOnly,
+        DateTime? createdFrom,
+        DateTime? createdTo,
+        DateTime? completedFrom,
+        DateTime? completedTo,
+        decimal? minCost,
+        string? search)
+    {
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            if (Enum.TryParse<JobStatus>(status.Trim(), ignoreCase: true, out var statusEnum))
+                query = query.Where(j => j.Status == statusEnum);
+
+            return ApplyRemainingJobFilters(query, createdFrom, createdTo, completedFrom, completedTo, minCost, search);
+        }
+
+        var includeList = ParseJobStatusesCsv(statuses);
+        var excludeList = ParseJobStatusesCsv(excludeStatuses)?.ToList() ?? new List<JobStatus>();
+
+        if (activePipelineOnly)
+        {
+            foreach (var st in new[] { JobStatus.Completed, JobStatus.Cancelled })
+            {
+                if (!excludeList.Contains(st))
+                    excludeList.Add(st);
+            }
+        }
+
+        if (includeList != null && includeList.Count > 0)
+            query = query.Where(j => includeList.Contains(j.Status));
+        else if (excludeList.Count > 0)
+            query = query.Where(j => !excludeList.Contains(j.Status));
+
+        return ApplyRemainingJobFilters(query, createdFrom, createdTo, completedFrom, completedTo, minCost, search);
+    }
+
+    private static IQueryable<Job> ApplyRemainingJobFilters(
+        IQueryable<Job> query,
+        DateTime? createdFrom,
+        DateTime? createdTo,
+        DateTime? completedFrom,
+        DateTime? completedTo,
+        decimal? minCost,
+        string? search)
+    {
+        if (createdFrom.HasValue)
+            query = query.Where(j => j.CreatedAt >= createdFrom.Value);
+
+        if (createdTo.HasValue)
+            query = query.Where(j => j.CreatedAt <= createdTo.Value);
+
+        if (completedFrom.HasValue)
+            query = query.Where(j => j.CompletedAt != null && j.CompletedAt >= completedFrom.Value);
+
+        if (completedTo.HasValue)
+            query = query.Where(j => j.CompletedAt != null && j.CompletedAt <= completedTo.Value);
+
+        if (minCost.HasValue)
+            query = query.Where(j => j.Cost >= minCost.Value);
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var t = search.Trim();
+            var tl = t.ToLower();
+            query = query.Where(j =>
+                j.Id.ToString().Contains(t) ||
+                (j.Vehicle != null && j.Vehicle.Make != null && j.Vehicle.Make.ToLower().Contains(tl)) ||
+                (j.Vehicle != null && j.Vehicle.Model != null && j.Vehicle.Model.ToLower().Contains(tl)) ||
+                (j.Driver != null && j.Driver.FullName != null && j.Driver.FullName.ToLower().Contains(tl)) ||
+                (j.ServiceType != null && j.ServiceType.ToLower().Contains(tl)));
+        }
+
+        return query;
+    }
+
+    private static List<JobStatus>? ParseJobStatusesCsv(string? csv)
+    {
+        if (string.IsNullOrWhiteSpace(csv))
+            return null;
+
+        var list = new List<JobStatus>();
+        foreach (var part in csv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (Enum.TryParse<JobStatus>(part.Trim(), ignoreCase: true, out var s))
+                list.Add(s);
+        }
+
+        return list.Count == 0 ? null : list;
     }
 
     /// <summary>
@@ -495,7 +592,7 @@ public class JobsController : ControllerBase
                 await _emailNotificationService.NotifyClientDriverAssignedAsync(job.Id, contactEmail, ownerEmail);
             }
 
-            var jobDto = MapToJobDto(job);
+            var jobDto = JobEntityMapper.MapToDto(job);
 
             return CreatedAtAction(nameof(GetJobById), new { id = job.Id }, jobDto);
         }
@@ -544,7 +641,7 @@ public class JobsController : ControllerBase
                 .ToListAsync();
 
             var commissionPct = await GetDriverCommissionPercentageAsync();
-            var jobDtos = jobs.Select(j => MapToJobDto(j, commissionPct)).ToList();
+            var jobDtos = jobs.Select(j => JobEntityMapper.MapToDto(j, commissionPct)).ToList();
             return Ok(jobDtos);
         }
         catch (Exception ex)
@@ -586,8 +683,8 @@ public class JobsController : ControllerBase
             }
 
             var jobDto = User.IsInRole(UserRoles.Driver)
-                ? MapToJobDto(job, await GetDriverCommissionPercentageAsync())
-                : MapToJobDto(job);
+                ? JobEntityMapper.MapToDto(job, await GetDriverCommissionPercentageAsync())
+                : JobEntityMapper.MapToDto(job);
             return Ok(jobDto);
         }
         catch (Exception ex)
@@ -761,7 +858,7 @@ public class JobsController : ControllerBase
                 await _context.Entry(job.Truck).Reference(t => t.TruckType).LoadAsync();
             }
 
-            return Ok(MapToJobDto(job));
+            return Ok(JobEntityMapper.MapToDto(job));
         }
         catch (Exception ex)
         {
@@ -826,7 +923,7 @@ public class JobsController : ControllerBase
             {
                 return Ok(new AssignDriverResponseDto
                 {
-                    Job = MapToJobDto(job),
+                    Job = JobEntityMapper.MapToDto(job),
                     NotificationSent = false,
                     NotificationMessage = null
                 });
@@ -876,7 +973,7 @@ public class JobsController : ControllerBase
                 null,
                 job.Vehicle?.Owner?.Email);
 
-            var jobDto = MapToJobDto(job);
+            var jobDto = JobEntityMapper.MapToDto(job);
             return Ok(new AssignDriverResponseDto
             {
                 Job = jobDto,
@@ -967,7 +1064,7 @@ public class JobsController : ControllerBase
 
             await _context.SaveChangesAsync();
 
-            return Ok(MapToJobDto(job));
+            return Ok(JobEntityMapper.MapToDto(job));
         }
         catch (Exception ex)
         {
@@ -1141,7 +1238,7 @@ public class JobsController : ControllerBase
                     job.Vehicle?.Owner?.Email);
             }
 
-            var jobDto = MapToJobDto(job);
+            var jobDto = JobEntityMapper.MapToDto(job);
             return Ok(jobDto);
         }
         catch (Exception ex)
@@ -1228,7 +1325,7 @@ public class JobsController : ControllerBase
                 request.Cost,
                 request.Reason);
 
-            return Ok(MapToJobDto(job));
+            return Ok(JobEntityMapper.MapToDto(job));
         }
         catch (Exception ex)
         {
@@ -1321,7 +1418,7 @@ public class JobsController : ControllerBase
                 null,
                 job.Vehicle?.Owner?.Email);
 
-            return Ok(MapToJobDto(job));
+            return Ok(JobEntityMapper.MapToDto(job));
         }
         catch (PaymentProviderException ex)
         {
@@ -1467,133 +1564,7 @@ public class JobsController : ControllerBase
             pct = await GetDriverCommissionPercentageAsync(cancellationToken);
         }
 
-        return MapToJobDto(job, pct);
-    }
-
-    private JobDto MapToJobDto(Job job, decimal? driverCommissionPct = null)
-    {
-        // Deserialize invoice charges if present
-        InvoiceChargesData? invoiceCharges = null;
-        if (!string.IsNullOrEmpty(job.InvoiceChargesJson))
-        {
-            try
-            {
-                invoiceCharges = JsonSerializer.Deserialize<InvoiceChargesData>(job.InvoiceChargesJson);
-            }
-            catch
-            {
-                // Ignore deserialization errors
-            }
-        }
-
-        return new JobDto
-        {
-            Id = job.Id,
-            Status = job.Status.ToString(),
-            VehicleId = job.VehicleId,
-            Vehicle = job.Vehicle != null ? new VehicleDto
-            {
-                Id = job.Vehicle.Id,
-                VIN = job.Vehicle.VIN,
-                Make = job.Vehicle.Make,
-                Model = job.Vehicle.Model,
-                Year = job.Vehicle.Year,
-                Color = job.Vehicle.Color
-            } : null,
-            ClientId = job.Vehicle?.OwnerId ?? string.Empty,
-            ClientName = job.Vehicle?.Owner?.FullName ?? string.Empty,
-            ClientEmail = job.Vehicle?.Owner?.Email ?? string.Empty,
-            ClientPhoneNumber = job.Vehicle?.Owner?.PhoneNumber,
-            
-            // Call/Job Type
-            CallType = job.CallType,
-            ScheduledDate = job.ScheduledDate,
-            ScheduledTime = job.ScheduledTime,
-            
-            // Company & Account
-            CompanyName = job.CompanyName,
-            Account = job.Account,
-            CompanyOverride = job.CompanyOverride,
-            
-            // Contact Information
-            ContactName = job.ContactName,
-            ContactPhoneNumber = job.ContactPhoneNumber,
-            
-            // Location
-            PickupLocation = job.PickupLocation,
-            DestinationAddress = job.DestinationAddress,
-            
-            // Job Details
-            Reason = job.Reason,
-            Priority = job.Priority,
-            InvoiceNumber = job.InvoiceNumber,
-            ETA = job.ETA,
-            ServiceType = job.ServiceType,
-            
-            // Vehicle Details
-            LicensePlate = job.LicensePlate,
-            LicenseState = job.LicenseState,
-            DriveType = job.DriveType,
-            VehicleType = job.VehicleType,
-            Odometer = job.Odometer,
-            Drivable = job.Drivable,
-            HaveKeys = job.HaveKeys,
-            KeyLocation = job.KeyLocation,
-            
-            // Assignment
-            DriverId = job.DriverId,
-            DriverName = job.Driver?.FullName,
-            TruckId = job.TruckId,
-            Truck = job.Truck == null
-                ? null
-                : new TruckSummaryDto
-                {
-                    Id = job.Truck.Id,
-                    UnitLabel = job.Truck.UnitLabel,
-                    TruckTypeId = job.Truck.TruckTypeId,
-                    TruckTypeName = job.Truck.TruckType?.Name ?? string.Empty
-                },
-
-            // Financials
-            Cost = job.Cost,
-            CommissionVisibleToDriver = job.CommissionVisibleToDriver,
-            DriverCommissionRatePercent = driverCommissionPct.HasValue && job.CommissionVisibleToDriver
-                ? driverCommissionPct
-                : null,
-            DriverCommissionEstimate = driverCommissionPct.HasValue && job.CommissionVisibleToDriver
-                ? decimal.Round(job.Cost * (driverCommissionPct.Value / 100m), 2, MidpointRounding.AwayFromZero)
-                : null,
-            PaymentStatus = string.IsNullOrWhiteSpace(job.PaymentStatus) ? "Unpaid" : job.PaymentStatus,
-            PaymentMethod = job.PaymentMethod,
-            PaidAt = job.PaidAt,
-            BillingPaymentMode = string.IsNullOrWhiteSpace(job.BillingPaymentMode) ? JobBillingModes.Standard : job.BillingPaymentMode,
-            InsuranceCoveredAmount = job.InsuranceCoveredAmount,
-            ClientCoveredAmount = job.ClientCoveredAmount,
-            InsurancePortionBilled = job.InsurancePortionBilled,
-            ClientPortionPaid = job.ClientPortionPaid,
-            DriverCashCollectedAmount = job.DriverCashCollectedAmount,
-            PayrollDeductionAmount = job.PayrollDeductionAmount,
-            PayrollDeductionRecorded = job.PayrollDeductionRecorded,
-            Notes = job.Notes,
-            BillingNotes = job.BillingNotes,
-            IncludeBillingNotesOnReceipt = job.IncludeBillingNotesOnReceipt,
-            InvoiceCharges = invoiceCharges,
-            
-            PhotoCount = job.Photos?.Count ?? 0,
-            Photos = job.Photos == null || job.Photos.Count == 0
-                ? new List<JobPhotoDto>()
-                : job.Photos.OrderBy(p => p.UploadedAt).Select(p => new JobPhotoDto
-                {
-                    Id = p.Id,
-                    Url = p.PhotoUrl,
-                    UploadedAt = p.UploadedAt
-                }).ToList(),
-            CreatedAt = job.CreatedAt,
-            CompletedAt = job.CompletedAt,
-            StatusUpdatedById = job.StatusUpdatedById,
-            StatusUpdatedByName = job.StatusUpdatedBy?.FullName,
-            StatusUpdatedAt = job.StatusUpdatedAt
-        };
+        return JobEntityMapper.MapToDto(job, pct);
     }
 }
 

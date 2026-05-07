@@ -330,20 +330,19 @@ public class UsersController : ControllerBase
                 baseQuery = baseQuery.Where(u => u.IsAvailableForDispatch);
             }
 
-            // Active job = not Completed / Cancelled (matches dispatcher UI JOB_STATUS_ACTIVE semantics)
-            var withActiveJobCount = await baseQuery
-                .Where(u => _context.Jobs.Any(j =>
-                    j.DriverId == u.Id &&
+            // Active job = not Completed / Cancelled — Intersect avoids correlated EXISTS per driver row at scale.
+            var eligibleDriverIdsQuery = baseQuery.Select(u => u.Id);
+            var busyDriverIdsQuery = _context.Jobs.AsNoTracking()
+                .Where(j =>
+                    j.DriverId != null &&
                     j.Status != JobStatus.Completed &&
-                    j.Status != JobStatus.Cancelled))
-                .CountAsync();
+                    j.Status != JobStatus.Cancelled)
+                .Select(j => j.DriverId!);
 
-            var withoutActiveJobCount = await baseQuery
-                .Where(u => !_context.Jobs.Any(j =>
-                    j.DriverId == u.Id &&
-                    j.Status != JobStatus.Completed &&
-                    j.Status != JobStatus.Cancelled))
-                .CountAsync();
+            var withActiveJobCount = await eligibleDriverIdsQuery.Intersect(busyDriverIdsQuery).CountAsync();
+
+            var totalEligibleDrivers = await baseQuery.CountAsync();
+            var withoutActiveJobCount = totalEligibleDrivers - withActiveJobCount;
 
             var filteredQuery = baseQuery;
 

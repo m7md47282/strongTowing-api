@@ -74,11 +74,15 @@ public class ServicePricingController : ControllerBase
             _context.ServicePricingProfiles.Remove(existingByName);
         }
 
+        var effectiveLoaded = request.LoadedPricePerMile ?? request.PricePerMile;
         var row = new ServicePricingProfile
         {
             Name = normalizedName,
             BasePrice = request.BasePrice,
-            PricePerMile = request.PricePerMile,
+            PricePerMile = effectiveLoaded,
+            LoadedPricePerMile = request.LoadedPricePerMile,
+            EnroutePricePerMile = request.EnroutePricePerMile,
+            DeadheadPricePerMile = request.DeadheadPricePerMile,
             IsAvailable = request.IsAvailable,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
@@ -116,7 +120,10 @@ public class ServicePricingController : ControllerBase
 
         row.Name = normalizedName;
         row.BasePrice = request.BasePrice;
-        row.PricePerMile = request.PricePerMile;
+        row.PricePerMile = request.LoadedPricePerMile ?? request.PricePerMile;
+        row.LoadedPricePerMile = request.LoadedPricePerMile;
+        row.EnroutePricePerMile = request.EnroutePricePerMile;
+        row.DeadheadPricePerMile = request.DeadheadPricePerMile;
         row.IsAvailable = request.IsAvailable;
         row.UpdatedAt = DateTime.UtcNow;
 
@@ -163,6 +170,9 @@ public class ServicePricingController : ControllerBase
             Name = row.Name,
             BasePrice = row.BasePrice,
             PricePerMile = row.PricePerMile,
+            EnroutePricePerMile = row.EnroutePricePerMile,
+            LoadedPricePerMile = row.LoadedPricePerMile,
+            DeadheadPricePerMile = row.DeadheadPricePerMile,
             IsAvailable = row.IsAvailable,
             CreatedAt = row.CreatedAt,
             UpdatedAt = row.UpdatedAt

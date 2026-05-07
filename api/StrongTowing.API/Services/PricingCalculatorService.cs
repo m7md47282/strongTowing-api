@@ -46,23 +46,31 @@ public class PricingCalculatorService : IPricingCalculatorService
         }
 
         decimal basePrice;
-        decimal pricePerMile;
+        decimal rateABCatalog;
+        decimal rateBCCatalog;
+        decimal rateCACatalog;
 
-        if (accountServiceRow != null)
+        if (accountServiceRow != null && serviceProfile != null)
         {
             basePrice = accountServiceRow.BasePrice;
-            pricePerMile = accountServiceRow.PricePerMile;
+            rateBCCatalog = accountServiceRow.LoadedPricePerMile ?? accountServiceRow.PricePerMile;
+            rateABCatalog = accountServiceRow.EnroutePricePerMile ?? serviceProfile.EnroutePricePerMile ?? 0m;
+            rateCACatalog = accountServiceRow.DeadheadPricePerMile ?? serviceProfile.DeadheadPricePerMile ?? 0m;
         }
         else if (serviceProfile != null)
         {
             basePrice = serviceProfile.BasePrice;
-            pricePerMile = serviceProfile.PricePerMile;
+            rateABCatalog = serviceProfile.EnroutePricePerMile ?? 0m;
+            rateBCCatalog = serviceProfile.LoadedPricePerMile ?? serviceProfile.PricePerMile;
+            rateCACatalog = serviceProfile.DeadheadPricePerMile ?? 0m;
         }
         else
         {
             // Legacy: account-level BC rate when no service catalog match
             basePrice = 0m;
-            pricePerMile = account?.RateBC ?? 0m;
+            rateABCatalog = 0m;
+            rateBCCatalog = account?.RateBC ?? 0m;
+            rateCACatalog = 0m;
         }
 
         var catalogPricing = accountServiceRow != null || serviceProfile != null;
@@ -81,10 +89,24 @@ public class PricingCalculatorService : IPricingCalculatorService
             hookupLineApplies = hookupLineAmount > 0m;
         }
 
+        var rateAB = rateABCatalog;
+        var rateBC = rateBCCatalog;
+        var rateCA = rateCACatalog;
+
         // Dispatcher overrides (explicit line items from UI)
+        if (request.RateAB.HasValue)
+        {
+            rateAB = EnsureNonNegative(request.RateAB.Value, nameof(request.RateAB));
+        }
+
         if (request.RateBC.HasValue)
         {
-            pricePerMile = EnsureNonNegative(request.RateBC.Value, nameof(request.RateBC));
+            rateBC = EnsureNonNegative(request.RateBC.Value, nameof(request.RateBC));
+        }
+
+        if (request.RateCA.HasValue)
+        {
+            rateCA = EnsureNonNegative(request.RateCA.Value, nameof(request.RateCA));
         }
 
         if (request.HookupFee.HasValue)
@@ -94,20 +116,20 @@ public class PricingCalculatorService : IPricingCalculatorService
         }
 
         basePrice = EnsureNonNegative(basePrice, nameof(basePrice));
-        pricePerMile = EnsureNonNegative(pricePerMile, nameof(pricePerMile));
+        rateAB = EnsureNonNegative(rateAB, nameof(rateAB));
+        rateBC = EnsureNonNegative(rateBC, nameof(rateBC));
+        rateCA = EnsureNonNegative(rateCA, nameof(rateCA));
         hookupLineAmount = EnsureNonNegative(hookupLineAmount, nameof(hookupLineAmount));
 
         var hookupLineCharge = hookupLineApplies ? hookupLineAmount : 0m;
         hookupLineCharge = RoundMoney(hookupLineCharge, roundingMode);
 
-        // Customer pays loaded miles only; enroute and deadhead are not billed
-        var chargeAB = 0m;
-        var chargeCA = 0m;
-        var rateAB = 0m;
-        var rateCA = 0m;
-
-        var chargeBC = RoundMoney(billableMiles * pricePerMile, roundingMode);
-        var rateBC = RoundMoney(pricePerMile, roundingMode);
+        var chargeAB = RoundMoney(milesAB * rateAB, roundingMode);
+        var chargeBC = RoundMoney(billableMiles * rateBC, roundingMode);
+        var chargeCA = RoundMoney(milesCA * rateCA, roundingMode);
+        rateAB = RoundMoney(rateAB, roundingMode);
+        rateBC = RoundMoney(rateBC, roundingMode);
+        rateCA = RoundMoney(rateCA, roundingMode);
 
         var hookupFeeTotal = hookupLineCharge;
 
@@ -122,7 +144,9 @@ public class PricingCalculatorService : IPricingCalculatorService
         // Match dispatcher UI: fixed "best" price is carried as invoice line items (ExtraItemsTotal, e.g. "Name (base)").
         // Do not also add catalog BasePrice when those lines already subsume it.
         var monetaryBaseComponent = ComputeMonetaryBaseComponent(basePrice, extraItemsTotal, roundingMode);
-        var baseSubtotal = RoundMoney(monetaryBaseComponent + chargeBC + hookupFeeTotal, roundingMode);
+        var baseSubtotal = RoundMoney(
+            monetaryBaseComponent + chargeAB + chargeBC + chargeCA + hookupFeeTotal,
+            roundingMode);
 
         var discountAmount = ResolveDiscountAmount(request, baseSubtotal, settings.MaxDiscountPercent, roundingMode);
         var afterDiscount = RoundMoney(Math.Max(0m, baseSubtotal - discountAmount), roundingMode);

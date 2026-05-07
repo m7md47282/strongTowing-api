@@ -70,7 +70,10 @@ public class AccountServiceRatesController : ControllerBase
             InsuranceAccountId = accountId,
             ServicePricingProfileId = request.ServicePricingProfileId,
             BasePrice = request.BasePrice,
-            PricePerMile = request.PricePerMile,
+            PricePerMile = request.LoadedPricePerMile ?? request.PricePerMile,
+            LoadedPricePerMile = request.LoadedPricePerMile,
+            EnroutePricePerMile = request.EnroutePricePerMile,
+            DeadheadPricePerMile = request.DeadheadPricePerMile,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -119,7 +122,10 @@ public class AccountServiceRatesController : ControllerBase
         }
 
         row.BasePrice = request.BasePrice;
-        row.PricePerMile = request.PricePerMile;
+        row.PricePerMile = request.LoadedPricePerMile ?? request.PricePerMile;
+        row.LoadedPricePerMile = request.LoadedPricePerMile;
+        row.EnroutePricePerMile = request.EnroutePricePerMile;
+        row.DeadheadPricePerMile = request.DeadheadPricePerMile;
         row.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
@@ -154,6 +160,9 @@ public class AccountServiceRatesController : ControllerBase
             ServiceName = row.ServicePricingProfile?.Name ?? string.Empty,
             BasePrice = row.BasePrice,
             PricePerMile = row.PricePerMile,
+            EnroutePricePerMile = row.EnroutePricePerMile,
+            LoadedPricePerMile = row.LoadedPricePerMile,
+            DeadheadPricePerMile = row.DeadheadPricePerMile,
             CreatedAt = row.CreatedAt,
             UpdatedAt = row.UpdatedAt
         };

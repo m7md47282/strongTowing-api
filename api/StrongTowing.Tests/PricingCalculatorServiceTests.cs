@@ -256,6 +256,51 @@ public class PricingCalculatorServiceTests
         Assert.Equal(153.05m, result.GrandTotal);
     }
 
+    [Fact]
+    public async Task CalculateAsync_BillsEnrouteLoadedDeadhead_FromServiceCatalog_WhenSet()
+    {
+        await using var context = CreateContext(nameof(CalculateAsync_BillsEnrouteLoadedDeadhead_FromServiceCatalog_WhenSet));
+        context.SystemSettings.Add(new SystemSettings
+        {
+            MaxDiscountPercent = 100m,
+            DefaultPricingHookupFee = 0m,
+            DefaultPricingServiceChargePercent = 0m,
+            DefaultPricingTaxPercent = 0m,
+            PricingFreeMiles = 0m
+        });
+        context.ServicePricingProfiles.Add(new ServicePricingProfile
+        {
+            Name = "Segment Tow",
+            BasePrice = 0m,
+            PricePerMile = 4m,
+            LoadedPricePerMile = 4m,
+            EnroutePricePerMile = 2m,
+            DeadheadPricePerMile = 1m,
+            IsAvailable = true
+        });
+        await context.SaveChangesAsync();
+
+        var service = new PricingCalculatorService(context);
+        var result = await service.CalculateAsync(new PricingQuoteRequestDto
+        {
+            ServiceName = "Segment Tow",
+            MilesAB = 10m,
+            MilesBC = 5m,
+            MilesCA = 8m,
+            ExtraItemsTotal = 0m,
+            DiscountAmount = 0m
+        });
+
+        Assert.Equal(20m, result.ChargeAB);
+        Assert.Equal(20m, result.ChargeBC);
+        Assert.Equal(8m, result.ChargeCA);
+        Assert.Equal(2m, result.RateAB);
+        Assert.Equal(4m, result.RateBC);
+        Assert.Equal(1m, result.RateCA);
+        Assert.Equal(48m, result.BaseSubtotal);
+        Assert.Equal(48m, result.GrandTotal);
+    }
+
     private static ApplicationDbContext CreateContext(string dbName)
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()

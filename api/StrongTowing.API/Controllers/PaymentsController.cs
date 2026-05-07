@@ -45,11 +45,13 @@ public class PaymentsController : ControllerBase
     }
 
     /// <summary>
-    /// Get all payments with optional filters (Admin/Dispatcher only)
+    /// Get payments with optional filters and pagination (Admin/Dispatcher only)
     /// </summary>
     [HttpGet]
     [Authorize(Roles = $"{UserRoles.SuperAdmin},{UserRoles.Administrator},{UserRoles.Dispatcher}")]
-    public async Task<ActionResult<IEnumerable<PaymentListItemDto>>> GetAllPayments(
+    public async Task<ActionResult<PagedResponse<PaymentListItemDto>>> GetAllPayments(
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 25,
         [FromQuery] string? paymentMethod = null,
         [FromQuery] string? paymentStatus = null,
         [FromQuery] string? startDate = null,
@@ -59,7 +61,12 @@ public class PaymentsController : ControllerBase
     {
         try
         {
+            if (pageNumber < 1) pageNumber = 1;
+            if (pageSize < 1) pageSize = 25;
+            if (pageSize > 100) pageSize = 100;
+
             var query = _context.Payments
+                .AsNoTracking()
                 .Include(p => p.Job)
                     .ThenInclude(j => j.Vehicle)
                         .ThenInclude(v => v.Owner)
@@ -80,23 +87,35 @@ public class PaymentsController : ControllerBase
                 query = query.Where(p => p.CreatedAt <= end.AddDays(1));
 
             if (!string.IsNullOrEmpty(driverId))
-                query = query.Where(p => p.Job.DriverId == driverId);
+                query = query.Where(p => p.Job!.DriverId == driverId);
 
             if (!string.IsNullOrEmpty(searchTerm))
             {
                 var search = searchTerm.ToLower();
                 query = query.Where(p =>
-                    p.Job.Id.ToString().Contains(search) ||
+                    p.Job!.Id.ToString().Contains(search) ||
                     (p.Job.Vehicle.Owner != null && p.Job.Vehicle.Owner.FullName.ToLower().Contains(search)) ||
                     (!string.IsNullOrEmpty(p.TransactionId) && p.TransactionId.ToLower().Contains(search))
                 );
             }
 
+            var totalCount = await query.CountAsync();
+
             var payments = await query
                 .OrderByDescending(p => p.CreatedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
 
-            return Ok(payments.Select(MapToPaymentListItemDto).ToList());
+            var data = payments.Select(MapToPaymentListItemDto).ToList();
+
+            return Ok(new PagedResponse<PaymentListItemDto>
+            {
+                Data = data,
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+                TotalCount = totalCount
+            });
         }
         catch (Exception ex)
         {
