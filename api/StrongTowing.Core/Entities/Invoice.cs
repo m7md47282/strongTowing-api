@@ -39,6 +39,18 @@ namespace StrongTowing.Core.Entities
         // Status: Draft | Sent | Paid | Cancelled
         public string Status { get; set; } = "Draft";
 
+        /// <summary>When true, printed invoice shows no logo (ignores <see cref="CustomLogoUrl"/>).</summary>
+        public bool HideLogo { get; set; }
+
+        /// <summary>Stored path e.g. /uploads/invoice-logos/{id}/file — used when <see cref="HideLogo"/> is false.</summary>
+        public string? CustomLogoUrl { get; set; }
+
+        /// <summary>When true, the first line of the “FROM” company name is omitted on the printed invoice.</summary>
+        public bool HideCompanyName { get; set; }
+
+        /// <summary>Optional override for the company name line; when null/empty, default branding is used.</summary>
+        public string? CompanyDisplayName { get; set; }
+
         // Audit
         public string? CreatedById { get; set; }
         public ApplicationUser? CreatedBy { get; set; }

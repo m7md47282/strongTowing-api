@@ -18,6 +18,13 @@ public class UpdateInvoiceRequest
     public string? Notes { get; set; }
     public string Status { get; set; } = "Draft";
 
+    public bool HideLogo { get; set; }
+    public bool HideCompanyName { get; set; }
+    public string? CompanyDisplayName { get; set; }
+
+    /// <summary>Remove custom logo file and fall back to default or hidden per <see cref="HideLogo"/>.</summary>
+    public bool ClearCustomLogo { get; set; }
+
     public List<CreateInvoiceLineItemRequest> LineItems { get; set; } = new();
 }
 

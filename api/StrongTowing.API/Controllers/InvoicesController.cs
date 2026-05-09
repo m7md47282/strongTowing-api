@@ -145,6 +145,11 @@ public class InvoicesController : ControllerBase
             TaxRate = request.TaxRate,
             Notes = request.Notes?.Trim(),
             Status = request.Status,
+            HideLogo = request.HideLogo,
+            HideCompanyName = request.HideCompanyName,
+            CompanyDisplayName = string.IsNullOrWhiteSpace(request.CompanyDisplayName)
+                ? null
+                : request.CompanyDisplayName.Trim(),
             CreatedById = currentUser?.Id,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
@@ -212,6 +217,18 @@ public class InvoicesController : ControllerBase
         invoice.TaxRate = request.TaxRate;
         invoice.Notes = request.Notes?.Trim();
         invoice.Status = request.Status;
+        invoice.HideLogo = request.HideLogo;
+        invoice.HideCompanyName = request.HideCompanyName;
+        invoice.CompanyDisplayName = string.IsNullOrWhiteSpace(request.CompanyDisplayName)
+            ? null
+            : request.CompanyDisplayName.Trim();
+
+        if (request.ClearCustomLogo && !string.IsNullOrEmpty(invoice.CustomLogoUrl))
+        {
+            TryDeleteInvoiceLogoPhysicalFile(invoice.CustomLogoUrl);
+            invoice.CustomLogoUrl = null;
+        }
+
         invoice.UpdatedAt = DateTime.UtcNow;
 
         // Replace line items
@@ -282,6 +299,8 @@ public class InvoicesController : ControllerBase
 
         foreach (var img in invoice.Images)
             TryDeleteInvoiceImagePhysicalFile(img.ImageUrl);
+
+        TryDeleteInvoiceLogoPhysicalFile(invoice.CustomLogoUrl);
 
         _context.Invoices.Remove(invoice);
         await _context.SaveChangesAsync();
@@ -391,6 +410,98 @@ public class InvoicesController : ControllerBase
         return Ok(new { message = "Image removed." });
     }
 
+    /// <summary>Upload a custom header logo (JPEG, PNG, WebP, SVG). Replaces any previous custom logo.</summary>
+    [HttpPost("{id:int}/logo")]
+    [RequestSizeLimit(10 * 1024 * 1024)]
+    [Authorize(Roles = $"{UserRoles.SuperAdmin},{UserRoles.Administrator},{UserRoles.Dispatcher}")]
+    public async Task<IActionResult> UploadInvoiceLogo(int id, IFormFile? file)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest(new { message = "No file was uploaded." });
+
+        const long maxBytes = 8 * 1024 * 1024;
+        if (file.Length > maxBytes)
+            return BadRequest(new { message = "File is too large (max 8 MB)." });
+
+        var contentType = file.ContentType?.ToLowerInvariant() ?? string.Empty;
+        var ext = contentType switch
+        {
+            "image/jpeg" or "image/jpg" or "image/pjpeg" => ".jpg",
+            "image/png" => ".png",
+            "image/webp" => ".webp",
+            "image/svg+xml" => ".svg",
+            _ => string.Empty
+        };
+
+        if (string.IsNullOrEmpty(ext))
+            return BadRequest(new { message = "Only JPEG, PNG, WebP, or SVG images are allowed." });
+
+        var invoice = await _context.Invoices.FirstOrDefaultAsync(i => i.Id == id);
+        if (invoice == null)
+            return NotFound(new { message = "Invoice not found." });
+
+        if (!string.IsNullOrEmpty(invoice.CustomLogoUrl))
+            TryDeleteInvoiceLogoPhysicalFile(invoice.CustomLogoUrl);
+
+        var webRoot = _environment.WebRootPath;
+        if (string.IsNullOrEmpty(webRoot))
+            webRoot = Path.Combine(_environment.ContentRootPath, "wwwroot");
+
+        var relativeDir = Path.Combine("uploads", "invoice-logos", id.ToString());
+        var physicalDir = Path.Combine(webRoot, relativeDir);
+        Directory.CreateDirectory(physicalDir);
+
+        var fileName = $"logo{ext}";
+        var physicalPath = Path.Combine(physicalDir, fileName);
+
+        await using (var stream = new FileStream(physicalPath, FileMode.Create))
+        {
+            await file.CopyToAsync(stream);
+        }
+
+        var publicPath = $"/uploads/invoice-logos/{id}/{fileName}";
+        invoice.CustomLogoUrl = publicPath;
+        invoice.HideLogo = false;
+        invoice.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        var refreshed = await _context.Invoices
+            .AsNoTracking()
+            .Include(i => i.LineItems)
+            .Include(i => i.Images)
+            .Include(i => i.CreatedBy)
+            .FirstAsync(i => i.Id == id);
+
+        return Ok(MapToDto(refreshed));
+    }
+
+    /// <summary>Remove custom logo file; invoice then uses default logo unless <see cref="Invoice.HideLogo"/> is set.</summary>
+    [HttpDelete("{id:int}/logo")]
+    [Authorize(Roles = $"{UserRoles.SuperAdmin},{UserRoles.Administrator},{UserRoles.Dispatcher}")]
+    public async Task<IActionResult> DeleteInvoiceLogo(int id)
+    {
+        var invoice = await _context.Invoices.FirstOrDefaultAsync(i => i.Id == id);
+        if (invoice == null)
+            return NotFound(new { message = "Invoice not found." });
+
+        if (!string.IsNullOrEmpty(invoice.CustomLogoUrl))
+        {
+            TryDeleteInvoiceLogoPhysicalFile(invoice.CustomLogoUrl);
+            invoice.CustomLogoUrl = null;
+            invoice.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+        }
+
+        var refreshed = await _context.Invoices
+            .AsNoTracking()
+            .Include(i => i.LineItems)
+            .Include(i => i.Images)
+            .Include(i => i.CreatedBy)
+            .FirstAsync(i => i.Id == id);
+
+        return Ok(MapToDto(refreshed));
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private static decimal CalculateLineItemTotal(decimal unitPrice, decimal qty, decimal discount, bool isPercent)
@@ -432,6 +543,10 @@ public class InvoicesController : ControllerBase
         Total = invoice.Total,
         Notes = invoice.Notes,
         Status = invoice.Status,
+        HideLogo = invoice.HideLogo,
+        CustomLogoUrl = invoice.CustomLogoUrl,
+        HideCompanyName = invoice.HideCompanyName,
+        CompanyDisplayName = invoice.CompanyDisplayName,
         CreatedById = invoice.CreatedById,
         CreatedByName = invoice.CreatedBy?.FullName,
         CreatedAt = invoice.CreatedAt,
@@ -480,20 +595,39 @@ public class InvoicesController : ControllerBase
             return;
         }
 
+        TryDeleteUnderUploadsPath(imageUrl);
+    }
+
+    private void TryDeleteInvoiceLogoPhysicalFile(string? logoUrl)
+    {
+        if (string.IsNullOrEmpty(logoUrl))
+            return;
+
+        if (!logoUrl.StartsWith("/uploads/invoice-logos/", StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogWarning("Skipped deleting unexpected invoice logo path: {Path}", logoUrl);
+            return;
+        }
+
+        TryDeleteUnderUploadsPath(logoUrl);
+    }
+
+    private void TryDeleteUnderUploadsPath(string relativeUrlPath)
+    {
         try
         {
             var webRoot = _environment.WebRootPath;
             if (string.IsNullOrEmpty(webRoot))
                 webRoot = Path.Combine(_environment.ContentRootPath, "wwwroot");
 
-            var relative = imageUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
+            var relative = relativeUrlPath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
             var fullPath = Path.Combine(webRoot, relative);
             if (System.IO.File.Exists(fullPath))
                 System.IO.File.Delete(fullPath);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Could not delete invoice image file: {Path}", imageUrl);
+            _logger.LogWarning(ex, "Could not delete uploaded file: {Path}", relativeUrlPath);
         }
     }
 }

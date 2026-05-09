@@ -76,7 +76,7 @@ import { PricingService, PricingQuoteResponse } from '../../../../services/prici
 import { SettingsService } from '../../../../services/settings.service';
 import { environment } from '../../../../../environments/environment';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 
 const JOBS_TABLE_COL_COUNT = 17;
 const JOBS_STICKY_STORAGE_KEY = 'dispatcherJobsTableStickyColumns';
@@ -384,6 +384,7 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
     private vehicleCatalogService: VehicleCatalogService,
     private truckService: TruckService,
     private router: Router,
+    private route: ActivatedRoute,
     private ngZone: NgZone,
     private cdr: ChangeDetectorRef,
     private fb: FormBuilder,
@@ -616,6 +617,7 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   ngOnInit(): void {
+    this.applyJobsRouteQueryParams();
     this.loadJobsTableStickyConfig();
     this.loadJobs();
     this.loadVehicles();
@@ -1395,6 +1397,22 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
 
   hasActiveJobFilters(): boolean {
     return !!(this.statusFilter || this.searchTerm.trim());
+  }
+
+  /** Initial search / create modal from dashboard quick actions (`?search=`, `?create=1`). */
+  private applyJobsRouteQueryParams(): void {
+    const map = this.route.snapshot.queryParamMap;
+    const search = map.get('search');
+    if (search != null && search !== '') {
+      this.searchTerm = search;
+    }
+    const create = map.get('create');
+    if (create === '1' || create === 'true') {
+      setTimeout(() => {
+        this.openCreateJobModal();
+        this.cdr.markForCheck();
+      }, 0);
+    }
   }
 
   openCreateJobModal(): void {

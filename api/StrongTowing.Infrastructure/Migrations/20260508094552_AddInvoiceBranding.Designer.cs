@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using StrongTowing.Infrastructure.Data;
 
@@ -11,9 +12,11 @@ using StrongTowing.Infrastructure.Data;
 namespace StrongTowing.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260508094552_AddInvoiceBranding")]
+    partial class AddInvoiceBranding
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -351,6 +354,35 @@ namespace StrongTowing.Infrastructure.Migrations
                     b.HasIndex("PaymentId");
 
                     b.ToTable("CashCollections");
+                });
+
+            modelBuilder.Entity("StrongTowing.Core.Entities.CompanyEmployee", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Department")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("JobTitle")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("CompanyEmployees");
                 });
 
             modelBuilder.Entity("StrongTowing.Core.Entities.DriverPayroll", b =>
@@ -1440,6 +1472,134 @@ namespace StrongTowing.Infrastructure.Migrations
                     b.ToTable("SystemSettings");
                 });
 
+            modelBuilder.Entity("StrongTowing.Core.Entities.TaskBoard", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedByUserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("TeamId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("TeamId");
+
+                    b.ToTable("TaskBoards");
+                });
+
+            modelBuilder.Entity("StrongTowing.Core.Entities.TaskBoardColumn", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BoardId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BoardId", "SortOrder");
+
+                    b.ToTable("TaskBoardColumns");
+                });
+
+            modelBuilder.Entity("StrongTowing.Core.Entities.TaskBoardMember", b =>
+                {
+                    b.Property<int>("BoardId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("JoinedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("BoardId", "UserId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("TaskBoardMembers");
+                });
+
+            modelBuilder.Entity("StrongTowing.Core.Entities.TaskTicket", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AssigneeUserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("BoardId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ColumnId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedByUserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssigneeUserId");
+
+                    b.HasIndex("BoardId");
+
+                    b.HasIndex("ColumnId");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.ToTable("TaskTickets");
+                });
+
             modelBuilder.Entity("StrongTowing.Core.Entities.Truck", b =>
                 {
                     b.Property<int>("Id")
@@ -1696,6 +1856,52 @@ namespace StrongTowing.Infrastructure.Migrations
                     b.ToTable("VehicleCatalogSyncStates");
                 });
 
+            modelBuilder.Entity("StrongTowing.Core.Entities.WorkspaceTeam", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedByUserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.ToTable("WorkspaceTeams");
+                });
+
+            modelBuilder.Entity("StrongTowing.Core.Entities.WorkspaceTeamMember", b =>
+                {
+                    b.Property<int>("TeamId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("JoinedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("TeamId", "UserId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("WorkspaceTeamMembers");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -1783,6 +1989,17 @@ namespace StrongTowing.Infrastructure.Migrations
                     b.Navigation("Job");
 
                     b.Navigation("Payment");
+                });
+
+            modelBuilder.Entity("StrongTowing.Core.Entities.CompanyEmployee", b =>
+                {
+                    b.HasOne("StrongTowing.Core.Entities.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("StrongTowing.Core.Entities.DriverPayroll", b =>
@@ -1926,6 +2143,87 @@ namespace StrongTowing.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("StrongTowing.Core.Entities.TaskBoard", b =>
+                {
+                    b.HasOne("StrongTowing.Core.Entities.ApplicationUser", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("StrongTowing.Core.Entities.WorkspaceTeam", "Team")
+                        .WithMany("Boards")
+                        .HasForeignKey("TeamId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("Team");
+                });
+
+            modelBuilder.Entity("StrongTowing.Core.Entities.TaskBoardColumn", b =>
+                {
+                    b.HasOne("StrongTowing.Core.Entities.TaskBoard", "Board")
+                        .WithMany("Columns")
+                        .HasForeignKey("BoardId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Board");
+                });
+
+            modelBuilder.Entity("StrongTowing.Core.Entities.TaskBoardMember", b =>
+                {
+                    b.HasOne("StrongTowing.Core.Entities.TaskBoard", "Board")
+                        .WithMany("Members")
+                        .HasForeignKey("BoardId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("StrongTowing.Core.Entities.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Board");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("StrongTowing.Core.Entities.TaskTicket", b =>
+                {
+                    b.HasOne("StrongTowing.Core.Entities.ApplicationUser", "Assignee")
+                        .WithMany()
+                        .HasForeignKey("AssigneeUserId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("StrongTowing.Core.Entities.TaskBoard", "Board")
+                        .WithMany("Tickets")
+                        .HasForeignKey("BoardId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("StrongTowing.Core.Entities.TaskBoardColumn", "Column")
+                        .WithMany("Tickets")
+                        .HasForeignKey("ColumnId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StrongTowing.Core.Entities.ApplicationUser", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("Assignee");
+
+                    b.Navigation("Board");
+
+                    b.Navigation("Column");
+
+                    b.Navigation("CreatedBy");
+                });
+
             modelBuilder.Entity("StrongTowing.Core.Entities.Truck", b =>
                 {
                     b.HasOne("StrongTowing.Core.Entities.TruckType", "TruckType")
@@ -1970,6 +2268,35 @@ namespace StrongTowing.Infrastructure.Migrations
                     b.Navigation("Make");
                 });
 
+            modelBuilder.Entity("StrongTowing.Core.Entities.WorkspaceTeam", b =>
+                {
+                    b.HasOne("StrongTowing.Core.Entities.ApplicationUser", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("CreatedBy");
+                });
+
+            modelBuilder.Entity("StrongTowing.Core.Entities.WorkspaceTeamMember", b =>
+                {
+                    b.HasOne("StrongTowing.Core.Entities.WorkspaceTeam", "Team")
+                        .WithMany("Members")
+                        .HasForeignKey("TeamId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("StrongTowing.Core.Entities.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Team");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("StrongTowing.Core.Entities.ApplicationUser", b =>
                 {
                     b.Navigation("AssignedJobs");
@@ -1989,6 +2316,20 @@ namespace StrongTowing.Infrastructure.Migrations
                     b.Navigation("Photos");
                 });
 
+            modelBuilder.Entity("StrongTowing.Core.Entities.TaskBoard", b =>
+                {
+                    b.Navigation("Columns");
+
+                    b.Navigation("Members");
+
+                    b.Navigation("Tickets");
+                });
+
+            modelBuilder.Entity("StrongTowing.Core.Entities.TaskBoardColumn", b =>
+                {
+                    b.Navigation("Tickets");
+                });
+
             modelBuilder.Entity("StrongTowing.Core.Entities.Truck", b =>
                 {
                     b.Navigation("Jobs");
@@ -2002,6 +2343,13 @@ namespace StrongTowing.Infrastructure.Migrations
             modelBuilder.Entity("StrongTowing.Core.Entities.VehicleCatalogMake", b =>
                 {
                     b.Navigation("Models");
+                });
+
+            modelBuilder.Entity("StrongTowing.Core.Entities.WorkspaceTeam", b =>
+                {
+                    b.Navigation("Boards");
+
+                    b.Navigation("Members");
                 });
 #pragma warning restore 612, 618
         }

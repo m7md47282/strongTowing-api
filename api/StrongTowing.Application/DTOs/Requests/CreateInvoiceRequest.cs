@@ -19,6 +19,10 @@ public class CreateInvoiceRequest
     public string? Notes { get; set; }
     public string Status { get; set; } = "Draft";
 
+    public bool HideLogo { get; set; }
+    public bool HideCompanyName { get; set; }
+    public string? CompanyDisplayName { get; set; }
+
     public List<CreateInvoiceLineItemRequest> LineItems { get; set; } = new();
 }
 

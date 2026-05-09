@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../../../services/auth.service';
 import { AdminDashboardSummary, JobService, Job, JOB_STATUS } from '../../../../services/job.service';
-import { PaymentService } from '../../../../services/payment.service';
+import { PaymentService, PaymentStatistics } from '../../../../services/payment.service';
 import { ApiService } from '../../../../services/api.service';
 import { User } from '../../../../models/user.model';
 import { HttpParams } from '@angular/common/http';
@@ -10,6 +10,9 @@ import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { ChartConfiguration, ChartOptions, Chart, registerables } from 'chart.js';
 import { BaseChartDirective } from 'ng2-charts';
+import { DashboardPageSkeletonComponent } from '../../shared/dashboard-page-skeleton/dashboard-page-skeleton.component';
+import { AdminQuickActionsComponent } from '../admin-quick-actions/admin-quick-actions.component';
+import { AdminDashboardCacheService } from '../../../../services/admin-dashboard-cache.service';
 
 // Register Chart.js components
 if (typeof Chart !== 'undefined') {
@@ -49,14 +52,18 @@ interface ServiceTypeBreakdown {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, BaseChartDirective],
+  imports: [CommonModule, BaseChartDirective, DashboardPageSkeletonComponent, AdminQuickActionsComponent],
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.scss']
 })
 export class DashboardComponent implements OnInit {
   user: User | null = null;
   loading = true;
+  /** True while re-fetching with dashboard already visible (cache or prior load). */
+  refreshing = false;
   error: string | null = null;
+  /** After any successful apply (API or cache), follow-up loads use refreshing instead of full skeleton. */
+  private dataLoadedOnce = false;
 
   // Statistics
   stats: DashboardStats = {
@@ -186,17 +193,37 @@ export class DashboardComponent implements OnInit {
     private authService: AuthService,
     private jobService: JobService,
     private paymentService: PaymentService,
-    private apiService: ApiService
+    private apiService: ApiService,
+    private dashboardCache: AdminDashboardCacheService
   ) {}
 
   ngOnInit(): void {
     this.user = this.authService.getCurrentUser();
-    this.loadDashboardData();
+    const userId = this.user?.id != null ? String(this.user.id) : '';
+    const cached = userId ? this.dashboardCache.readForUser(userId) : null;
+    if (cached) {
+      this.applyDashboardSummary(
+        cached.summary,
+        cached.paymentStats,
+        cached.drivers
+      );
+      this.dataLoadedOnce = true;
+      this.loading = false;
+    } else {
+      this.loadDashboardData();
+    }
   }
 
-  loadDashboardData(): void {
-    this.loading = true;
+  loadDashboardData(options?: { force?: boolean; fullScreen?: boolean }): void {
+    const fullScreen = options?.fullScreen ?? !this.dataLoadedOnce;
+
     this.error = null;
+    if (fullScreen) {
+      this.loading = true;
+      this.refreshing = false;
+    } else {
+      this.refreshing = true;
+    }
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -261,16 +288,39 @@ export class DashboardComponent implements OnInit {
         if (!data.summary) {
           this.error = 'Failed to load dashboard metrics.';
           this.loading = false;
+          this.refreshing = false;
           return;
         }
         this.applyDashboardSummary(data.summary, data.paymentStats, data.drivers.data);
+        this.persistCache(data.summary, data.paymentStats, data.drivers.data);
+        this.dataLoadedOnce = true;
         this.loading = false;
+        this.refreshing = false;
       },
       error: (error) => {
         console.error('Error loading dashboard data:', error);
         this.error = 'Failed to load dashboard data. Please try again.';
         this.loading = false;
+        this.refreshing = false;
       }
+    });
+  }
+
+  private persistCache(
+    summary: AdminDashboardSummary,
+    paymentStats: PaymentStatistics,
+    drivers: User[]
+  ): void {
+    const userId = this.user?.id != null ? String(this.user.id) : '';
+    if (!userId) return;
+    this.dashboardCache.save({
+      version: 1,
+      userId,
+      dayKey: this.dashboardCache.todayDayKey(),
+      cachedAt: Date.now(),
+      summary,
+      paymentStats,
+      drivers
     });
   }
 
@@ -376,7 +426,7 @@ export class DashboardComponent implements OnInit {
   }
 
   refreshData(): void {
-    this.loadDashboardData();
+    this.loadDashboardData({ force: true, fullScreen: false });
   }
 }
 

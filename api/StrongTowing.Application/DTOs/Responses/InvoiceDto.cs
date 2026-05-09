@@ -22,6 +22,11 @@ public class InvoiceDto
     public string? Notes { get; set; }
     public string Status { get; set; } = string.Empty;
 
+    public bool HideLogo { get; set; }
+    public string? CustomLogoUrl { get; set; }
+    public bool HideCompanyName { get; set; }
+    public string? CompanyDisplayName { get; set; }
+
     public string? CreatedById { get; set; }
     public string? CreatedByName { get; set; }
     public DateTime CreatedAt { get; set; }

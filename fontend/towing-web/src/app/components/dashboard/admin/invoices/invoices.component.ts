@@ -55,6 +55,11 @@ export class AdminInvoicesComponent implements OnInit {
   createPendingImages: { id: number; file: File; objectUrl: string }[] = [];
   private createPendingImageIdSeq = 0;
 
+  /** Reuse the same form for PUT /invoices/{id}. */
+  isEditMode = false;
+  editingInvoiceId: number | null = null;
+  editingInvoiceNumber = '';
+
   imageUploading = false;
   imageError: string | null = null;
   readonly maxInvoiceImages = 20;
@@ -240,6 +245,9 @@ export class AdminInvoicesComponent implements OnInit {
 
   openCreateModal(): void {
     this.createError = null;
+    this.isEditMode = false;
+    this.editingInvoiceId = null;
+    this.editingInvoiceNumber = '';
     this.clearCreatePendingImages();
     this.createForm.patchValue({
       issuedDate: this.todayIsoDate(),
@@ -273,7 +281,86 @@ export class AdminInvoicesComponent implements OnInit {
     this.createSubmitting = false;
     this.createUploadingImages = false;
     this.createError = null;
+    this.isEditMode = false;
+    this.editingInvoiceId = null;
+    this.editingInvoiceNumber = '';
     this.clearCreatePendingImages();
+  }
+
+  /** Load full invoice then open the editor (from list row). */
+  openEditFromList(row: InvoiceListItem): void {
+    this.createError = null;
+    this.invoiceService.getById(row.id).subscribe({
+      next: (inv) => this.openEditInvoice(inv),
+      error: (err: HttpErrorResponse) => {
+        this.error = this.httpErrorMessage(err);
+      }
+    });
+  }
+
+  /** Open editor prefilled from an invoice (closes detail drawer if open). */
+  openEditInvoice(inv: InvoiceDetail): void {
+    this.createError = null;
+    this.clearCreatePendingImages();
+    this.isEditMode = true;
+    this.editingInvoiceId = inv.id;
+    this.editingInvoiceNumber = inv.invoiceNumber;
+    this.populateFormFromInvoice(inv);
+    this.createModalOpen = true;
+    this.createUploadingImages = false;
+    if (this.detailOpen) {
+      this.detailOpen = false;
+      this.selectedDetail = null;
+      this.detailLoading = false;
+      this.imageError = null;
+      this.imageUploading = false;
+    }
+  }
+
+  private toDateInputValue(iso: string): string {
+    const s = (iso || '').trim();
+    if (s.length >= 10) {
+      return s.slice(0, 10);
+    }
+    return this.todayIsoDate();
+  }
+
+  private populateFormFromInvoice(inv: InvoiceDetail): void {
+    while (this.lineItems.length) {
+      this.lineItems.removeAt(0);
+    }
+    const sorted = [...inv.lineItems].sort((a, b) => a.sortOrder - b.sortOrder);
+    for (const li of sorted) {
+      this.lineItems.push(
+        this.fb.group({
+          serviceName: [li.serviceName, [Validators.maxLength(200)]],
+          details: [li.details ?? ''],
+          category: [li.category],
+          unitType: [li.unitType ?? ''],
+          unitPrice: [li.unitPrice, [Validators.required, Validators.min(0)]],
+          quantity: [li.quantity, [Validators.required, Validators.min(0.01)]],
+          discount: [li.discount, [Validators.min(0)]],
+          isDiscountPercentage: [li.isDiscountPercentage],
+          isTaxable: [li.isTaxable],
+          sortOrder: [li.sortOrder]
+        })
+      );
+    }
+    if (this.lineItems.length === 0) {
+      this.lineItems.push(this.newLineItemGroup());
+    }
+    this.createForm.patchValue({
+      issuedDate: this.toDateInputValue(inv.issuedDate),
+      dueDate: inv.dueDate ? this.toDateInputValue(inv.dueDate) : '',
+      clientName: inv.clientName,
+      clientPhone: inv.clientPhone ?? '',
+      clientEmail: inv.clientEmail ?? '',
+      clientAddress: inv.clientAddress ?? '',
+      jobId: inv.jobId != null ? String(inv.jobId) : '',
+      taxRate: inv.taxRate,
+      status: inv.status,
+      notes: inv.notes ?? ''
+    });
   }
 
   private clearCreatePendingImages(): void {
@@ -338,7 +425,8 @@ export class AdminInvoicesComponent implements OnInit {
     this.lineItems.removeAt(index);
   }
 
-  submitCreate(): void {
+  /** Create or update depending on {@link isEditMode}. */
+  submitInvoiceForm(): void {
     this.createError = null;
     this.createForm.markAllAsTouched();
     if (this.createForm.invalid) {
@@ -346,55 +434,31 @@ export class AdminInvoicesComponent implements OnInit {
       return;
     }
 
-    const raw = this.createForm.getRawValue();
-    const lineRows = raw.lineItems as Record<string, unknown>[];
-    const lineItems = lineRows
-      .map((li, idx) => ({
-        serviceName: String(li['serviceName'] ?? '').trim(),
-        details: String(li['details'] ?? '').trim() || null,
-        category: String(li['category'] ?? 'Services').trim() || 'Services',
-        unitType: String(li['unitType'] ?? '').trim() || null,
-        unitPrice: Number(li['unitPrice']) || 0,
-        quantity: Number(li['quantity']) || 0,
-        discount: Number(li['discount']) || 0,
-        isDiscountPercentage: Boolean(li['isDiscountPercentage']),
-        isTaxable: Boolean(li['isTaxable']),
-        sortOrder: idx
-      }))
-      .filter((li) => li.serviceName.length > 0);
-
-    if (lineItems.length === 0) {
-      this.createError = 'Add at least one line item with a service name.';
+    const payload = this.buildPayloadFromForm();
+    if (!payload) {
       return;
     }
 
-    const invalidQty = lineItems.some((li) => li.quantity <= 0 || li.unitPrice < 0);
-    if (invalidQty) {
-      this.createError = 'Each line item needs quantity greater than 0 and a non-negative unit price.';
+    if (this.isEditMode && this.editingInvoiceId != null) {
+      this.createSubmitting = true;
+      const id = this.editingInvoiceId;
+      this.invoiceService.update(id, payload).subscribe({
+        next: (inv) => {
+          this.createSubmitting = false;
+          this.closeCreateModal();
+          this.successMessage = `Invoice ${inv.invoiceNumber} updated.`;
+          setTimeout(() => (this.successMessage = null), 4000);
+          this.load();
+          this.selectedDetail = inv;
+          this.detailOpen = true;
+        },
+        error: (err: HttpErrorResponse) => {
+          this.createSubmitting = false;
+          this.createError = this.createFormHttpError(err);
+        }
+      });
       return;
     }
-
-    const jobRaw = String(raw.jobId ?? '').trim();
-    const jobIdParsed = jobRaw === '' ? null : Number(jobRaw);
-    const jobIdPayload =
-      jobIdParsed != null && Number.isFinite(jobIdParsed) && jobIdParsed > 0 ? jobIdParsed : null;
-
-    const dueStr = String(raw.dueDate ?? '').trim();
-    const issuedStr = String(raw.issuedDate ?? '').trim();
-
-    const payload: CreateInvoicePayload = {
-      issuedDate: issuedStr ? `${issuedStr}T12:00:00.000Z` : new Date().toISOString(),
-      dueDate: dueStr ? `${dueStr}T12:00:00.000Z` : null,
-      clientName: String(raw.clientName ?? '').trim(),
-      clientPhone: String(raw.clientPhone ?? '').trim() || null,
-      clientEmail: String(raw.clientEmail ?? '').trim() || null,
-      clientAddress: String(raw.clientAddress ?? '').trim() || null,
-      jobId: jobIdPayload,
-      taxRate: Number(raw.taxRate) ?? 7.5,
-      notes: String(raw.notes ?? '').trim() || null,
-      status: String(raw.status ?? 'Draft'),
-      lineItems
-    };
 
     this.createSubmitting = true;
     this.createUploadingImages = false;
@@ -415,6 +479,58 @@ export class AdminInvoicesComponent implements OnInit {
         this.createError = this.createFormHttpError(err);
       }
     });
+  }
+
+  private buildPayloadFromForm(): CreateInvoicePayload | null {
+    const raw = this.createForm.getRawValue();
+    const lineRows = raw.lineItems as Record<string, unknown>[];
+    const lineItems = lineRows
+      .map((li, idx) => ({
+        serviceName: String(li['serviceName'] ?? '').trim(),
+        details: String(li['details'] ?? '').trim() || null,
+        category: String(li['category'] ?? 'Services').trim() || 'Services',
+        unitType: String(li['unitType'] ?? '').trim() || null,
+        unitPrice: Number(li['unitPrice']) || 0,
+        quantity: Number(li['quantity']) || 0,
+        discount: Number(li['discount']) || 0,
+        isDiscountPercentage: Boolean(li['isDiscountPercentage']),
+        isTaxable: Boolean(li['isTaxable']),
+        sortOrder: idx
+      }))
+      .filter((li) => li.serviceName.length > 0);
+
+    if (lineItems.length === 0) {
+      this.createError = 'Add at least one line item with a service name.';
+      return null;
+    }
+
+    const invalidQty = lineItems.some((li) => li.quantity <= 0 || li.unitPrice < 0);
+    if (invalidQty) {
+      this.createError = 'Each line item needs quantity greater than 0 and a non-negative unit price.';
+      return null;
+    }
+
+    const jobRaw = String(raw.jobId ?? '').trim();
+    const jobIdParsed = jobRaw === '' ? null : Number(jobRaw);
+    const jobIdPayload =
+      jobIdParsed != null && Number.isFinite(jobIdParsed) && jobIdParsed > 0 ? jobIdParsed : null;
+
+    const dueStr = String(raw.dueDate ?? '').trim();
+    const issuedStr = String(raw.issuedDate ?? '').trim();
+
+    return {
+      issuedDate: issuedStr ? `${issuedStr}T12:00:00.000Z` : new Date().toISOString(),
+      dueDate: dueStr ? `${dueStr}T12:00:00.000Z` : null,
+      clientName: String(raw.clientName ?? '').trim(),
+      clientPhone: String(raw.clientPhone ?? '').trim() || null,
+      clientEmail: String(raw.clientEmail ?? '').trim() || null,
+      clientAddress: String(raw.clientAddress ?? '').trim() || null,
+      jobId: jobIdPayload,
+      taxRate: Number(raw.taxRate) ?? 7.5,
+      notes: String(raw.notes ?? '').trim() || null,
+      status: String(raw.status ?? 'Draft'),
+      lineItems
+    };
   }
 
   private uploadImagesAfterCreate(

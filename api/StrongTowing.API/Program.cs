@@ -131,6 +131,7 @@ builder.Services.AddScoped<IEmailNotificationService, EmailNotificationService>(
 builder.Services.AddScoped<IPricingCalculatorService, PricingCalculatorService>();
 builder.Services.AddScoped<IDriverPayrollService, DriverPayrollService>();
 builder.Services.AddSingleton<INhtsaVehicleCatalogSyncService, NhtsaVehicleCatalogSyncService>();
+builder.Services.AddScoped<IQuotePdfGenerator, PlaywrightQuotePdfGenerator>();
 
 // 7. Add Controllers with validation
 builder.Services.AddControllers(options =>

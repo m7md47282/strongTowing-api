@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, throwError, of } from 'rxjs';
 import { map, catchError, switchMap, shareReplay } from 'rxjs/operators';
 import { ApiService } from './api.service';
+import { AdminDashboardCacheService } from './admin-dashboard-cache.service';
 import { User, LoginRequest, LoginResponse, RegisterRequest, ForgotPasswordRequest, ResetPasswordRequest, OtpVerificationRequest, RefreshTokenResponse } from '../models/user.model';
 import { RoleId } from '../constants/user-roles.constants';
 
@@ -13,7 +14,10 @@ export class AuthService {
   public currentUser$ = this.currentUserSubject.asObservable();
   private refreshTokenInProgress: Observable<string> | null = null;
 
-  constructor(private apiService: ApiService) {
+  constructor(
+    private apiService: ApiService,
+    private adminDashboardCache: AdminDashboardCacheService
+  ) {
     // Check if user is already logged in
     const token = localStorage.getItem('stongTowing_token');
     const user = localStorage.getItem('stongTowing_user');
@@ -150,6 +154,7 @@ export class AuthService {
     localStorage.removeItem('stongTowing_user');
     localStorage.removeItem('stongTowing_tokenExpiresAt');
     localStorage.removeItem('stongTowing_refreshToken'); // Clear refresh token too
+    this.adminDashboardCache.clear();
     this.currentUserSubject.next(null);
   }
 

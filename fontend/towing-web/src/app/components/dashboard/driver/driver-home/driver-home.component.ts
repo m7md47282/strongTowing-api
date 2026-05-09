@@ -3,11 +3,12 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { finalize } from 'rxjs/operators';
 import { JobService, Job, JOB_STATUS, JobStatus } from '../../../../services/job.service';
+import { DashboardPageSkeletonComponent } from '../../shared/dashboard-page-skeleton/dashboard-page-skeleton.component';
 
 @Component({
   selector: 'app-driver-home',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, DashboardPageSkeletonComponent],
   templateUrl: './driver-home.component.html',
   styleUrl: './driver-home.component.scss'
 })
