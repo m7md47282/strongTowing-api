@@ -13,7 +13,9 @@
     <article class="invoice-sheet">
       <header class="invoice-header">
         <div class="brand-col">
-          <img class="brand-logo" src="/images/logo.svg" alt="Strong Towing" />
+          @if (logoSrc(); as logoUrl) {
+            <img class="brand-logo" [src]="logoUrl" alt="" />
+          }
         </div>
         <div class="meta-col">
           <div class="meta-title">INVOICE</div>

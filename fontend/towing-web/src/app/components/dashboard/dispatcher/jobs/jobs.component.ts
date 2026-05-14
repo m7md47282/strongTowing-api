@@ -16,6 +16,7 @@ import {
   catchError,
   debounceTime,
   distinctUntilChanged,
+  filter,
   finalize,
   map,
   startWith,
@@ -71,8 +72,10 @@ import { User } from '../../../../models/user.model';
 import { RoleId } from '../../../../constants/user-roles.constants';
 import { PlacesAutocompleteDirective } from '../../../../directives/places-autocomplete.directive';
 import { LocationPickerComponent } from '../../../shared/location-picker/location-picker.component';
+import { QuotePrintComponent, QuotePrintData } from '../../shared/quote-print/quote-print.component';
 import { LocationService } from '../../../../services/location.service';
 import { PricingService, PricingQuoteResponse } from '../../../../services/pricing.service';
+import { QuoteService } from '../../../../services/quote.service';
 import { SettingsService } from '../../../../services/settings.service';
 import { environment } from '../../../../../environments/environment';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
@@ -104,6 +107,7 @@ function migrateJobsTableStickyFromBooleans(parsed: boolean[]): JobTableStickyPi
 /** Single row in the quote line-items table (modal + PDF). */
 interface QuoteLineItem {
   description: string;
+  subtitle?: string;
   quantity: string;
   unitPrice: string;
   amount: string;
@@ -130,6 +134,20 @@ interface QuoteReviewSummary {
   totalAmount: string;
   notesPreview: string;
   footerNote: string;
+  /** Extended fields for the HTML quote preview */
+  companyName: string;
+  companyAddress: string;
+  companyPhone: string;
+  companyEmail: string;
+  companyWebsite: string;
+  clientName: string;
+  clientPhone: string;
+  /** Single line for quote card, e.g. `moha (+123456789)` */
+  clientDisplayLine: string;
+  serviceDateDisplay: string;
+  truckTypeLabel: string;
+  loadedMileageDisplay: string;
+  taxPercent: string;
 }
 
 interface PagedResponse<T> {
@@ -150,7 +168,8 @@ interface PagedResponse<T> {
     FormsModule,
     ReactiveFormsModule,
     PlacesAutocompleteDirective,
-    LocationPickerComponent
+    LocationPickerComponent,
+    QuotePrintComponent
   ],
   templateUrl: './jobs.component.html',
   styleUrls: ['./jobs.component.scss']
@@ -215,7 +234,7 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
   searchTerm: string = '';
 
   pageNumber = 1;
-  pageSize = 25;
+  pageSize = 10;
   totalCount = 0;
   totalPages = 0;
   hasPreviousPage = false;
@@ -223,12 +242,29 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
   /** @see users table */
   Math = Math;
   private searchDebounceTimer: ReturnType<typeof setTimeout> | undefined;
-  
+
+  /**
+   * Drives `loadJobs` through a single `switchMap` so any in-flight paged
+   * request is cancelled when filters/pagination change. Avoids the prior
+   * race where slow responses could overwrite newer ones.
+   */
+  private readonly loadJobsRequest$ = new Subject<void>();
+  private loadJobsRequestSub?: Subscription;
+
   // Data for dropdowns
   vehicles: Vehicle[] = [];
   filteredVehicles: Vehicle[] = [];
   drivers: User[] = [];
   availableDrivers: User[] = [];
+
+  /** Lazy-load guards — dropdown data is only fetched the first time the
+   * relevant modal opens, instead of competing with the initial jobs request. */
+  private vehiclesLoaded = false;
+  private driversLoaded = false;
+  private trucksLoaded = false;
+  private servicePricingProfilesLoaded = false;
+  private dispatchOfficeLoaded = false;
+  private settingsLoaded = false;
 
   /** Searchable client combobox (create job → existing client); data from `GET users/clients`. */
   createJobClientSearch = '';
@@ -325,17 +361,53 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
   calculatingPrice = false;
   latestQuote: PricingQuoteResponse | null = null;
 
+  /**
+   * Auto price recalculation pipeline.
+   *
+   * `priceRecalcRequested$` is also pushed to from places that mutate inputs
+   * outside the reactive form (e.g. the `invoiceServiceItems` array). It is
+   * merged with `valueChanges` of the pricing-relevant form controls and
+   * debounced before calling {@link calculatePrice}.
+   *
+   * `priceRecalcGeneration` is used as a stale-response guard so that an older
+   * in-flight quote (Maps + API) cannot overwrite a newer one if the user
+   * keeps editing while the request is pending.
+   */
+  private readonly priceRecalcRequested$ = new Subject<void>();
+  private priceRecalcSub?: Subscription;
+  private priceRecalcGeneration = 0;
+
   /** Quote call type: review summary without creating a job */
   showQuoteReviewModal = false;
   /** Editable recipient for SMS (defaults from contact / client phone) */
   quoteSmsPhone = '';
+
+  /**
+   * Email-quote confirmation modal — stacked above the quote review modal.
+   * The dispatcher confirms recipient + subject + message; on confirm we render
+   * the same PDF the preview shows and send it via Postmark using settings credentials.
+   */
+  showQuoteEmailModal = false;
+  quoteEmailRecipient = '';
+  quoteEmailSubject = '';
+  quoteEmailMessage = '';
+  quoteEmailSending = false;
+  quoteEmailError: string | null = null;
+  /** Email address shown in the success banner after a successful send (cleared on close). */
+  quoteEmailSuccess: string | null = null;
   /** Snapshot when opening quote review (mileage, client, locations, vehicle, total) */
   quoteReviewSummary: QuoteReviewSummary | null = null;
   /** Object URL for in-modal PDF preview (revoked on close). */
   private quotePdfBlobUrl: string | null = null;
   quotePdfSafeUrl: SafeResourceUrl | null = null;
   quotePdfGenerating = false;
+  /** Server-side Playwright PDF download in progress */
+  quotePdfDownloading = false;
   quotePdfError: string | null = null;
+  /**
+   * TESTING: `true` = quote modal shows live HTML only (iframe PDF reviewer skipped). Set `false` when done styling / for production.
+   */
+  quoteReviewHtmlPreviewOnly = true;
   private routeDistanceGeneration = 0;
   /** Cached PNG data URL extracted from `public/images/logo.svg` (for jsPDF). */
   private quoteLogoPngDataUrl: string | null | undefined;
@@ -348,12 +420,23 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
   /** Per-column sticky (pin) — horizontal scroll. Persisted in localStorage. */
   jobsTableStickyMode: JobTableStickyPin[] = defaultJobsTableStickyConfig();
 
+  /**
+   * Cached `[ngStyle]` objects per column for the dispatcher table. These are
+   * recomputed only when sticky mode changes or column widths shift in
+   * `measureJobsStickyOffsets`, so the per-row template bindings stay
+   * referentially stable across change-detection cycles (no per-cell
+   * allocations and no needless DOM writes through `KeyValueDiffer`).
+   */
+  private cachedThStyles: ReadonlyArray<Record<string, string>> = new Array(JOBS_TABLE_COL_COUNT).fill({});
+  private cachedTdStyles: ReadonlyArray<Record<string, string>> = new Array(JOBS_TABLE_COL_COUNT).fill({});
+
   /** Measured cumulative `left` / `right` (px) for pinned columns. */
   private stickyLeftPx: (number | undefined)[] = new Array(JOBS_TABLE_COL_COUNT).fill(undefined);
   private stickyRightPx: (number | undefined)[] = new Array(JOBS_TABLE_COL_COUNT).fill(undefined);
 
   @ViewChild('jobsTableWrap') jobsTableWrapRef?: ElementRef<HTMLElement>;
   @ViewChild('jobsTableHeaderRow') jobsTableHeaderRowRef?: ElementRef<HTMLTableRowElement>;
+  @ViewChild('quotePrintRef') quotePrintRef?: QuotePrintComponent;
 
   private jobsStickyResizeObserver?: ResizeObserver;
   private jobsStickyMeasureRaf = 0;
@@ -361,6 +444,8 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
   /** DB-backed catalog (sync from Admin → Settings). Searchable make/model pickers. */
   catalogMakeSearchDraft = '';
   catalogModelSearchDraft = '';
+  /** When user picks from catalog, blur matches this name to keep catalog model search; otherwise SSOT is plain text on `vehicleMake`. */
+  private lastPickedCatalogMakeName: string | null = null;
   catalogMakeSuggestions: VehicleCatalogMakeItem[] = [];
   catalogModelSuggestions: VehicleCatalogModelItem[] = [];
   catalogMakeSearchLoading = false;
@@ -380,6 +465,7 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
     private paymentService: PaymentService,
     private locationService: LocationService,
     private pricingService: PricingService,
+    private quoteService: QuoteService,
     private settingsService: SettingsService,
     private vehicleCatalogService: VehicleCatalogService,
     private truckService: TruckService,
@@ -545,7 +631,57 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
       }
     });
   }
-  
+
+  /**
+   * Subscribes once (in `ngOnInit`) to every form input that affects the
+   * server price quote and re-runs {@link calculatePrice} after the user
+   * stops editing for a short window. Also exposes `priceRecalcRequested$`
+   * for non-form inputs (e.g. `invoiceServiceItems`) to feed the same
+   * pipeline via {@link requestPriceRecalc}.
+   *
+   * - `debounceTime` collapses rapid successive edits into one API call.
+   * - `switchMap` cancels the previous pending recalc when a new one starts.
+   * - The filter gates the pipeline to "modal open AND something pricing-meaningful
+   *   exists" so we don't fire empty quotes during open/reset.
+   * - {@link calculatePrice} patches the form with `{ emitEvent: false }`,
+   *   which prevents the patches from re-triggering this pipeline.
+   */
+  private setupAutoPriceRecalc(): void {
+    const charges = this.createJobForm.get('invoiceCharges');
+    const pricingInputs$ = merge(
+      this.priceRecalcRequested$,
+      this.createJobForm.get('account')!.valueChanges.pipe(map(() => undefined)),
+      this.createJobForm.get('serviceType')!.valueChanges.pipe(map(() => undefined)),
+      this.createJobForm.get('pickupLocation')!.valueChanges.pipe(map(() => undefined)),
+      this.createJobForm.get('destinationAddress')!.valueChanges.pipe(map(() => undefined)),
+      charges ? charges.valueChanges.pipe(map(() => undefined)) : EMPTY
+    );
+
+    this.priceRecalcSub = pricingInputs$
+      .pipe(
+        filter(() => this.showCreateJobModal && this.hasPricingInput()),
+        debounceTime(600),
+        switchMap(() => from(this.calculatePrice()))
+      )
+      .subscribe();
+  }
+
+  /** Push an auto-recalc through the same debounced pipeline (used by non-form inputs). */
+  private requestPriceRecalc(): void {
+    this.priceRecalcRequested$.next();
+  }
+
+  /**
+   * Avoid spamming the server quote API for an empty form. We require at
+   * least one of: a service type, an account, or any extra service item.
+   */
+  private hasPricingInput(): boolean {
+    const serviceType = String(this.createJobForm.get('serviceType')?.value ?? '').trim();
+    const account = String(this.createJobForm.get('account')?.value ?? '').trim();
+    const hasItems = this.invoiceServiceItems.length > 0;
+    return !!serviceType || !!account || hasItems;
+  }
+
   validateClientGroup(): void {
     const clientGroup = this.createJobForm.get('client');
     if (!clientGroup) return;
@@ -619,23 +755,66 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
   ngOnInit(): void {
     this.applyJobsRouteQueryParams();
     this.loadJobsTableStickyConfig();
-    this.loadJobs();
-    this.loadVehicles();
-    this.loadDrivers();
-    this.loadTrucks();
-    this.loadServicePricingProfiles();
-    this.loadDispatchOfficeForDisplay();
-    this.settingsService.getSettings().subscribe({
-      next: (s) => {
-        this.defaultHookupFromSettings = Number(s.defaultPricingHookupFee ?? 0) || 0;
-        this.applySelectedServicePricing();
+
+    // Single-subscriber pipeline that cancels any in-flight jobs request when
+    // a new one is triggered (filter change, pagination, post-mutation refresh).
+    this.loadJobsRequestSub = this.loadJobsRequest$
+      .pipe(
+        switchMap(() => {
+          this.loading = true;
+          this.error = null;
+          this.cdr.markForCheck();
+          return this.jobService
+            .getJobsPaged({
+              pageNumber: this.pageNumber,
+              pageSize: this.pageSize,
+              status: this.statusFilter || undefined,
+              search: this.searchTerm.trim() || undefined
+            })
+            .pipe(
+              catchError((error) => {
+                this.error = error.error?.message || 'Failed to load jobs';
+                this.jobs = [];
+                this.totalCount = 0;
+                this.totalPages = 0;
+                this.hasPreviousPage = false;
+                this.hasNextPage = false;
+                return of({
+                  data: [] as Job[],
+                  pageNumber: 1,
+                  pageSize: this.pageSize,
+                  totalCount: 0,
+                  totalPages: 0,
+                  hasPreviousPage: false,
+                  hasNextPage: false
+                });
+              }),
+              finalize(() => {
+                this.loading = false;
+                setTimeout(() => {
+                  this.setupJobsStickyResizeObserver();
+                  this.scheduleJobsStickyMeasure();
+                }, 0);
+              })
+            );
+        })
+      )
+      .subscribe((response) => {
+        this.pageNumber = response.pageNumber;
+        this.pageSize = response.pageSize;
+        this.totalCount = response.totalCount;
+        this.totalPages = response.totalPages;
+        this.hasPreviousPage = response.hasPreviousPage;
+        this.hasNextPage = response.hasNextPage;
+        this.jobs = response.data;
         this.cdr.markForCheck();
-      },
-      error: () => {
-        this.defaultHookupFromSettings = 0;
-        this.applySelectedServicePricing();
-      }
-    });
+      });
+
+    this.loadJobs();
+
+    // Dropdown data, dispatch office, and system settings are deferred until
+    // the modals that need them open — this stops them from competing with
+    // /api/jobs for the browser's per-origin connection slots on first paint.
     this.observeSelectedClientChanges();
 
     this.createJobClientFetchSub = merge(
@@ -734,6 +913,8 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
         })
       )
       .subscribe();
+
+    this.setupAutoPriceRecalc();
   }
 
   ngAfterViewInit(): void {
@@ -761,6 +942,10 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
     this.catalogModelSearchSub?.unsubscribe();
     this.createJobClientFetchSub?.unsubscribe();
     this.accountRatesSub?.unsubscribe();
+    this.priceRecalcSub?.unsubscribe();
+    this.priceRecalcRequested$.complete();
+    this.loadJobsRequestSub?.unsubscribe();
+    this.loadJobsRequest$.complete();
   }
 
   setJobsTableStickySide(index: number, side: 'left' | 'right'): void {
@@ -771,18 +956,20 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
       this.jobsTableStickyMode[index] = side;
     }
     this.saveJobsTableStickyConfig();
+    this.rebuildStickyStyleCache();
     this.scheduleJobsStickyMeasure();
   }
 
   getStickyThStyle(colIndex: number): Record<string, string> {
-    return this.getStickyCellStyle(colIndex, true);
+    // Returns a cached reference; updated only by `rebuildStickyStyleCache`.
+    return this.cachedThStyles[colIndex] ?? {};
   }
 
   getStickyTdStyle(colIndex: number): Record<string, string> {
-    return this.getStickyCellStyle(colIndex, false);
+    return this.cachedTdStyles[colIndex] ?? {};
   }
 
-  private getStickyCellStyle(colIndex: number, isHeader: boolean): Record<string, string> {
+  private buildStickyCellStyle(colIndex: number, isHeader: boolean): Record<string, string> {
     const zBase = isHeader ? 30 : 20;
     const mode = this.jobsTableStickyMode[colIndex];
     if (mode === 'off') {
@@ -810,6 +997,17 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
       zIndex: String(zBase + 25 + (JOBS_TABLE_COL_COUNT - 1 - colIndex)),
       boxShadow: '-2px 0 6px -2px rgba(0, 0, 0, 0.08)'
     };
+  }
+
+  private rebuildStickyStyleCache(): void {
+    const ths = new Array<Record<string, string>>(JOBS_TABLE_COL_COUNT);
+    const tds = new Array<Record<string, string>>(JOBS_TABLE_COL_COUNT);
+    for (let i = 0; i < JOBS_TABLE_COL_COUNT; i++) {
+      ths[i] = this.buildStickyCellStyle(i, true);
+      tds[i] = this.buildStickyCellStyle(i, false);
+    }
+    this.cachedThStyles = ths;
+    this.cachedTdStyles = tds;
   }
 
   private scheduleJobsStickyMeasure(): void {
@@ -849,6 +1047,7 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
       }
     }
     this.stickyRightPx = nextRight;
+    this.rebuildStickyStyleCache();
     this.cdr.detectChanges();
   }
 
@@ -901,10 +1100,73 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
     this.catalogModelEmpty = false;
     this.showMakeDropdown = false;
     this.showModelDropdown = false;
+    this.lastPickedCatalogMakeName = null;
     this.createJobForm.patchValue(
       { vehicle: { vehicleCatalogMakeId: null } },
       { emitEvent: false }
     );
+  }
+
+  /** Model field enabled once make is committed or typed (catalog is optional autocomplete). */
+  modelFieldEnabled(): boolean {
+    if (this.useExistingVehicle) {
+      return false;
+    }
+    const committed = (this.createJobForm.get('vehicle.vehicleMake')?.value ?? '').toString().trim();
+    const draft = (this.catalogMakeSearchDraft ?? '').trim();
+    return committed.length > 0 || draft.length > 0;
+  }
+
+  /**
+   * Commits make draft → `vehicleMake` (SSOT). Drops catalog link if text no longer matches a catalog pick.
+   * Clears model when make text changes.
+   */
+  private commitVehicleMakeFromDraft(): void {
+    if (this.useExistingVehicle) {
+      return;
+    }
+    const t = (this.catalogMakeSearchDraft ?? '').trim();
+    const prevCommitted = (this.createJobForm.get('vehicle.vehicleMake')?.value ?? '').trim();
+
+    const picked = this.lastPickedCatalogMakeName?.trim() ?? '';
+    const matchesPick =
+      picked.length > 0 &&
+      t.length > 0 &&
+      t.localeCompare(picked, undefined, { sensitivity: 'accent' }) === 0;
+
+    const currentId = this.createJobForm.get('vehicle.vehicleCatalogMakeId')?.value as number | null | undefined;
+    let nextCatalogId: number | null = null;
+    if (matchesPick && currentId != null && typeof currentId === 'number') {
+      nextCatalogId = currentId;
+    }
+    if (!matchesPick) {
+      this.lastPickedCatalogMakeName = null;
+    }
+
+    if (prevCommitted !== t) {
+      this.createJobForm.patchValue({ vehicle: { vehicleModel: '' } }, { emitEvent: false });
+      this.catalogModelSearchDraft = '';
+      this.catalogModelSuggestions = [];
+    }
+
+    this.createJobForm.patchValue(
+      {
+        vehicle: {
+          vehicleMake: t,
+          vehicleCatalogMakeId: nextCatalogId
+        }
+      },
+      { emitEvent: true }
+    );
+  }
+
+  /** Commits model draft → `vehicleModel` (SSOT). */
+  private commitModelFromDraft(): void {
+    if (this.useExistingVehicle) {
+      return;
+    }
+    const t = (this.catalogModelSearchDraft ?? '').trim();
+    this.createJobForm.patchValue({ vehicle: { vehicleModel: t } }, { emitEvent: true });
   }
 
   onMakeSearchInput(value: string): void {
@@ -914,13 +1176,6 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
     this.catalogMakeSearchDraft = value;
     this.catalogMakeSearchLoading = true;
     this.showMakeDropdown = true;
-    this.createJobForm.patchValue(
-      { vehicle: { vehicleMake: '', vehicleCatalogMakeId: null } },
-      { emitEvent: false }
-    );
-    this.createJobForm.get('vehicle.vehicleModel')?.patchValue('', { emitEvent: false });
-    this.catalogModelSearchDraft = '';
-    this.catalogModelSuggestions = [];
     this.makeSearch$.next(value.trim());
   }
 
@@ -936,6 +1191,7 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   onMakeSearchBlur(): void {
+    this.commitVehicleMakeFromDraft();
     setTimeout(() => {
       this.showMakeDropdown = false;
       this.cdr.markForCheck();
@@ -943,6 +1199,7 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   selectCatalogMake(item: VehicleCatalogMakeItem): void {
+    this.lastPickedCatalogMakeName = item.name;
     this.createJobForm.patchValue({
       vehicle: {
         vehicleMake: item.name,
@@ -961,19 +1218,23 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
     if (this.useExistingVehicle) {
       return;
     }
+    this.catalogModelSearchDraft = value;
     const makeId = this.createJobForm.get('vehicle.vehicleCatalogMakeId')?.value;
     if (makeId == null || typeof makeId !== 'number') {
+      this.showModelDropdown = false;
+      this.catalogModelSearchLoading = false;
       return;
     }
-    this.catalogModelSearchDraft = value;
     this.catalogModelSearchLoading = true;
     this.showModelDropdown = true;
-    this.createJobForm.get('vehicle.vehicleModel')?.patchValue('', { emitEvent: false });
     this.modelSearch$.next({ makeId, q: value.trim() });
   }
 
   onModelSearchFocus(): void {
     if (this.useExistingVehicle) {
+      return;
+    }
+    if (!this.modelFieldEnabled()) {
       return;
     }
     const makeId = this.createJobForm.get('vehicle.vehicleCatalogMakeId')?.value;
@@ -988,6 +1249,7 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   onModelSearchBlur(): void {
+    this.commitModelFromDraft();
     setTimeout(() => {
       this.showModelDropdown = false;
       this.cdr.markForCheck();
@@ -1005,7 +1267,11 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
     this.modelSearch$.next({ makeId, q });
   }
 
-  private loadDispatchOfficeForDisplay(): void {
+  private loadDispatchOfficeForDisplay(force = false): void {
+    if (this.dispatchOfficeLoaded && !force) {
+      return;
+    }
+    this.dispatchOfficeLoaded = true;
     this.locationService.getOfficeLocation().subscribe({
       next: (o) => {
         this.dispatchOfficeCoords = { lat: o.lat, lng: o.lng };
@@ -1015,7 +1281,29 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
       error: () => {
         this.dispatchOfficeCoords = null;
         this.dispatchOfficeLoadError = 'Could not load dispatch office location.';
+        this.dispatchOfficeLoaded = false; // allow retry on next modal open
         this.cdr.markForCheck();
+      }
+    });
+  }
+
+  /** Loads system settings (default hookup fee) lazily — only needed when the
+   *  create-job pricing flow runs. */
+  private ensureSystemSettingsLoaded(): void {
+    if (this.settingsLoaded) {
+      return;
+    }
+    this.settingsLoaded = true;
+    this.settingsService.getSettings().subscribe({
+      next: (s) => {
+        this.defaultHookupFromSettings = Number(s.defaultPricingHookupFee ?? 0) || 0;
+        this.applySelectedServicePricing();
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.defaultHookupFromSettings = 0;
+        this.settingsLoaded = false; // allow retry
+        this.applySelectedServicePricing();
       }
     });
   }
@@ -1119,55 +1407,33 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   loadJobs(): void {
-    this.loading = true;
-    this.error = null;
-
-    this.jobService
-      .getJobsPaged({
-        pageNumber: this.pageNumber,
-        pageSize: this.pageSize,
-        status: this.statusFilter || undefined,
-        search: this.searchTerm.trim() || undefined
-      })
-      .pipe(
-        finalize(() => {
-          this.loading = false;
-          setTimeout(() => {
-            this.setupJobsStickyResizeObserver();
-            this.scheduleJobsStickyMeasure();
-          }, 0);
-        }),
-        catchError((error) => {
-          this.error = error.error?.message || 'Failed to load jobs';
-          this.jobs = [];
-          this.totalCount = 0;
-          this.totalPages = 0;
-          this.hasPreviousPage = false;
-          this.hasNextPage = false;
-          return of({
-            data: [] as Job[],
-            pageNumber: 1,
-            pageSize: this.pageSize,
-            totalCount: 0,
-            totalPages: 0,
-            hasPreviousPage: false,
-            hasNextPage: false
-          });
-        })
-      )
-      .subscribe((response) => {
-        this.pageNumber = response.pageNumber;
-        this.pageSize = response.pageSize;
-        this.totalCount = response.totalCount;
-        this.totalPages = response.totalPages;
-        this.hasPreviousPage = response.hasPreviousPage;
-        this.hasNextPage = response.hasNextPage;
-        this.jobs = response.data;
-        this.cdr.markForCheck();
-      });
+    this.loadJobsRequest$.next();
   }
 
-  loadVehicles(): void {
+  /**
+   * Replaces a single row in the current `jobs` page with the updated DTO
+   * returned by a mutation endpoint. Avoids the full table re-fetch that
+   * `loadJobs()` previously triggered after every status/assign/billing
+   * change while still keeping the user's view in sync.
+   */
+  private patchJobInList(updated: Job | null | undefined): void {
+    if (!updated || updated.id === undefined || updated.id === null) {
+      return;
+    }
+    const idx = this.jobs.findIndex((j) => j.id === updated.id);
+    if (idx === -1) {
+      return;
+    }
+    const next = this.jobs.slice();
+    next[idx] = { ...this.jobs[idx], ...updated };
+    this.jobs = next;
+    this.cdr.markForCheck();
+  }
+
+  loadVehicles(force = false): void {
+    if (this.vehiclesLoaded && !force) {
+      return;
+    }
     this.vehicleService.getAllVehicles()
       .pipe(
         catchError(error => {
@@ -1177,6 +1443,7 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
       )
       .subscribe(vehicles => {
         this.vehicles = vehicles;
+        this.vehiclesLoaded = true;
         this.syncVehicleOptionsForCurrentClient();
       });
   }
@@ -1279,7 +1546,10 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
     return this.trucks.filter((t) => t.isActive);
   }
 
-  loadTrucks(): void {
+  loadTrucks(force = false): void {
+    if (this.trucksLoaded && !force) {
+      return;
+    }
     this.trucksLoading = true;
     this.truckService
       .getAll(true)
@@ -1295,6 +1565,7 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
       )
       .subscribe((rows) => {
         this.trucks = rows;
+        this.trucksLoaded = true;
       });
   }
 
@@ -1306,15 +1577,16 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
     return Number.isFinite(n) ? n : undefined;
   }
 
-  loadDrivers(): void {
-    // Use dedicated drivers endpoint with pagination
-    // Load all active drivers (using large page size for dropdown)
+  loadDrivers(force = false): void {
+    if (this.driversLoaded && !force) {
+      return;
+    }
     const params = new HttpParams()
       .set('pageNumber', '1')
       .set('pageSize', '100')
       .set('isActive', 'true')
       .set('availableForDispatchOnly', 'true');
-    
+
     this.apiService.get<PagedResponse<User>>('users/drivers', params)
       .pipe(
         catchError(error => {
@@ -1325,6 +1597,7 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
       .subscribe(response => {
         this.drivers = response.data;
         this.availableDrivers = response.data.filter(d => d.isActive);
+        this.driversLoaded = true;
       });
   }
 
@@ -1443,11 +1716,16 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
     this.officeToPickupMiles = null;
     this.dropoffToOfficeMiles = null;
     this.calculatingPrice = false;
-    this.loadInsuranceAccountsForJob();
+    // Lazy data loads — these are no-ops on subsequent opens (idempotent guards).
+    this.loadVehicles();
+    this.loadDrivers();
+    this.loadTrucks();
     this.loadServicePricingProfiles();
+    this.loadDispatchOfficeForDisplay();
+    this.ensureSystemSettingsLoaded();
+    this.loadInsuranceAccountsForJob();
     this.syncVehicleOptionsForCurrentClient();
     this.resetCatalogPickers();
-    this.loadTrucks();
   }
 
   loadInsuranceAccountsForJob(): void {
@@ -1464,7 +1742,10 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
       });
   }
 
-  loadServicePricingProfiles(): void {
+  loadServicePricingProfiles(force = false): void {
+    if (this.servicePricingProfilesLoaded && !force) {
+      return;
+    }
     this.servicePricingProfilesLoading = true;
     this.servicePricingService
       .getAll(false)
@@ -1473,6 +1754,7 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
         finalize(() => (this.servicePricingProfilesLoading = false))
       )
       .subscribe((rows) => {
+        this.servicePricingProfilesLoaded = true;
         this.servicePricingProfiles = rows;
         this.serviceTypes = rows
           .filter((p) => p.isAvailable)
@@ -1904,6 +2186,7 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
   removeServiceItem(index: number): void {
     this.invoiceServiceItems.splice(index, 1);
     this.calculateInvoiceTotals();
+    this.requestPriceRecalc();
   }
 
   updateServiceItemTotal(index: number): void {
@@ -1911,10 +2194,16 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
     if (item) {
       item.total = item.quantity * item.price;
       this.calculateInvoiceTotals();
+      this.requestPriceRecalc();
     }
   }
 
   async calculatePrice(): Promise<void> {
+    // Stale-response guard: if the user keeps editing while a quote is in
+    // flight, only the newest call is allowed to mutate the form.
+    const myGen = ++this.priceRecalcGeneration;
+    const isStale = (): boolean => myGen !== this.priceRecalcGeneration;
+
     this.calculatingPrice = true;
     this.createJobError = null;
     this.latestQuote = null;
@@ -1940,12 +2229,14 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
 
       if (pickup && destination) {
         const office = await firstValueFrom(this.locationService.getOfficeLocation());
+        if (isStale()) return;
         const officeRef = `${office.lat},${office.lng}`;
         const [ab, bc, ca] = await Promise.all([
           this.computeDrivingMiles(officeRef, pickup),
           this.computeDrivingMiles(pickup, destination),
           this.computeDrivingMiles(destination, officeRef)
         ]);
+        if (isStale()) return;
 
         this.officeToPickupMiles = ab;
         this.pickupToDestinationMiles = bc;
@@ -1955,11 +2246,15 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
         milesBC = bc;
         milesCA = ca;
 
-        charges.patchValue({
-          unloadedEnrouteMileageQuantity: milesAB,
-          loadedHookedMileageQuantity: milesBC,
-          deadHeadMileageQuantity: milesCA
-        });
+        // emitEvent: false → do not re-trigger the auto-recalc pipeline.
+        charges.patchValue(
+          {
+            unloadedEnrouteMileageQuantity: milesAB,
+            loadedHookedMileageQuantity: milesBC,
+            deadHeadMileageQuantity: milesCA
+          },
+          { emitEvent: false }
+        );
       }
 
       const serviceItemsTotal = this.invoiceServiceItems.reduce((sum: number, item: any) => sum + (item.quantity * item.price), 0);
@@ -1986,30 +2281,39 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
         manualTotalOverride: charges.get('manualTotalOverride')?.value ?? undefined,
         manualOverrideReason: charges.get('manualOverrideReason')?.value || undefined
       }));
+      if (isStale()) return;
 
       this.latestQuote = quote;
-      charges.patchValue({
-        hookupFee: quote.hookupFee,
-        unloadedEnrouteMileageQuantity: quote.milesAB,
-        unloadedEnrouteMileagePrice: quote.rateAB,
-        loadedHookedMileageQuantity: quote.milesBC,
-        loadedHookedMileagePrice: quote.rateBC,
-        deadHeadMileageQuantity: quote.milesCA,
-        deadHeadMileagePrice: quote.rateCA,
-        discount: quote.discountAmount,
-        serviceChargePercent: quote.serviceChargePercent,
-        taxPercent: quote.taxPercent,
-        taxExempt: quote.taxExempt
-      });
-      this.createJobForm.patchValue({ cost: quote.grandTotal });
+      // emitEvent: false → keeps the auto-recalc pipeline from looping on our own writes.
+      charges.patchValue(
+        {
+          hookupFee: quote.hookupFee,
+          unloadedEnrouteMileageQuantity: quote.milesAB,
+          unloadedEnrouteMileagePrice: quote.rateAB,
+          loadedHookedMileageQuantity: quote.milesBC,
+          loadedHookedMileagePrice: quote.rateBC,
+          deadHeadMileageQuantity: quote.milesCA,
+          deadHeadMileagePrice: quote.rateCA,
+          discount: quote.discountAmount,
+          serviceChargePercent: quote.serviceChargePercent,
+          taxPercent: quote.taxPercent,
+          taxExempt: quote.taxExempt
+        },
+        { emitEvent: false }
+      );
+      this.createJobForm.patchValue({ cost: quote.grandTotal }, { emitEvent: false });
       if (this.showQuoteReviewModal) {
         this.quoteReviewSummary = this.buildQuoteReviewSummary();
-        void this.refreshQuotePdfPreview();
+        this.cdr.markForCheck();
+        this.scheduleQuotePdfPreviewRefresh();
       }
     } catch (error: any) {
+      if (isStale()) return;
       this.createJobError = error?.error?.message || 'Failed to calculate pricing. Please review account, addresses, and pricing values.';
     } finally {
-      this.calculatingPrice = false;
+      if (!isStale()) {
+        this.calculatingPrice = false;
+      }
     }
   }
 
@@ -2049,6 +2353,10 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   onViewQuote(): void {
+    if (!this.useExistingVehicle) {
+      this.commitVehicleMakeFromDraft();
+      this.commitModelFromDraft();
+    }
     this.createJobValidationAttempted = true;
     this.markAllFieldsAsTouched();
     const validationErrors = this.getValidationErrors();
@@ -2070,7 +2378,17 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
     this.quoteSmsPhone = this.getDefaultQuoteSmsPhone();
     this.quoteReviewSummary = this.buildQuoteReviewSummary();
     this.showQuoteReviewModal = true;
-    void this.refreshQuotePdfPreview();
+    this.scheduleQuotePdfPreviewRefresh();
+  }
+
+  /** After `quoteReviewSummary` / hidden template updates, capture DOM then build PDF for iframe. */
+  private scheduleQuotePdfPreviewRefresh(): void {
+    if (this.quoteReviewHtmlPreviewOnly) {
+      return;
+    }
+    setTimeout(() => {
+      void this.refreshQuotePdfPreview();
+    }, 0);
   }
 
   closeQuoteReviewModal(): void {
@@ -2079,6 +2397,71 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
     this.revokeQuotePdfObjectUrl();
     this.quotePdfGenerating = false;
     this.quotePdfError = null;
+    if (!this.quoteEmailSending) {
+      this.showQuoteEmailModal = false;
+      this.quoteEmailError = null;
+      this.quoteEmailSuccess = null;
+    }
+  }
+
+  /**
+   * Client-side "Save as PDF": clones the rendered <app-quote-print> sheet into
+   * a body-level print host, isolates it via global `body.printing-quote` rules
+   * (see styles.scss), and triggers the browser's native print dialog. The
+   * user picks "Save as PDF" — output is vector + selectable text and uses the
+   * exact same DOM/CSS the modal preview shows. Original quote was server-side
+   * via Playwright; that path was retired because the IIS host kept failing on
+   * Chromium driver dispatch and we now own the layout end-to-end in Angular.
+   */
+  async printQuoteSheet(): Promise<void> {
+    const summary = this.quoteReviewSummary;
+    const sheetEl = this.quotePrintRef?.sheet;
+    if (!summary || !sheetEl) {
+      return;
+    }
+
+    this.quotePdfDownloading = true;
+    this.cdr.markForCheck();
+
+    let host: HTMLDivElement | null = null;
+    let cleanedUp = false;
+    const cleanup = () => {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      document.body.classList.remove('printing-quote');
+      if (host && host.parentNode) {
+        host.parentNode.removeChild(host);
+      }
+      window.removeEventListener('afterprint', cleanup);
+      this.quotePdfDownloading = false;
+      this.cdr.markForCheck();
+    };
+
+    try {
+      await this.prepareQuoteSheetForCanvasCapture(sheetEl);
+
+      host = document.createElement('div');
+      host.id = 'qs-print-host';
+      host.appendChild(sheetEl.cloneNode(true));
+      const safeRef = summary.quoteRef.replace(/[^\w.-]+/g, '_');
+      const previousTitle = document.title;
+      document.title = `quote-${safeRef}`;
+      document.body.appendChild(host);
+      document.body.classList.add('printing-quote');
+
+      window.addEventListener('afterprint', cleanup);
+
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+      );
+
+      window.print();
+      document.title = previousTitle;
+
+      window.setTimeout(cleanup, 1000);
+    } catch {
+      cleanup();
+    }
   }
 
   private revokeQuotePdfObjectUrl(): void {
@@ -2089,7 +2472,7 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
     this.quotePdfSafeUrl = null;
   }
 
-  /** Build PDF blob and show it in the quote modal iframe (same layout as download). */
+  /** Build PDF from HTML quote (Font Awesome + layout) and show in modal iframe; fallback to vector PDF if capture fails. */
   async refreshQuotePdfPreview(): Promise<void> {
     const summary = this.quoteReviewSummary;
     if (!summary) {
@@ -2100,16 +2483,77 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
     this.quotePdfError = null;
     this.cdr.markForCheck();
     try {
-      const doc = await this.renderQuotePdfDocument(summary);
-      const blob = doc.output('blob');
+      let blob: Blob;
+      try {
+        blob = await this.renderQuotePdfBlobFromHtmlSheet();
+      } catch {
+        const doc = await this.renderQuotePdfDocument(summary);
+        blob = doc.output('blob');
+      }
       this.quotePdfBlobUrl = URL.createObjectURL(blob);
       this.quotePdfSafeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(this.quotePdfBlobUrl);
     } catch {
-      this.quotePdfError = 'Could not generate PDF preview. Try Download PDF or refresh the page.';
+      this.quotePdfError = 'Could not generate PDF preview. Try Download as PDF or refresh the page.';
     } finally {
       this.quotePdfGenerating = false;
       this.cdr.markForCheck();
     }
+  }
+
+  /**
+   * Ensures webfonts (e.g. Font Awesome) and every `img` inside the quote sheet are ready before
+   * html2canvas runs — avoids empty payment logos and mis-sized icons when the sheet is off-screen.
+   */
+  private async prepareQuoteSheetForCanvasCapture(sheetEl: HTMLElement): Promise<void> {
+    await document.fonts?.ready?.catch(() => undefined);
+    const imgs = [...sheetEl.querySelectorAll<HTMLImageElement>('img')];
+    await Promise.all(imgs.map((img) => this.waitForQuoteSheetImage(img)));
+    await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+  }
+
+  private async waitForQuoteSheetImage(img: HTMLImageElement): Promise<void> {
+    const src = (img.currentSrc || img.getAttribute('src') || '').trim();
+    if (!src) {
+      return;
+    }
+    if (!img.complete) {
+      await new Promise<void>((resolve) => {
+        img.addEventListener('load', () => resolve(), { once: true });
+        img.addEventListener('error', () => resolve(), { once: true });
+      });
+    }
+    if (img.naturalWidth === 0) {
+      return;
+    }
+    try {
+      await img.decode();
+    } catch {
+      /* decode() can reject for some SVG / cross-origin edge cases */
+    }
+  }
+
+  /** Rasterize `QuotePrintComponent` DOM (same source as download). */
+  private async renderQuotePdfBlobFromHtmlSheet(): Promise<Blob> {
+    const sheetEl = this.quotePrintRef?.sheet;
+    if (!sheetEl) {
+      throw new Error('Quote sheet not ready');
+    }
+    await this.prepareQuoteSheetForCanvasCapture(sheetEl);
+    const html2canvas = (await import('html2canvas')).default;
+    const { jsPDF } = await import('jspdf');
+    const canvas = await html2canvas(sheetEl, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff',
+      imageTimeout: 20000
+    });
+    const imgData = canvas.toDataURL('image/jpeg', 0.96);
+    const pdfW = 612;
+    const pdfH = Math.ceil((canvas.height / canvas.width) * pdfW);
+    const doc = new jsPDF({ unit: 'pt', format: [pdfW, pdfH] });
+    doc.addImage(imgData, 'JPEG', 0, 0, pdfW, pdfH);
+    return doc.output('blob');
   }
 
   buildQuoteReviewSummary(): QuoteReviewSummary {
@@ -2237,6 +2681,55 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
       notesRaw ||
       'Additional information about the job can be added in the job notes before sending this quote.';
 
+    // Company info (from form or defaults)
+    const companyName = co || 'Strong Towing';
+    const companyAddress = String(raw.companyAddress ?? '5652 Columbia Pike, Falls Church, VA 22041, USA').trim();
+    const companyPhone = dispatchPhone || String(raw.companyPhone ?? '').trim();
+    const companyEmail = String(raw.companyEmail ?? 'dispatch@strongtowing.services').trim();
+    const companyWebsite = String(raw.companyWebsite ?? 'strongtowing.services').trim();
+
+    // Client name / phone split
+    const clientRawLine = this.formatQuoteClientSummaryLine();
+    const clientPhoneMatch = clientRawLine.match(/\(([^)]+)\)$/);
+    const clientName = clientPhoneMatch
+      ? clientRawLine.slice(0, clientRawLine.lastIndexOf('(')).trim()
+      : clientRawLine;
+    const clientPhone = clientPhoneMatch ? clientPhoneMatch[1] : '';
+
+    // Service date (today)
+    const serviceDateDisplay = now.toLocaleDateString('en-US', dateFmt);
+
+    // Truck type label
+    const truckIdVal = raw.truckId;
+    let truckTypeLabel = '—';
+    if (truckIdVal) {
+      const selectedTruck = this.trucks.find((t) => t.id === Number(truckIdVal));
+      if (selectedTruck) {
+        truckTypeLabel = selectedTruck.truckTypeName || selectedTruck.unitLabel || '—';
+      }
+    }
+
+    // Loaded mileage for location section
+    const loadedMile = mileage.find((m) => m.label === 'Loaded' || m.label === 'Loaded (mi)');
+    let loadedMileageDisplay = loadedMile ? loadedMile.value : '—';
+    if (loadedMileageDisplay && loadedMileageDisplay !== '—') {
+      const original = loadedMileageDisplay;
+      const cleaned = original.replace(/,/g, '').replace(/\s*mi\b/gi, '').trim();
+      const n = parseFloat(cleaned);
+      const looksNumeric =
+        cleaned.length > 0 &&
+        Number.isFinite(n) &&
+        /^-?\d+(\.\d+)?$/.test(cleaned);
+      loadedMileageDisplay = looksNumeric
+        ? `${n.toFixed(n % 1 === 0 ? 0 : 2)} MI`
+        : original;
+    }
+
+    // Tax percent string
+    const taxPercent = q
+      ? q.taxExempt ? '0' : String(q.taxPercent ?? '0')
+      : String(parseFloat(raw.invoiceCharges?.taxPercent ?? '0') || 0);
+
     return {
       quoteRef,
       quoteDateDisplay,
@@ -2255,131 +2748,132 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
       vehicleLabel,
       totalAmount,
       notesPreview,
-      footerNote: `Generated ${now.toLocaleString()}`
+      footerNote: `Generated ${now.toLocaleString()}`,
+      companyName,
+      companyAddress,
+      companyPhone,
+      companyEmail,
+      companyWebsite,
+      clientName,
+      clientPhone,
+      clientDisplayLine: clientRawLine && clientRawLine !== '—' ? clientRawLine : 'Not specified',
+      serviceDateDisplay,
+      truckTypeLabel,
+      loadedMileageDisplay,
+      taxPercent
     };
   }
 
+  /**
+   * Fixed six-row breakdown to match the quote PDF design. Extra invoice line items are bucketed by name;
+   * server `extraItemsTotal` fills gaps into Other Charges.
+   */
   private buildQuoteLineItems(serviceType: string, raw: any): QuoteLineItem[] {
-    const rows: QuoteLineItem[] = [];
     const q = this.latestQuote;
+    const ch = raw.invoiceCharges || {};
+    const fmt = (n: number) => this.formatCurrency(n);
 
-    if (q) {
-      if (q.hookupFee > 0) {
-        rows.push({
-          description: 'Hookup fee',
-          quantity: '1',
-          unitPrice: this.formatCurrency(q.hookupFee),
-          amount: this.formatCurrency(q.hookupFee)
-        });
-      }
-      if (q.chargeBC > 0) {
-        rows.push({
-          description: `Loaded transport (${q.billableMiles} mi billable)`,
-          quantity: String(q.billableMiles),
-          unitPrice: this.formatCurrency(q.rateBC),
-          amount: this.formatCurrency(q.chargeBC)
-        });
-      }
-      if (q.extraItemsTotal > 0) {
-        rows.push({
-          description: 'Additional services & fees',
-          quantity: '1',
-          unitPrice: '—',
-          amount: this.formatCurrency(q.extraItemsTotal)
-        });
-      }
-      if (q.discountAmount > 0) {
-        rows.push({
-          description: 'Discount',
-          quantity: '1',
-          unitPrice: '—',
-          amount: `-${this.formatCurrency(q.discountAmount)}`
-        });
-      }
-      if (q.serviceChargeAmount > 0) {
-        rows.push({
-          description: `Service charge (${q.serviceChargePercent}%)`,
-          quantity: '1',
-          unitPrice: '—',
-          amount: this.formatCurrency(q.serviceChargeAmount)
-        });
-      }
-    } else {
-      const ch = raw.invoiceCharges || {};
-      const hook = parseFloat(ch.hookupFee) || 0;
-      const loadedQty = parseFloat(ch.loadedHookedMileageQuantity) || 0;
-      const loadedPrice = parseFloat(ch.loadedHookedMileagePrice) || 0;
-      const freeAllow = this.latestQuote?.pricingFreeMilesAllowance ?? 0;
-      const billable = Math.max(0, loadedQty - freeAllow);
-      const loadedAmt = billable * loadedPrice;
+    type Agg = { qty: number; unitPrice: number; amount: number };
+    const emptyAgg = (): Agg => ({ qty: 0, unitPrice: 0, amount: 0 });
 
-      if (hook > 0) {
-        rows.push({
-          description: 'Hookup fee',
-          quantity: '1',
-          unitPrice: this.formatCurrency(hook),
-          amount: this.formatCurrency(hook)
-        });
+    const pushAgg = (target: Agg, qty: number, price: number): void => {
+      const line = qty * price;
+      target.amount += line;
+      target.qty += qty;
+      if (qty > 0 && price > 0) {
+        target.unitPrice = price;
       }
-      if (loadedAmt > 0) {
-        rows.push({
-          description: `${serviceType || 'Towing'} — loaded mileage`,
-          quantity: String(billable),
-          unitPrice: this.formatCurrency(loadedPrice),
-          amount: this.formatCurrency(loadedAmt)
-        });
+    };
+
+    const winch = emptyAgg();
+    const fuel = emptyAgg();
+    const afterHours = emptyAgg();
+    const other = emptyAgg();
+
+    for (const item of this.invoiceServiceItems) {
+      const name = String(item.serviceName || '').toLowerCase();
+      const qty = Number(item.quantity) || 0;
+      const price = Number(item.price) || 0;
+      if (/winch|labor/.test(name)) {
+        pushAgg(winch, qty, price);
+      } else if (/fuel|environmental/.test(name)) {
+        pushAgg(fuel, qty, price);
+      } else if (/after\s*hours?|afterhours/.test(name)) {
+        pushAgg(afterHours, qty, price);
+      } else {
+        pushAgg(other, qty, price);
       }
-      for (const item of this.invoiceServiceItems) {
-        const name = String(item.serviceName || '').trim() || 'Line item';
-        const qty = Number(item.quantity) || 0;
-        const price = Number(item.price) || 0;
-        const amt = qty * price;
-        if (amt <= 0) {
-          continue;
+    }
+
+    if (q && q.extraItemsTotal > 0) {
+      const allocated = winch.amount + fuel.amount + afterHours.amount + other.amount;
+      const gap = q.extraItemsTotal - allocated;
+      if (gap > 0.005) {
+        other.amount += gap;
+        if (other.qty < 1) {
+          other.qty = 1;
         }
-        rows.push({
-          description: name,
-          quantity: String(qty),
-          unitPrice: this.formatCurrency(price),
-          amount: this.formatCurrency(amt)
-        });
-      }
-      const discountFlat = parseFloat(ch.discount) || 0;
-      const discountPct = parseFloat(ch.discountPercent) || 0;
-      const subPre = this.getSubtotal();
-      const discAmt = discountFlat > 0 ? discountFlat : subPre * (discountPct / 100);
-      if (discAmt > 0) {
-        rows.push({
-          description: 'Discount',
-          quantity: '1',
-          unitPrice: '—',
-          amount: `-${this.formatCurrency(discAmt)}`
-        });
-      }
-      const scPct = parseFloat(ch.serviceChargePercent) || 0;
-      const afterDisc = Math.max(0, subPre - discAmt);
-      const scAmt = afterDisc * (scPct / 100);
-      if (scAmt > 0) {
-        rows.push({
-          description: `Service charge (${scPct}%)`,
-          quantity: '1',
-          unitPrice: '—',
-          amount: this.formatCurrency(scAmt)
-        });
+        other.unitPrice = gap;
       }
     }
 
-    if (rows.length === 0) {
-      const est = this.latestQuote ? this.latestQuote.grandTotal : this.getGrandTotal();
-      rows.push({
-        description: `${serviceType || 'Towing'} — service estimate`,
-        quantity: '1',
-        unitPrice: this.formatCurrency(est),
-        amount: this.formatCurrency(est)
-      });
+    let hookup = q ? q.hookupFee : parseFloat(ch.hookupFee) || 0;
+    let loadedQty: number;
+    let loadedRate: number;
+    let loadedAmt: number;
+    if (q) {
+      loadedQty = q.billableMiles;
+      loadedRate = q.rateBC;
+      loadedAmt = q.chargeBC;
+    } else {
+      const fullQty = parseFloat(ch.loadedHookedMileageQuantity) || 0;
+      loadedRate = parseFloat(ch.loadedHookedMileagePrice) || 0;
+      const freeAllow = this.latestQuote?.pricingFreeMilesAllowance ?? 0;
+      loadedQty = Math.max(0, fullQty - freeAllow);
+      loadedAmt = loadedQty * loadedRate;
     }
 
-    return rows;
+    const extrasRow = (description: string, subtitle: string, agg: Agg): QuoteLineItem => {
+      const qtyStr = agg.qty > 0 ? String(agg.qty) : '0';
+      let unitStr = fmt(0);
+      if (agg.qty > 0 && agg.amount > 0) {
+        unitStr = fmt(agg.amount / agg.qty);
+      } else if (agg.unitPrice > 0) {
+        unitStr = fmt(agg.unitPrice);
+      }
+      return {
+        description,
+        subtitle,
+        quantity: qtyStr,
+        unitPrice: unitStr,
+        amount: fmt(agg.amount)
+      };
+    };
+
+    const hookRow: QuoteLineItem = {
+      description: 'Hookup Fee',
+      subtitle: 'Covers truck dispatch, setup and hookup.',
+      quantity: '1',
+      unitPrice: fmt(hookup),
+      amount: fmt(hookup)
+    };
+
+    const loadedRow: QuoteLineItem = {
+      description: 'Loaded Mileage',
+      subtitle: 'Charged per loaded mile from pickup to destination.',
+      quantity: loadedQty > 0 ? `${loadedQty} mi` : '0 mi',
+      unitPrice: loadedRate > 0 ? `${fmt(loadedRate)} / mile` : fmt(0),
+      amount: fmt(loadedAmt)
+    };
+
+    return [
+      hookRow,
+      loadedRow,
+      extrasRow('Winch / Labor (if needed)', 'Additional labor or winching.', winch),
+      extrasRow('Fuel / Environmental Fee', 'Fuel surcharge and environmental compliance.', fuel),
+      extrasRow('After Hours Fee', 'Applies for service outside standard business hours.', afterHours),
+      extrasRow('Other Charges', 'Miscellaneous charges as applicable.', other)
+    ];
   }
 
   /** Client as "Name (phone)" for quote modal, PDF, and SMS body (no separate contact fields). */
@@ -2592,13 +3086,34 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
     return lines.join('\n');
   }
 
-  async downloadQuoteExport(): Promise<void> {
-    const summary = this.quoteReviewSummary ?? this.buildQuoteReviewSummary();
-    const doc = await this.renderQuotePdfDocument(summary);
-    const d = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const fileName = `towing-quote-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.pdf`;
-    doc.save(fileName);
+  /** Maps `QuoteReviewSummary` → `QuotePrintData` expected by `QuotePrintComponent`. */
+  buildQuotePrintData(summary: QuoteReviewSummary): QuotePrintData {
+    return {
+      quoteRef: summary.quoteRef,
+      quoteDateDisplay: summary.quoteDateDisplay,
+      validUntilDisplay: summary.validUntilDisplay,
+      companyName: summary.companyName,
+      companyAddress: summary.companyAddress,
+      companyPhone: summary.companyPhone,
+      companyEmail: summary.companyEmail,
+      companyWebsite: summary.companyWebsite,
+      clientName: summary.clientName,
+      clientPhone: summary.clientPhone,
+      clientDisplayLine: summary.clientDisplayLine,
+      serviceType: summary.serviceType,
+      serviceDateDisplay: summary.serviceDateDisplay,
+      truckTypeLabel: summary.truckTypeLabel,
+      pickup: summary.pickup,
+      destination: summary.destination,
+      loadedMileageDisplay: summary.loadedMileageDisplay,
+      lineItems: summary.lineItems,
+      totalsSubtotal: summary.totalsSubtotal,
+      totalsTaxLabel: summary.totalsTaxLabel,
+      totalsTax: summary.totalsTax,
+      taxPercent: summary.taxPercent,
+      totalAmount: summary.totalAmount,
+      notesPreview: summary.notesPreview
+    };
   }
 
   private async renderQuotePdfDocument(summary: QuoteReviewSummary): Promise<import('jspdf').jsPDF> {
@@ -2858,15 +3373,126 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
+  /**
+   * Opens the "Send quote by email" confirmation modal. The recipient defaults from the
+   * client email already on the create-job form (or the selected existing client) and is
+   * editable; the dispatcher can also tweak the subject and the cover note before
+   * confirming. On confirm we POST the structured quote payload to <c>api/quotes/email</c> —
+   * the API renders the PDF server-side via Playwright/Chromium and attaches it itself, so
+   * Font Awesome glyphs and SVG payment marks stay vector and aligned in the email.
+   */
   openEmailWithQuote(): void {
     const summary = this.quoteReviewSummary ?? this.buildQuoteReviewSummary();
-    const subject = `Quote ${summary.quoteRef} — ${summary.fromLines[0] || 'Strong Towing'}`;
-    const maxChars = 1800;
-    let body = this.buildQuoteDocumentText();
-    if (body.length > maxChars) {
-      body = body.slice(0, maxChars - 80) + '\n\n… (truncated — use Export PDF for the full formatted quote.)';
+    this.quoteReviewSummary = summary;
+    this.quoteEmailRecipient = this.getDefaultQuoteEmailRecipient();
+    this.quoteEmailSubject = `Quote ${summary.quoteRef} — ${summary.companyName || 'Strong Towing'}`;
+    this.quoteEmailMessage = this.getDefaultQuoteEmailMessage(summary);
+    this.quoteEmailError = null;
+    this.quoteEmailSuccess = null;
+    this.quoteEmailSending = false;
+    this.showQuoteEmailModal = true;
+  }
+
+  closeQuoteEmailModal(): void {
+    if (this.quoteEmailSending) {
+      return;
     }
-    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    this.showQuoteEmailModal = false;
+    this.quoteEmailError = null;
+    this.quoteEmailSuccess = null;
+  }
+
+  /** Resolves the default recipient: existing client's email when picked, else the form's clientEmail field. */
+  private getDefaultQuoteEmailRecipient(): string {
+    const raw: any = this.createJobForm.getRawValue();
+    if (this.useExistingClient && raw.client?.clientId) {
+      const cid = String(raw.client.clientId);
+      const cli =
+        this.createJobSelectedClient && String(this.createJobSelectedClient.id) === cid
+          ? this.createJobSelectedClient
+          : null;
+      const existingEmail = String(cli?.email ?? '').trim();
+      if (existingEmail) {
+        return existingEmail;
+      }
+    }
+    return String(raw.client?.clientEmail ?? '').trim();
+  }
+
+  private getDefaultQuoteEmailMessage(summary: QuoteReviewSummary): string {
+    const greetingName = summary.clientName?.trim();
+    const lines: string[] = [];
+    lines.push(greetingName ? `Hi ${greetingName},` : 'Hi,');
+    lines.push('');
+    lines.push(
+      `Please find your service quote (${summary.quoteRef}) attached. The estimated total is ${summary.totalAmount}.`
+    );
+    lines.push('');
+    lines.push('Reply to this email or give us a call if you have any questions or want to schedule the service.');
+    return lines.join('\n');
+  }
+
+  /** File name used for the PDF attachment + the hint shown inside the email modal. */
+  quoteEmailAttachmentName(): string {
+    const ref = (this.quoteReviewSummary?.quoteRef ?? 'quote').replace(/[^\w.-]+/g, '_');
+    return `quote-${ref}.pdf`;
+  }
+
+  /** Confirm-button enabled when we have a recipient that looks like an email and a quote summary loaded. */
+  quoteEmailFormReady(): boolean {
+    const to = (this.quoteEmailRecipient ?? '').trim();
+    const looksLikeEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to);
+    return looksLikeEmail && !!this.quoteReviewSummary;
+  }
+
+  async confirmSendQuoteEmail(): Promise<void> {
+    if (!this.quoteEmailFormReady() || this.quoteEmailSending) {
+      return;
+    }
+    const summary = this.quoteReviewSummary;
+    if (!summary) {
+      return;
+    }
+
+    this.quoteEmailSending = true;
+    this.quoteEmailError = null;
+    this.quoteEmailSuccess = null;
+    this.cdr.markForCheck();
+
+    try {
+      const print = this.buildQuotePrintData(summary);
+      const result = await firstValueFrom(
+        this.quoteService.sendQuoteEmail({
+          toEmail: this.quoteEmailRecipient.trim(),
+          subject: this.quoteEmailSubject?.trim() || null,
+          message: this.quoteEmailMessage?.trim() || null,
+          quote: print
+        })
+      );
+
+      if (result?.success) {
+        this.quoteEmailSuccess = result.toEmail || this.quoteEmailRecipient.trim();
+        this.quoteEmailError = null;
+        // Auto-dismiss after a short delay so the dispatcher sees the confirmation.
+        setTimeout(() => {
+          this.showQuoteEmailModal = false;
+          this.quoteEmailSuccess = null;
+          this.cdr.markForCheck();
+        }, 1800);
+      } else {
+        this.quoteEmailError = result?.errorMessage || 'Could not send the quote email. Please try again.';
+      }
+    } catch (err: any) {
+      const apiMsg =
+        err?.error?.errorMessage ||
+        err?.error?.message ||
+        err?.message ||
+        'Could not send the quote email. Please try again.';
+      this.quoteEmailError = apiMsg;
+    } finally {
+      this.quoteEmailSending = false;
+      this.cdr.markForCheck();
+    }
   }
 
   openSmsWithQuote(): void {
@@ -2877,7 +3503,7 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
     const maxChars = 1600;
     let body = this.buildQuoteDocumentText({ forSms: true });
     if (body.length > maxChars) {
-      body = body.slice(0, maxChars - 50) + '\n\n… (truncated — use Export for full quote)';
+      body = body.slice(0, maxChars - 50) + '\n\n… (truncated — use Print quote for the full layout.)';
     }
     window.location.href = `sms:${digits}?body=${encodeURIComponent(body)}`;
   }
@@ -2887,6 +3513,10 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   onCreateJob(): void {
+    if (!this.useExistingVehicle) {
+      this.commitVehicleMakeFromDraft();
+      this.commitModelFromDraft();
+    }
     if (this.createJobForm.get('callType')?.value === 'Quote') {
       this.onViewQuote();
       return;
@@ -3115,7 +3745,9 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
       .subscribe(result => {
         if (result !== null) {
           this.closeUpdateStatusModal();
-          this.loadJobs();
+          // Mutation endpoint returns the updated Job; patch in place instead of
+          // re-fetching the entire page.
+          this.patchJobInList(result as unknown as Job);
         }
       });
   }
@@ -3139,6 +3771,8 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
     this.selectedJob = job;
     this.showAssignDriverModal = true;
     this.assignDriverForm.patchValue({ driverId: job.driverId || '' });
+    // Driver list is only needed once a dispatcher actually opens this dialog.
+    this.loadDrivers();
   }
 
   closeAssignDriverModal(): void {
@@ -3176,7 +3810,7 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
               ? null
               : result.notificationMessage;
           this.closeAssignDriverModal();
-          this.loadJobs();
+          this.patchJobInList(result.job as Job);
         }
       });
   }
@@ -3207,7 +3841,7 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
       .subscribe({
         next: (updated) => {
           this.selectedJob = updated;
-          this.loadJobs();
+          this.patchJobInList(updated);
         },
         error: (err: { error?: { message?: string } }) => {
           this.detailTruckError = err.error?.message || 'Failed to update truck';
@@ -3221,6 +3855,8 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
     this.detailTruckId = job.truckId ?? null;
     this.detailTruckSaving = false;
     this.detailTruckError = null;
+    // Truck list is needed for the in-modal reassignment select.
+    this.loadTrucks();
     this.priceOverrideError = null;
     this.priceOverrideSubmitting = false;
     this.priceOverrideReason = '';
@@ -3289,7 +3925,7 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
         this.billingSubmitting = false;
         this.selectedJob = updated;
         this.openJobDetails(updated);
-        this.loadJobs();
+        this.patchJobInList(updated);
       },
       error: (err) => {
         this.billingSubmitting = false;
@@ -3351,7 +3987,7 @@ export class JobsComponent implements OnInit, OnDestroy, AfterViewInit {
             : null;
         this.priceOverrideReason = '';
         this.priceOverrideSubmitting = false;
-        this.loadJobs();
+        this.patchJobInList(updated);
       },
       error: (error: unknown) => {
         this.priceOverrideSubmitting = false;

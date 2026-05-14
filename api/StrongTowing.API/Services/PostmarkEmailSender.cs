@@ -24,7 +24,8 @@ public sealed class PostmarkEmailSender : IEmailSender
         string subject,
         string htmlBody,
         string? textBody,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IReadOnlyList<EmailAttachment>? attachments = null)
     {
         if (string.IsNullOrWhiteSpace(serverToken))
             return new EmailSendResult(false, "Postmark server token is not configured.");
@@ -48,6 +49,24 @@ public sealed class PostmarkEmailSender : IEmailSender
 
         if (payload.HtmlBody == null && payload.TextBody != null)
             payload.HtmlBody = $"<pre style=\"font-family:sans-serif\">{System.Net.WebUtility.HtmlEncode(payload.TextBody)}</pre>";
+
+        if (attachments is { Count: > 0 })
+        {
+            var list = new List<PostmarkAttachmentPayload>(attachments.Count);
+            foreach (var a in attachments)
+            {
+                if (a is null || string.IsNullOrWhiteSpace(a.Name) || string.IsNullOrWhiteSpace(a.ContentBase64))
+                    continue;
+                list.Add(new PostmarkAttachmentPayload
+                {
+                    Name = a.Name,
+                    Content = a.ContentBase64,
+                    ContentType = string.IsNullOrWhiteSpace(a.ContentType) ? "application/octet-stream" : a.ContentType
+                });
+            }
+            if (list.Count > 0)
+                payload.Attachments = list;
+        }
 
         using var req = new HttpRequestMessage(HttpMethod.Post, "email");
         req.Headers.TryAddWithoutValidation("X-Postmark-Server-Token", serverToken.Trim());
@@ -88,6 +107,14 @@ public sealed class PostmarkEmailSender : IEmailSender
         public string? HtmlBody { get; set; }
         public string? TextBody { get; set; }
         public string MessageStream { get; set; } = "outbound";
+        public List<PostmarkAttachmentPayload>? Attachments { get; set; }
+    }
+
+    private sealed class PostmarkAttachmentPayload
+    {
+        public string Name { get; set; } = "";
+        public string Content { get; set; } = "";
+        public string ContentType { get; set; } = "application/octet-stream";
     }
 
     private sealed class PostmarkSuccessResponse

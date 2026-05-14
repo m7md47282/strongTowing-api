@@ -109,6 +109,22 @@ export class InvoiceService {
     return this.api.delete<{ message: string }>(`invoices/${invoiceId}/images/${imageId}`);
   }
 
+  /** Multipart upload; sets custom logo and returns full invoice. */
+  uploadLogo(invoiceId: number, file: File): Observable<InvoiceDetail> {
+    const formData = new FormData();
+    formData.append('file', file, file.name);
+    return this.api.uploadFile(`invoices/${invoiceId}/logo`, formData).pipe(
+      map((raw) => this.mapDetail(raw as Record<string, unknown>))
+    );
+  }
+
+  /** Remove custom logo file; default logo is used when the invoice is not set to hide logo. */
+  deleteLogo(invoiceId: number): Observable<InvoiceDetail> {
+    return this.api.delete<Record<string, unknown>>(`invoices/${invoiceId}/logo`).pipe(
+      map((raw) => this.mapDetail(raw))
+    );
+  }
+
   private mapListItem(raw: Record<string, unknown>): InvoiceListItem {
     return {
       id: Number(raw['id'] ?? raw['Id']),
@@ -146,6 +162,16 @@ export class InvoiceService {
       total: Number(raw['total'] ?? raw['Total'] ?? 0),
       notes: (raw['notes'] ?? raw['Notes']) != null ? String(raw['notes'] ?? raw['Notes']) : null,
       status: String(raw['status'] ?? raw['Status'] ?? ''),
+      hideLogo: Boolean(raw['hideLogo'] ?? raw['HideLogo']),
+      customLogoUrl:
+        (raw['customLogoUrl'] ?? raw['CustomLogoUrl']) != null
+          ? String(raw['customLogoUrl'] ?? raw['CustomLogoUrl'])
+          : null,
+      hideCompanyName: Boolean(raw['hideCompanyName'] ?? raw['HideCompanyName']),
+      companyDisplayName:
+        (raw['companyDisplayName'] ?? raw['CompanyDisplayName']) != null
+          ? String(raw['companyDisplayName'] ?? raw['CompanyDisplayName'])
+          : null,
       createdById: (raw['createdById'] ?? raw['CreatedById']) != null ? String(raw['createdById'] ?? raw['CreatedById']) : null,
       createdByName: (raw['createdByName'] ?? raw['CreatedByName']) != null ? String(raw['createdByName'] ?? raw['CreatedByName']) : null,
       createdAt: String(raw['createdAt'] ?? raw['CreatedAt'] ?? ''),

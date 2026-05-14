@@ -65,6 +65,9 @@ export class DashboardComponent implements OnInit {
   /** After any successful apply (API or cache), follow-up loads use refreshing instead of full skeleton. */
   private dataLoadedOnce = false;
 
+  /** Unix ms when dashboard snapshot was last saved to session cache (shown after cache hydrate or successful fetch). */
+  lastCachedAt: number | null = null;
+
   // Statistics
   stats: DashboardStats = {
     activeRequests: 0,
@@ -202,6 +205,7 @@ export class DashboardComponent implements OnInit {
     const userId = this.user?.id != null ? String(this.user.id) : '';
     const cached = userId ? this.dashboardCache.readForUser(userId) : null;
     if (cached) {
+      this.lastCachedAt = cached.cachedAt;
       this.applyDashboardSummary(
         cached.summary,
         cached.paymentStats,
@@ -313,11 +317,13 @@ export class DashboardComponent implements OnInit {
   ): void {
     const userId = this.user?.id != null ? String(this.user.id) : '';
     if (!userId) return;
+    const cachedAt = Date.now();
+    this.lastCachedAt = cachedAt;
     this.dashboardCache.save({
       version: 1,
       userId,
       dayKey: this.dashboardCache.todayDayKey(),
-      cachedAt: Date.now(),
+      cachedAt,
       summary,
       paymentStats,
       drivers
@@ -403,6 +409,13 @@ export class DashboardComponent implements OnInit {
   formatDate(dateString: string): string {
     const date = new Date(dateString);
     return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  }
+
+  formatCachedAt(timestamp: number): string {
+    return new Date(timestamp).toLocaleString(undefined, {
+      dateStyle: 'medium',
+      timeStyle: 'short'
+    });
   }
 
   getStatusColor(status: string): string {

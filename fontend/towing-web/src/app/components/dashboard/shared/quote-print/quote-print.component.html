@@ -1,0 +1,294 @@
+<article class="qs" #quoteSheet>
+
+  <header class="qs__header">
+    <div class="qs__brand">
+      <div class="qs__brand-top">
+        <img class="qs__logo" src="/images/logo-print.png" alt="{{ data().companyName }}" loading="eager" decoding="async" fetchpriority="high" />
+        <div class="qs__powered">
+          <span class="qs__powered-label">POWERED BY</span>
+          <i class="fab fa-swift qs__powered-icon" aria-hidden="true"></i>
+          <span class="qs__powered-name">SWIFT</span>
+        </div>
+      </div>
+      <div class="qs__brand-contact">
+        @if (data().companyAddress) {
+          <span class="qs__contact-row">
+            <span class="qs__icon-cell" aria-hidden="true"><i class="fas fa-fw fa-location-dot qs__icon"></i></span>
+            <span class="qs__contact-text">{{ data().companyAddress }}</span>
+          </span>
+        }
+        @if (data().companyPhone) {
+          <span class="qs__contact-row">
+            <span class="qs__icon-cell" aria-hidden="true"><i class="fas fa-fw fa-phone qs__icon"></i></span>
+            <span class="qs__contact-text">{{ data().companyPhone }}</span>
+          </span>
+        }
+        @if (data().companyEmail) {
+          <span class="qs__contact-row">
+            <span class="qs__icon-cell" aria-hidden="true"><i class="fas fa-fw fa-envelope qs__icon"></i></span>
+            <span class="qs__contact-text">{{ data().companyEmail }}</span>
+          </span>
+        }
+      </div>
+    </div>
+
+    <div class="qs__meta">
+      <div class="qs__meta-title">QUOTE</div>
+      <div class="qs__meta-ref">{{ data().quoteRef }}</div>
+      <div class="qs__meta-dates">
+        <div class="qs__meta-date-row">
+          <span class="qs__meta-date-label">Date:</span>
+          <span class="qs__meta-date-val">{{ data().quoteDateDisplay }}</span>
+        </div>
+        <div class="qs__meta-date-row">
+          <span class="qs__meta-date-label">Valid Until:</span>
+          <span class="qs__meta-date-val">{{ data().validUntilDisplay }}</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="qs__banners" role="region" aria-label="Quote estimate and pricing information">
+    <div class="qs__banner qs__banner--dark">
+      <span class="qs__banner-icon-ring qs__banner-icon-ring--on-dark" aria-hidden="true">
+        <i class="fas fa-fw fa-circle-info qs__banner-icon"></i>
+      </span>
+      <p class="qs__banner-text qs__banner-text--on-dark">
+        This is an estimate only and does not reserve a truck.<br />
+        Prices may vary based on actual circumstances.
+      </p>
+    </div>
+    <div class="qs__banner qs__banner--light">
+      <span class="qs__banner-icon-ring qs__banner-icon-ring--on-light" aria-hidden="true">
+        <i class="fas fa-fw fa-dollar-sign qs__banner-icon"></i>
+      </span>
+      <div class="qs__banner-body">
+        <div class="qs__banner-heading">How pricing works</div>
+        <p class="qs__banner-text qs__banner-text--on-light">
+          We calculate your total using our service rates below and the details of your job.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="qs__info-grid">
+    <div class="qs__info-card">
+      <div class="qs__info-card-header">
+        <span class="qs__info-icon-cell" aria-hidden="true"><i class="fas fa-fw fa-user qs__info-icon"></i></span>
+        <span class="qs__info-card-heading">QUOTE FOR</span>
+      </div>
+      <div class="qs__info-card-body">
+        <div class="qs__field-label">Client</div>
+        <div class="qs__field-value qs__field-value--bold qs__client-line">{{ data().clientDisplayLine }}</div>
+      </div>
+    </div>
+
+    <div class="qs__info-card">
+      <div class="qs__info-card-header">
+        <span class="qs__info-icon-cell" aria-hidden="true"><i class="fas fa-fw fa-clipboard-list qs__info-icon"></i></span>
+        <span class="qs__info-card-heading">SERVICE OVERVIEW</span>
+      </div>
+      <div class="qs__info-card-body">
+        <div class="qs__overview-row">
+          <span class="qs__overview-label">Service Type:</span>
+          <span class="qs__overview-val">{{ data().serviceType || '—' }}</span>
+        </div>
+        <div class="qs__overview-row">
+          <span class="qs__overview-label">Service Date:</span>
+          <span class="qs__overview-val">{{ data().serviceDateDisplay }}</span>
+        </div>
+        <div class="qs__overview-row">
+          <span class="qs__overview-label">Truck Type:</span>
+          <span class="qs__overview-val">{{ data().truckTypeLabel }}</span>
+        </div>
+        <div class="qs__overview-row">
+          <span class="qs__overview-label">Service Location:</span>
+          <span class="qs__overview-val">{{ serviceLocationLabel }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <section class="qs__location">
+    <div class="qs__section-header">
+      <span class="qs__section-icon-wrap" aria-hidden="true">
+        <i class="fas fa-fw fa-location-dot qs__section-fa"></i>
+      </span>
+      <span class="qs__section-title"><span class="qs__section-title-inner">LOCATION DETAILS</span></span>
+    </div>
+
+    <div class="qs__location-body">
+      <div class="qs__loc-col qs__loc-col--pickup">
+        <div class="qs__loc-label">PICKUP</div>
+        <div class="qs__loc-addr">{{ data().pickup || '—' }}</div>
+      </div>
+
+      <div class="qs__loc-route-column">
+        <div class="qs__loc-route-track" aria-hidden="true">
+          <i class="fas fa-fw fa-location-dot qs__route-pin"></i>
+          <span class="qs__route-dash"></span>
+          <i class="fas fa-truck-pickup qs__route-truck" aria-hidden="true"></i>
+          <span class="qs__route-dash"></span>
+          <i class="fas fa-fw fa-location-dot qs__route-pin"></i>
+        </div>
+        <div class="qs__loc-mileage">
+          <span class="qs__mileage-icon-cell" aria-hidden="true"><i class="fas fa-fw fa-road qs__mileage-fa"></i></span>
+          <span class="qs__mileage-copy">
+            <span class="qs__mileage-label">ESTIMATED LOADED MILEAGE:</span>
+            <strong>{{ data().loadedMileageDisplay }}</strong>
+          </span>
+        </div>
+      </div>
+
+      <div class="qs__loc-col qs__loc-col--dest">
+        <div class="qs__loc-label">DESTINATION</div>
+        <div class="qs__loc-addr">{{ data().destination || '—' }}</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="qs__pricing">
+    <div class="qs__section-header">
+      <span class="qs__section-icon-wrap" aria-hidden="true">
+        <i class="fas fa-fw fa-tags qs__section-fa"></i>
+      </span>
+      <span class="qs__section-title"><span class="qs__section-title-inner">PRICING BREAKDOWN</span></span>
+    </div>
+
+    <table class="qs__table">
+      <thead>
+        <tr>
+          <th class="qs__th qs__th--desc">DESCRIPTION</th>
+          <th class="qs__th qs__th--num">RATE</th>
+          <th class="qs__th qs__th--num">QTY / MILES</th>
+          <th class="qs__th qs__th--num">AMOUNT</th>
+        </tr>
+      </thead>
+      <tbody class="qs__tbody">
+        @for (item of data().lineItems; track $index) {
+          <tr class="qs__tr" [class.qs__tr--alt]="$index % 2 === 1">
+            <td class="qs__td qs__td--desc">
+              <span class="qs__item-name">{{ item.description }}</span>
+              @if (item.subtitle) {
+                <span class="qs__item-sub">{{ item.subtitle }}</span>
+              }
+            </td>
+            <td class="qs__td qs__td--num qs__num">{{ item.unitPrice }}</td>
+            <td class="qs__td qs__td--num qs__num">{{ item.quantity }}</td>
+            <td class="qs__td qs__td--num qs__num">{{ item.amount }}</td>
+          </tr>
+        }
+      </tbody>
+      <tfoot>
+        <tr class="qs__tfoot-row">
+          <td colspan="3" class="qs__tfoot-label">Subtotal</td>
+          <td class="qs__tfoot-val qs__num">{{ data().totalsSubtotal }}</td>
+        </tr>
+        <tr class="qs__tfoot-row">
+          <td colspan="3" class="qs__tfoot-label">{{ data().totalsTaxLabel }}</td>
+          <td class="qs__tfoot-val qs__num">{{ data().totalsTax }}</td>
+        </tr>
+        <tr class="qs__tfoot-row qs__tfoot-row--total">
+          <td colspan="3" class="qs__tfoot-label qs__tfoot-label--total">TOTAL ESTIMATE</td>
+          <td class="qs__tfoot-val qs__tfoot-val--total qs__num">{{ data().totalAmount }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </section>
+
+  <div class="qs__footer-grid">
+    <div class="qs__footer-card">
+      <div class="qs__footer-card-title">
+        <span class="qs__footer-icon-cell" aria-hidden="true"><i class="fas fa-fw fa-file-lines qs__footer-icon"></i></span>
+        <span class="qs__footer-heading-text">IMPORTANT INFORMATION</span>
+      </div>
+      <ul class="qs__footer-list">
+        <li>This is an estimate only and the final price may change based on actual circumstances.</li>
+        <li>Payment is due upon completion of the service.</li>
+        <li>Additional charges may apply for storage, wait time, or service outside the quoted details.</li>
+        <li>Cancellations may be subject to a dispatch fee.</li>
+      </ul>
+    </div>
+
+    <div class="qs__footer-card">
+      <div class="qs__footer-card-title">
+        <span class="qs__footer-icon-cell" aria-hidden="true"><i class="fas fa-fw fa-credit-card qs__footer-icon"></i></span>
+        <span class="qs__footer-heading-text">PAYMENT METHODS</span>
+      </div>
+      <p class="qs__footer-text">We accept the following payment methods:</p>
+      <div class="qs__payment-methods" aria-label="Accepted payment methods">
+        <div class="qs__payment-card" title="Visa">
+          <img src="images/visa.svg" alt="Visa" loading="eager" fetchpriority="low" crossorigin="anonymous" />
+        </div>
+        <div class="qs__payment-card" title="Mastercard">
+          <img src="images/mastercard.svg" alt="Mastercard" loading="eager" fetchpriority="low" crossorigin="anonymous" />
+        </div>
+        <div class="qs__payment-card" title="American Express">
+          <img src="images/americanexpress.svg" alt="American Express" loading="eager" fetchpriority="low" crossorigin="anonymous" />
+        </div>
+        <div class="qs__payment-card" title="Discover">
+          <img src="images/discover.svg" alt="Discover" loading="eager" fetchpriority="low" crossorigin="anonymous" />
+        </div>
+        <div class="qs__payment-card" title="Apple Pay">
+          <img src="images/applepay.svg" alt="Apple Pay" loading="eager" fetchpriority="low" crossorigin="anonymous" />
+        </div>
+        <div class="qs__payment-card" title="Zelle">
+          <img src="images/zelle.svg" alt="Zelle" loading="eager" fetchpriority="low" crossorigin="anonymous" />
+        </div>
+        <div class="qs__payment-card" title="Cash App">
+          <img src="images/cashapp.svg" alt="Cash App" loading="eager" fetchpriority="low" crossorigin="anonymous" />
+        </div>
+        <div class="qs__payment-card qs__payment-card--cash" title="Cash">
+          <i class="fas fa-money-bill-wave qs__payment-cash-icon" aria-hidden="true"></i>
+          <span class="qs__payment-cash-text">Cash</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="qs__footer-card">
+      <div class="qs__footer-card-title">
+        <span class="qs__footer-icon-cell" aria-hidden="true"><i class="fas fa-fw fa-handshake qs__footer-icon"></i></span>
+        <span class="qs__footer-heading-text">THANK YOU!</span>
+      </div>
+      <p class="qs__footer-text">We appreciate your business and the opportunity to serve you.</p>
+      <p class="qs__footer-text">If you have any questions, please contact us anytime.</p>
+    </div>
+  </div>
+
+  <div class="qs__signature">
+    <div class="qs__sig-field">
+      <span class="qs__sig-label">Authorized By:</span>
+      <span class="qs__sig-line"></span>
+    </div>
+    <div class="qs__sig-field">
+      <span class="qs__sig-label">Date:</span>
+      <span class="qs__sig-line"></span>
+    </div>
+  </div>
+
+  <footer class="qs__bottom-bar">
+    <span class="qs__bottom-item">
+      <span class="qs__bottom-icon-cell" aria-hidden="true"><i class="fas fa-fw fa-location-dot qs__bottom-icon"></i></span>
+      <span class="qs__bottom-text">{{ data().companyAddress }}</span>
+    </span>
+    @if (data().companyPhone) {
+      <span class="qs__bottom-item">
+        <span class="qs__bottom-icon-cell" aria-hidden="true"><i class="fas fa-fw fa-phone qs__bottom-icon"></i></span>
+        <span class="qs__bottom-text">{{ data().companyPhone }}</span>
+      </span>
+    }
+    @if (data().companyEmail) {
+      <span class="qs__bottom-item">
+        <span class="qs__bottom-icon-cell" aria-hidden="true"><i class="fas fa-fw fa-envelope qs__bottom-icon"></i></span>
+        <span class="qs__bottom-text">{{ data().companyEmail }}</span>
+      </span>
+    }
+    @if (data().companyWebsite) {
+      <span class="qs__bottom-item">
+        <span class="qs__bottom-icon-cell" aria-hidden="true"><i class="fas fa-fw fa-globe qs__bottom-icon"></i></span>
+        <span class="qs__bottom-text">{{ data().companyWebsite }}</span>
+      </span>
+    }
+  </footer>
+
+</article>

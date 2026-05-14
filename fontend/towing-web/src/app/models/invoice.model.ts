@@ -52,6 +52,14 @@ export interface InvoiceDetail {
   total: number;
   notes: string | null;
   status: string;
+  /** Print: hide header logo entirely. */
+  hideLogo: boolean;
+  /** Print: custom logo path on API (e.g. /uploads/invoice-logos/...). */
+  customLogoUrl: string | null;
+  /** Print: omit company name line in FROM block. */
+  hideCompanyName: boolean;
+  /** Print: override first line of FROM; empty uses default. */
+  companyDisplayName: string | null;
   createdById: string | null;
   createdByName: string | null;
   createdAt: string;
@@ -94,6 +102,11 @@ export interface CreateInvoicePayload {
   taxRate: number;
   notes?: string | null;
   status: string;
+  hideLogo?: boolean;
+  hideCompanyName?: boolean;
+  companyDisplayName?: string | null;
+  /** Update only: remove uploaded custom logo and use default (if logo is shown). */
+  clearCustomLogo?: boolean;
   lineItems: CreateInvoiceLinePayload[];
 }
 

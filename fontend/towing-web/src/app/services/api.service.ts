@@ -43,6 +43,14 @@ export class ApiService {
     });
   }
 
+  /** POST JSON and receive a binary body (e.g. PDF). */
+  postBlob(endpoint: string, data: unknown, includeAuth = true): Observable<Blob> {
+    return this.http.post(`${this.baseUrl}/${endpoint}`, data, {
+      headers: this.getHeaders(includeAuth),
+      responseType: 'blob'
+    });
+  }
+
   put<T>(endpoint: string, data: any): Observable<T> {
     return this.http.put<T>(`${this.baseUrl}/${endpoint}`, data, {
       headers: this.getHeaders()

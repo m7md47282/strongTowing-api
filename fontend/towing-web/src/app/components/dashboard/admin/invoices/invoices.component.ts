@@ -55,6 +55,12 @@ export class AdminInvoicesComponent implements OnInit {
   createPendingImages: { id: number; file: File; objectUrl: string }[] = [];
   private createPendingImageIdSeq = 0;
 
+  /** Optional custom header logo file (uploaded after create/update when logo mode is Custom). */
+  createPendingLogo: { file: File; objectUrl: string } | null = null;
+
+  /** When editing, whether the saved invoice had a custom logo URL (for clearCustomLogo on save). */
+  editingBaselineCustomLogoUrl: string | null = null;
+
   /** Reuse the same form for PUT /invoices/{id}. */
   isEditMode = false;
   editingInvoiceId: number | null = null;
@@ -80,6 +86,9 @@ export class AdminInvoicesComponent implements OnInit {
       taxRate: [7.5, [Validators.required, Validators.min(0), Validators.max(100)]],
       status: ['Draft', Validators.required],
       notes: [''],
+      logoMode: ['default'],
+      hideCompanyName: [false],
+      companyDisplayName: ['', [Validators.maxLength(200)]],
       lineItems: this.fb.array([this.newLineItemGroup()])
     });
   }
@@ -249,6 +258,8 @@ export class AdminInvoicesComponent implements OnInit {
     this.editingInvoiceId = null;
     this.editingInvoiceNumber = '';
     this.clearCreatePendingImages();
+    this.clearPendingLogo();
+    this.editingBaselineCustomLogoUrl = null;
     this.createForm.patchValue({
       issuedDate: this.todayIsoDate(),
       dueDate: '',
@@ -259,7 +270,10 @@ export class AdminInvoicesComponent implements OnInit {
       jobId: '',
       taxRate: 7.5,
       status: 'Draft',
-      notes: ''
+      notes: '',
+      logoMode: 'default',
+      hideCompanyName: false,
+      companyDisplayName: ''
     });
     while (this.lineItems.length) {
       this.lineItems.removeAt(0);
@@ -285,6 +299,8 @@ export class AdminInvoicesComponent implements OnInit {
     this.editingInvoiceId = null;
     this.editingInvoiceNumber = '';
     this.clearCreatePendingImages();
+    this.clearPendingLogo();
+    this.editingBaselineCustomLogoUrl = null;
   }
 
   /** Load full invoice then open the editor (from list row). */
@@ -302,6 +318,7 @@ export class AdminInvoicesComponent implements OnInit {
   openEditInvoice(inv: InvoiceDetail): void {
     this.createError = null;
     this.clearCreatePendingImages();
+    this.clearPendingLogo();
     this.isEditMode = true;
     this.editingInvoiceId = inv.id;
     this.editingInvoiceNumber = inv.invoiceNumber;
@@ -349,6 +366,14 @@ export class AdminInvoicesComponent implements OnInit {
     if (this.lineItems.length === 0) {
       this.lineItems.push(this.newLineItemGroup());
     }
+    const logoMode: 'default' | 'none' | 'custom' = inv.hideLogo
+      ? 'none'
+      : inv.customLogoUrl
+        ? 'custom'
+        : 'default';
+
+    this.editingBaselineCustomLogoUrl = inv.customLogoUrl ?? null;
+
     this.createForm.patchValue({
       issuedDate: this.toDateInputValue(inv.issuedDate),
       dueDate: inv.dueDate ? this.toDateInputValue(inv.dueDate) : '',
@@ -359,8 +384,50 @@ export class AdminInvoicesComponent implements OnInit {
       jobId: inv.jobId != null ? String(inv.jobId) : '',
       taxRate: inv.taxRate,
       status: inv.status,
-      notes: inv.notes ?? ''
+      notes: inv.notes ?? '',
+      logoMode,
+      hideCompanyName: inv.hideCompanyName,
+      companyDisplayName: inv.companyDisplayName ?? ''
     });
+  }
+
+  private clearPendingLogo(): void {
+    if (this.createPendingLogo) {
+      URL.revokeObjectURL(this.createPendingLogo.objectUrl);
+    }
+    this.createPendingLogo = null;
+  }
+
+  onCreatePendingLogoSelected(ev: Event): void {
+    const input = ev.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) {
+      return;
+    }
+    this.createError = null;
+    const t = (file.type || '').toLowerCase();
+    const ok =
+      t === 'image/jpeg' ||
+      t === 'image/jpg' ||
+      t === 'image/png' ||
+      t === 'image/webp' ||
+      t === 'image/svg+xml' ||
+      file.name.toLowerCase().endsWith('.svg');
+    if (!ok) {
+      this.createError = 'Logo must be JPEG, PNG, WebP, or SVG.';
+      return;
+    }
+    this.clearPendingLogo();
+    this.createPendingLogo = {
+      file,
+      objectUrl: URL.createObjectURL(file)
+    };
+    this.createForm.patchValue({ logoMode: 'custom' });
+  }
+
+  removeCreatePendingLogo(): void {
+    this.clearPendingLogo();
   }
 
   private clearCreatePendingImages(): void {
@@ -442,8 +509,28 @@ export class AdminInvoicesComponent implements OnInit {
     if (this.isEditMode && this.editingInvoiceId != null) {
       this.createSubmitting = true;
       const id = this.editingInvoiceId;
+      const pendingLogoFile = this.createPendingLogo?.file ?? null;
       this.invoiceService.update(id, payload).subscribe({
         next: (inv) => {
+          if (pendingLogoFile) {
+            this.invoiceService.uploadLogo(id, pendingLogoFile).subscribe({
+              next: (finalInv) => {
+                this.createSubmitting = false;
+                this.clearPendingLogo();
+                this.closeCreateModal();
+                this.successMessage = `Invoice ${finalInv.invoiceNumber} updated.`;
+                setTimeout(() => (this.successMessage = null), 4000);
+                this.load();
+                this.selectedDetail = finalInv;
+                this.detailOpen = true;
+              },
+              error: (err: HttpErrorResponse) => {
+                this.createSubmitting = false;
+                this.createError = this.createFormHttpError(err);
+              }
+            });
+            return;
+          }
           this.createSubmitting = false;
           this.closeCreateModal();
           this.successMessage = `Invoice ${inv.invoiceNumber} updated.`;
@@ -463,15 +550,34 @@ export class AdminInvoicesComponent implements OnInit {
     this.createSubmitting = true;
     this.createUploadingImages = false;
     const filesToUpload = this.createPendingImages.map((r) => r.file);
+    const pendingLogoFile = this.createPendingLogo?.file ?? null;
     this.invoiceService.create(payload).subscribe({
       next: (inv) => {
         this.clearCreatePendingImages();
         if (filesToUpload.length === 0) {
+          if (pendingLogoFile) {
+            this.createUploadingImages = true;
+            this.invoiceService.uploadLogo(inv.id, pendingLogoFile).subscribe({
+              next: (updated) => {
+                this.clearPendingLogo();
+                this.finishCreateSuccess(updated, null);
+              },
+              error: (err: HttpErrorResponse) => {
+                this.clearPendingLogo();
+                const msg = this.httpErrorMessage(err);
+                this.finishCreateSuccess(
+                  inv,
+                  `Invoice ${inv.invoiceNumber} was saved, but the logo did not upload (${msg}). You can edit the invoice to try again.`
+                );
+              }
+            });
+            return;
+          }
           this.finishCreateSuccess(inv, null);
           return;
         }
         this.createUploadingImages = true;
-        this.uploadImagesAfterCreate(inv.id, filesToUpload, 0, inv);
+        this.uploadImagesAfterCreate(inv.id, filesToUpload, 0, inv, pendingLogoFile);
       },
       error: (err: HttpErrorResponse) => {
         this.createSubmitting = false;
@@ -518,6 +624,24 @@ export class AdminInvoicesComponent implements OnInit {
     const dueStr = String(raw.dueDate ?? '').trim();
     const issuedStr = String(raw.issuedDate ?? '').trim();
 
+    const logoMode = String(raw.logoMode ?? 'default');
+    const hideLogo = logoMode === 'none';
+    const companyNameTrim = String(raw.companyDisplayName ?? '').trim();
+
+    if (logoMode === 'custom') {
+      const hasExistingCustom =
+        this.isEditMode && !!this.editingBaselineCustomLogoUrl && !this.createPendingLogo;
+      if (!this.createPendingLogo && !hasExistingCustom) {
+        this.createError = 'Choose a logo file for “Custom logo”, or pick Default / No logo.';
+        return null;
+      }
+    }
+
+    const clearCustomLogo =
+      this.isEditMode &&
+      logoMode === 'default' &&
+      !!this.editingBaselineCustomLogoUrl;
+
     return {
       issuedDate: issuedStr ? `${issuedStr}T12:00:00.000Z` : new Date().toISOString(),
       dueDate: dueStr ? `${dueStr}T12:00:00.000Z` : null,
@@ -529,6 +653,10 @@ export class AdminInvoicesComponent implements OnInit {
       taxRate: Number(raw.taxRate) ?? 7.5,
       notes: String(raw.notes ?? '').trim() || null,
       status: String(raw.status ?? 'Draft'),
+      hideLogo,
+      hideCompanyName: Boolean(raw.hideCompanyName),
+      companyDisplayName: companyNameTrim ? companyNameTrim : null,
+      clearCustomLogo,
       lineItems
     };
   }
@@ -537,18 +665,39 @@ export class AdminInvoicesComponent implements OnInit {
     invoiceId: number,
     files: File[],
     index: number,
-    lastGood: InvoiceDetail
+    lastGood: InvoiceDetail,
+    pendingLogoFile: File | null
   ): void {
     if (index >= files.length) {
+      if (pendingLogoFile) {
+        this.invoiceService.uploadLogo(invoiceId, pendingLogoFile).subscribe({
+          next: (updated) => {
+            this.clearPendingLogo();
+            this.finishCreateSuccess(updated, null);
+          },
+          error: (err: HttpErrorResponse) => {
+            this.clearPendingLogo();
+            const msg = this.httpErrorMessage(err);
+            this.finishCreateSuccess(
+              lastGood,
+              `Invoice ${lastGood.invoiceNumber} was saved, but the logo did not upload (${msg}). Open the invoice to add it.`
+            );
+          }
+        });
+        return;
+      }
       this.finishCreateSuccess(lastGood, null);
       return;
     }
     this.invoiceService.uploadImage(invoiceId, files[index]).subscribe({
       next: (updated) => {
-        this.uploadImagesAfterCreate(invoiceId, files, index + 1, updated);
+        this.uploadImagesAfterCreate(invoiceId, files, index + 1, updated, pendingLogoFile);
       },
       error: (err: HttpErrorResponse) => {
         const msg = this.httpErrorMessage(err);
+        if (pendingLogoFile) {
+          this.clearPendingLogo();
+        }
         this.finishCreateSuccess(
           lastGood,
           `Invoice ${lastGood.invoiceNumber} was saved, but not all images uploaded (${msg}). Open the invoice to add or retry.`

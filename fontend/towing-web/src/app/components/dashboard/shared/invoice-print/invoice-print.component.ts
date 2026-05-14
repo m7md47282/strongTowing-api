@@ -27,14 +27,40 @@ export class InvoicePrintComponent implements OnInit {
 
   readonly contact = CONTACT_INFO;
 
-  /** “FROM” block — matches branded invoice layout. */
-  readonly fromLines: readonly string[] = [
-    'Strong Towing',
-    '(703) 200-8836',
-    CONTACT_INFO.email.info,
-    'FALLS CHURCH VA 22041-2833',
-    '5652 Columbia Pike, Falls Church, VA 22041'
-  ];
+  private static readonly defaultCompanyLine = 'Strong Towing';
+
+  /** “FROM” block lines — first line optional per invoice branding. */
+  get fromLines(): string[] {
+    const inv = this.invoice;
+    if (!inv) {
+      return [];
+    }
+    const lines: string[] = [];
+    if (!inv.hideCompanyName) {
+      const override = inv.companyDisplayName?.trim();
+      lines.push(override || InvoicePrintComponent.defaultCompanyLine);
+    }
+    lines.push(
+      '(703) 200-8836',
+      CONTACT_INFO.email.info,
+      'FALLS CHURCH VA 22041-2833',
+      '5652 Columbia Pike, Falls Church, VA 22041'
+    );
+    return lines;
+  }
+
+  /** Resolved logo URL for the print header, or null when hidden. Default uses app-relative `/images/logo.svg`. */
+  logoSrc(): string | null {
+    const inv = this.invoice;
+    if (!inv || inv.hideLogo) {
+      return null;
+    }
+    const custom = inv.customLogoUrl?.trim();
+    if (custom) {
+      return resolvePublicAssetUrl(custom);
+    }
+    return '/images/logo.svg';
+  }
 
   ngOnInit(): void {
     const idParam = this.route.snapshot.paramMap.get('id');

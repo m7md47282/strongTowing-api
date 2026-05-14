@@ -35,18 +35,6 @@ const loadAccountCashCall = () =>
   );
 const loadLegalDocument = () =>
   import('./components/legal/legal-document.component').then((m) => m.LegalDocumentComponent);
-const loadWorkspaceHub = () =>
-  import('./components/dashboard/shared/workspace/workspace-hub/workspace-hub.component').then(
-    (m) => m.WorkspaceHubComponent
-  );
-const loadWorkspaceTeam = () =>
-  import(
-    './components/dashboard/shared/workspace/workspace-team-detail/workspace-team-detail.component'
-  ).then((m) => m.WorkspaceTeamDetailComponent);
-const loadWorkspaceBoard = () =>
-  import('./components/dashboard/shared/workspace/workspace-board/workspace-board.component').then(
-    (m) => m.WorkspaceBoardComponent
-  );
 
 export const routes: Routes = [
   {
@@ -194,24 +182,6 @@ export const routes: Routes = [
         canActivate: [roleGuard, authGuard],
         data: { roles: [RoleId.SuperAdmin, RoleId.Admin] },
       },
-      {
-        path: 'workspace',
-        loadComponent: loadWorkspaceHub,
-        canActivate: [roleGuard, authGuard],
-        data: { roles: [RoleId.SuperAdmin, RoleId.Admin] },
-      },
-      {
-        path: 'workspace/team/:teamId',
-        loadComponent: loadWorkspaceTeam,
-        canActivate: [roleGuard, authGuard],
-        data: { roles: [RoleId.SuperAdmin, RoleId.Admin] },
-      },
-      {
-        path: 'workspace/board/:boardId',
-        loadComponent: loadWorkspaceBoard,
-        canActivate: [roleGuard, authGuard],
-        data: { roles: [RoleId.SuperAdmin, RoleId.Admin] },
-      },
     ],
   },
   {
@@ -231,24 +201,6 @@ export const routes: Routes = [
       { path: 'payments', loadComponent: loadPayments },
       { path: 'invoices', loadComponent: loadAdminInvoices },
       { path: 'accounts/:accountId/cash-call', loadComponent: loadAccountCashCall },
-      {
-        path: 'workspace',
-        loadComponent: loadWorkspaceHub,
-        canActivate: [roleGuard, authGuard],
-        data: { roles: [RoleId.Dispatcher, RoleId.SuperAdmin, RoleId.Admin] },
-      },
-      {
-        path: 'workspace/team/:teamId',
-        loadComponent: loadWorkspaceTeam,
-        canActivate: [roleGuard, authGuard],
-        data: { roles: [RoleId.Dispatcher, RoleId.SuperAdmin, RoleId.Admin] },
-      },
-      {
-        path: 'workspace/board/:boardId',
-        loadComponent: loadWorkspaceBoard,
-        canActivate: [roleGuard, authGuard],
-        data: { roles: [RoleId.Dispatcher, RoleId.SuperAdmin, RoleId.Admin] },
-      },
     ],
   },
   {

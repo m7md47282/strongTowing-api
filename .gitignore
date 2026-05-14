@@ -361,3 +361,11 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Playwright browser cache (StrongTowing.API quote PDF bootstrap)
+api/StrongTowing.API/.pw-browsers/
+
+# .NET publish output (build artifacts — never commit)
+api/publish/
+api/publish-release/
+**/publish-release/

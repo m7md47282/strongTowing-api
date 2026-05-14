@@ -29,6 +29,9 @@
       <div>
         <h1 class="text-2xl font-bold text-gray-900 mb-1">Welcome Back {{ user?.fullName?.split(' ')?.[0] || 'Admin' }}!</h1>
         <p class="text-sm text-gray-600">You've handled {{ stats.completedToday }} service request{{ stats.completedToday !== 1 ? 's' : '' }} today - great work!</p>
+        <p *ngIf="lastCachedAt != null" class="mt-1 text-xs text-gray-500">
+          Last cached {{ formatCachedAt(lastCachedAt) }}
+        </p>
       </div>
       <button
         type="button"

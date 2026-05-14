@@ -58,12 +58,6 @@ export const SIDEBAR_MENU_ITEMS: MenuItem[] = [
     roles: [RoleId.SuperAdmin, RoleId.Admin]
   },
   {
-    label: 'Workspace',
-    icon: 'fas fa-columns',
-    route: '/dispatcher/workspace',
-    roles: [RoleId.Dispatcher]
-  },
-  {
     label: 'Jobs',
     icon: 'fas fa-tasks',
     route: '/dispatcher/jobs',
@@ -74,12 +68,6 @@ export const SIDEBAR_MENU_ITEMS: MenuItem[] = [
     icon: 'fas fa-id-card',
     route: '/dispatcher/drivers',
     roles: [RoleId.Dispatcher]
-  },
-  {
-    label: 'Workspace',
-    icon: 'fas fa-columns',
-    route: '/admin/workspace',
-    roles: [RoleId.SuperAdmin, RoleId.Admin]
   },
   {
     label: 'Users',

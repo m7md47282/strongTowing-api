@@ -602,3 +602,45 @@ a {
     color: var(--white);
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Quote print isolation                                                       */
+/*                                                                             */
+/* When the dispatcher clicks "Download as PDF", a clone of <app-quote-print>  */
+/* is appended to <body> inside #qs-print-host and `body.printing-quote` is    */
+/* added. These rules keep ONLY that host visible during the print/Save-as-PDF */
+/* flow, so the surrounding app chrome (sidebar, modals, headers) doesn't leak */
+/* into the output. Removed in jobs.component.ts on the `afterprint` event.   */
+/* ─────────────────────────────────────────────────────────────────────────── */
+body.printing-quote #qs-print-host {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483646;
+  background: #fff;
+  overflow: hidden;
+}
+
+@media print {
+  html, body {
+    background: #fff !important;
+  }
+
+  body.printing-quote {
+    overflow: hidden !important;
+    height: auto !important;
+    min-height: 0 !important;
+    display: block !important;
+  }
+
+  body.printing-quote > *:not(#qs-print-host) {
+    display: none !important;
+  }
+
+  body.printing-quote #qs-print-host {
+    position: static !important;
+    inset: auto !important;
+    z-index: auto !important;
+    width: 100% !important;
+    overflow: visible !important;
+  }
+}

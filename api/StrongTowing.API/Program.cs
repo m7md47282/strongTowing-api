@@ -3,12 +3,14 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using System.IO.Compression;
 using System.Text;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.ResponseCompression;
 using StrongTowing.Infrastructure.Data;
 using StrongTowing.Core.Entities;
 using StrongTowing.API.Infrastructure;
@@ -132,6 +134,7 @@ builder.Services.AddScoped<IPricingCalculatorService, PricingCalculatorService>(
 builder.Services.AddScoped<IDriverPayrollService, DriverPayrollService>();
 builder.Services.AddSingleton<INhtsaVehicleCatalogSyncService, NhtsaVehicleCatalogSyncService>();
 builder.Services.AddScoped<IQuotePdfGenerator, PlaywrightQuotePdfGenerator>();
+builder.Services.AddHostedService<PlaywrightBootstrapHostedService>();
 
 // 7. Add Controllers with validation
 builder.Services.AddControllers(options =>
@@ -167,6 +170,22 @@ builder.Services.AddControllers(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Response compression — JSON list endpoints (e.g. /api/jobs) shrink ~5-10× over the wire,
+// which is the largest single front-end win on slow connections.
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<BrotliCompressionProvider>();
+    options.Providers.Add<GzipCompressionProvider>();
+    options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(new[]
+    {
+        "application/json",
+        "application/problem+json"
+    });
+});
+builder.Services.Configure<BrotliCompressionProviderOptions>(o => o.Level = CompressionLevel.Fastest);
+builder.Services.Configure<GzipCompressionProviderOptions>(o => o.Level = CompressionLevel.Fastest);
+
 // CORS Configuration
 builder.Services.AddCors(options =>
 {
@@ -194,6 +213,9 @@ var app = builder.Build();
 
 // IIS Forwarded Headers (must be first)
 app.UseForwardedHeaders();
+
+// Response compression must run before any middleware that writes the response body.
+app.UseResponseCompression();
 
 app.UseExceptionHandler(errorApp =>
 {

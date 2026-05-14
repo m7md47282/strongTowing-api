@@ -69,8 +69,8 @@
 
 .brand-logo {
   width: 250px;
+  max-width: 100%;
   height: auto;
-  object-fit: cover;
   border-radius: 10px;
   flex-shrink: 0;
 }
@@ -329,10 +329,10 @@
     padding: 0.5in;
   }
 
+  /* Wide logo (SVG ~142×32): never force a square or cover-crop in print. */
   .brand-logo {
-    width: 2.35in;
-    height: 2.35in;
-    max-width: 2.35in;
-    max-height: 2.35in;
+    width: auto;
+    height: auto;
+    max-width: 3.25in;
   }
 }

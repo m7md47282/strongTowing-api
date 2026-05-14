@@ -1,5 +1,21 @@
 // Jobs component styles
 
+/** Hidden quote layout used only for html2canvas → PDF (iframe viewer). Kept in DOM, off-screen. */
+.quote-pdf-source-hidden {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  width: 860px;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/** Visible quote sheet while `quoteReviewHtmlPreviewOnly` is true (styling / layout testing). */
+.quote-print-html-preview {
+  margin-left: auto;
+  margin-right: auto;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;

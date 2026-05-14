@@ -102,19 +102,86 @@ public class JobsController : ControllerBase
 
             var totalCount = await query.CountAsync();
 
-            var jobs = await query
+            // Single-query projection (no Includes / AsSplitQuery): pulls only the
+            // columns the list view needs, with LEFT JOINs translated by EF.
+            // Cuts payload + DB cost dramatically vs. loading full entity graphs.
+            var rows = await query
                 .OrderByDescending(j => j.CreatedAt)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
-                .Include(j => j.Vehicle)
-                    .ThenInclude(v => v.Owner)
-                .Include(j => j.Driver)
-                .Include(j => j.Truck)
-                    .ThenInclude(t => t!.TruckType)
-                .AsSplitQuery()
+                .Select(j => new JobListRow
+                {
+                    Id = j.Id,
+                    Status = j.Status,
+                    VehicleId = j.VehicleId,
+                    VehicleVin = j.Vehicle != null ? j.Vehicle.VIN : null,
+                    VehicleMake = j.Vehicle != null ? j.Vehicle.Make : null,
+                    VehicleModel = j.Vehicle != null ? j.Vehicle.Model : null,
+                    VehicleYear = j.Vehicle != null ? (int?)j.Vehicle.Year : null,
+                    VehicleColor = j.Vehicle != null ? j.Vehicle.Color : null,
+                    OwnerId = j.Vehicle != null ? j.Vehicle.OwnerId : null,
+                    OwnerFullName = j.Vehicle != null && j.Vehicle.Owner != null ? j.Vehicle.Owner.FullName : null,
+                    OwnerEmail = j.Vehicle != null && j.Vehicle.Owner != null ? j.Vehicle.Owner.Email : null,
+                    OwnerPhone = j.Vehicle != null && j.Vehicle.Owner != null ? j.Vehicle.Owner.PhoneNumber : null,
+
+                    CallType = j.CallType,
+                    ScheduledDate = j.ScheduledDate,
+                    ScheduledTime = j.ScheduledTime,
+                    CompanyName = j.CompanyName,
+                    Account = j.Account,
+                    CompanyOverride = j.CompanyOverride,
+                    ContactName = j.ContactName,
+                    ContactPhoneNumber = j.ContactPhoneNumber,
+                    PickupLocation = j.PickupLocation,
+                    DestinationAddress = j.DestinationAddress,
+                    Reason = j.Reason,
+                    Priority = j.Priority,
+                    InvoiceNumber = j.InvoiceNumber,
+                    ETA = j.ETA,
+                    ServiceType = j.ServiceType,
+                    LicensePlate = j.LicensePlate,
+                    LicenseState = j.LicenseState,
+                    DriveType = j.DriveType,
+                    VehicleType = j.VehicleType,
+                    Odometer = j.Odometer,
+                    Drivable = j.Drivable,
+                    HaveKeys = j.HaveKeys,
+                    KeyLocation = j.KeyLocation,
+
+                    DriverId = j.DriverId,
+                    DriverName = j.Driver != null ? j.Driver.FullName : null,
+                    TruckId = j.TruckId,
+                    TruckUnitLabel = j.Truck != null ? j.Truck.UnitLabel : null,
+                    TruckTypeId = j.Truck != null ? (int?)j.Truck.TruckTypeId : null,
+                    TruckTypeName = j.Truck != null && j.Truck.TruckType != null ? j.Truck.TruckType.Name : null,
+
+                    Cost = j.Cost,
+                    CommissionVisibleToDriver = j.CommissionVisibleToDriver,
+                    PaymentStatus = j.PaymentStatus,
+                    PaymentMethod = j.PaymentMethod,
+                    PaidAt = j.PaidAt,
+                    BillingPaymentMode = j.BillingPaymentMode,
+                    InsuranceCoveredAmount = j.InsuranceCoveredAmount,
+                    ClientCoveredAmount = j.ClientCoveredAmount,
+                    InsurancePortionBilled = j.InsurancePortionBilled,
+                    ClientPortionPaid = j.ClientPortionPaid,
+                    DriverCashCollectedAmount = j.DriverCashCollectedAmount,
+                    PayrollDeductionAmount = j.PayrollDeductionAmount,
+                    PayrollDeductionRecorded = j.PayrollDeductionRecorded,
+                    Notes = j.Notes,
+                    BillingNotes = j.BillingNotes,
+                    IncludeBillingNotesOnReceipt = j.IncludeBillingNotesOnReceipt,
+                    InvoiceChargesJson = j.InvoiceChargesJson,
+                    PhotoCount = j.Photos.Count(),
+                    CreatedAt = j.CreatedAt,
+                    CompletedAt = j.CompletedAt,
+                    StatusUpdatedById = j.StatusUpdatedById,
+                    StatusUpdatedByName = j.StatusUpdatedBy != null ? j.StatusUpdatedBy.FullName : null,
+                    StatusUpdatedAt = j.StatusUpdatedAt
+                })
                 .ToListAsync();
 
-            var jobDtos = jobs.Select(j => JobEntityMapper.MapToDto(j)).ToList();
+            var jobDtos = rows.Select(MapListRowToDto).ToList();
 
             return Ok(new PagedResponse<JobDto>
             {
@@ -199,13 +266,23 @@ public class JobsController : ControllerBase
         if (!string.IsNullOrWhiteSpace(search))
         {
             var t = search.Trim();
-            var tl = t.ToLower();
-            query = query.Where(j =>
-                j.Id.ToString().Contains(t) ||
-                (j.Vehicle != null && j.Vehicle.Make != null && j.Vehicle.Make.ToLower().Contains(tl)) ||
-                (j.Vehicle != null && j.Vehicle.Model != null && j.Vehicle.Model.ToLower().Contains(tl)) ||
-                (j.Driver != null && j.Driver.FullName != null && j.Driver.FullName.ToLower().Contains(tl)) ||
-                (j.ServiceType != null && j.ServiceType.ToLower().Contains(tl)));
+            // Numeric input: prefer exact id match (uses primary key index) instead of
+            // a CAST(...) LIKE scan over every row.
+            if (int.TryParse(t, out var idMatch))
+            {
+                query = query.Where(j => j.Id == idMatch);
+            }
+            else
+            {
+                var like = $"%{t}%";
+                // EF.Functions.Like → SQL LIKE with default DB collation (case-insensitive
+                // on most SQL Server collations, no per-row ToLower() in the predicate).
+                query = query.Where(j =>
+                    (j.Vehicle != null && j.Vehicle.Make != null && EF.Functions.Like(j.Vehicle.Make, like)) ||
+                    (j.Vehicle != null && j.Vehicle.Model != null && EF.Functions.Like(j.Vehicle.Model, like)) ||
+                    (j.Driver != null && j.Driver.FullName != null && EF.Functions.Like(j.Driver.FullName, like)) ||
+                    (j.ServiceType != null && EF.Functions.Like(j.ServiceType, like)));
+            }
         }
 
         return query;
@@ -1565,6 +1642,188 @@ public class JobsController : ControllerBase
         }
 
         return JobEntityMapper.MapToDto(job, pct);
+    }
+
+    /// <summary>
+    /// Flat projection used by the paged list endpoint. Keeps the SQL query a single
+    /// SELECT with LEFT JOINs and only the columns the dispatcher table needs.
+    /// </summary>
+    private sealed class JobListRow
+    {
+        public int Id { get; set; }
+        public JobStatus Status { get; set; }
+        public int VehicleId { get; set; }
+        public string? VehicleVin { get; set; }
+        public string? VehicleMake { get; set; }
+        public string? VehicleModel { get; set; }
+        public int? VehicleYear { get; set; }
+        public string? VehicleColor { get; set; }
+        public string? OwnerId { get; set; }
+        public string? OwnerFullName { get; set; }
+        public string? OwnerEmail { get; set; }
+        public string? OwnerPhone { get; set; }
+
+        public string? CallType { get; set; }
+        public DateTime? ScheduledDate { get; set; }
+        public TimeSpan? ScheduledTime { get; set; }
+        public string? CompanyName { get; set; }
+        public string? Account { get; set; }
+        public string? CompanyOverride { get; set; }
+        public string? ContactName { get; set; }
+        public string? ContactPhoneNumber { get; set; }
+        public string? PickupLocation { get; set; }
+        public string? DestinationAddress { get; set; }
+        public string? Reason { get; set; }
+        public string? Priority { get; set; }
+        public string? InvoiceNumber { get; set; }
+        public DateTime? ETA { get; set; }
+        public string? ServiceType { get; set; }
+        public string? LicensePlate { get; set; }
+        public string? LicenseState { get; set; }
+        public string? DriveType { get; set; }
+        public string? VehicleType { get; set; }
+        public int? Odometer { get; set; }
+        public string? Drivable { get; set; }
+        public bool HaveKeys { get; set; }
+        public string? KeyLocation { get; set; }
+
+        public string? DriverId { get; set; }
+        public string? DriverName { get; set; }
+        public int? TruckId { get; set; }
+        public string? TruckUnitLabel { get; set; }
+        public int? TruckTypeId { get; set; }
+        public string? TruckTypeName { get; set; }
+
+        public decimal Cost { get; set; }
+        public bool CommissionVisibleToDriver { get; set; }
+        public string PaymentStatus { get; set; } = "Unpaid";
+        public string? PaymentMethod { get; set; }
+        public DateTime? PaidAt { get; set; }
+        public string BillingPaymentMode { get; set; } = string.Empty;
+        public decimal? InsuranceCoveredAmount { get; set; }
+        public decimal? ClientCoveredAmount { get; set; }
+        public bool InsurancePortionBilled { get; set; }
+        public bool ClientPortionPaid { get; set; }
+        public decimal? DriverCashCollectedAmount { get; set; }
+        public decimal? PayrollDeductionAmount { get; set; }
+        public bool PayrollDeductionRecorded { get; set; }
+        public string? Notes { get; set; }
+        public string? BillingNotes { get; set; }
+        public bool IncludeBillingNotesOnReceipt { get; set; }
+        public string? InvoiceChargesJson { get; set; }
+        public int PhotoCount { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? CompletedAt { get; set; }
+        public string? StatusUpdatedById { get; set; }
+        public string? StatusUpdatedByName { get; set; }
+        public DateTime? StatusUpdatedAt { get; set; }
+    }
+
+    private static JobDto MapListRowToDto(JobListRow r)
+    {
+        InvoiceChargesData? invoiceCharges = null;
+        if (!string.IsNullOrEmpty(r.InvoiceChargesJson))
+        {
+            try
+            {
+                invoiceCharges = JsonSerializer.Deserialize<InvoiceChargesData>(r.InvoiceChargesJson);
+            }
+            catch
+            {
+                // Ignore deserialization errors — same behavior as JobEntityMapper.
+            }
+        }
+
+        return new JobDto
+        {
+            Id = r.Id,
+            Status = r.Status.ToString(),
+            VehicleId = r.VehicleId,
+            Vehicle = r.VehicleId > 0 ? new VehicleDto
+            {
+                Id = r.VehicleId,
+                VIN = r.VehicleVin ?? string.Empty,
+                Make = r.VehicleMake ?? string.Empty,
+                Model = r.VehicleModel ?? string.Empty,
+                Year = r.VehicleYear ?? 0,
+                Color = r.VehicleColor ?? string.Empty
+            } : null,
+            ClientId = r.OwnerId ?? string.Empty,
+            ClientName = r.OwnerFullName ?? string.Empty,
+            ClientEmail = r.OwnerEmail ?? string.Empty,
+            ClientPhoneNumber = r.OwnerPhone,
+
+            CallType = r.CallType,
+            ScheduledDate = r.ScheduledDate,
+            ScheduledTime = r.ScheduledTime,
+
+            CompanyName = r.CompanyName,
+            Account = r.Account,
+            CompanyOverride = r.CompanyOverride,
+
+            ContactName = r.ContactName,
+            ContactPhoneNumber = r.ContactPhoneNumber,
+
+            PickupLocation = r.PickupLocation,
+            DestinationAddress = r.DestinationAddress,
+
+            Reason = r.Reason,
+            Priority = r.Priority,
+            InvoiceNumber = r.InvoiceNumber,
+            ETA = r.ETA,
+            ServiceType = r.ServiceType,
+
+            LicensePlate = r.LicensePlate,
+            LicenseState = r.LicenseState,
+            DriveType = r.DriveType,
+            VehicleType = r.VehicleType,
+            Odometer = r.Odometer,
+            Drivable = r.Drivable,
+            HaveKeys = r.HaveKeys,
+            KeyLocation = r.KeyLocation,
+
+            DriverId = r.DriverId,
+            DriverName = r.DriverName,
+            TruckId = r.TruckId,
+            Truck = r.TruckId.HasValue ? new TruckSummaryDto
+            {
+                Id = r.TruckId.Value,
+                UnitLabel = r.TruckUnitLabel ?? string.Empty,
+                TruckTypeId = r.TruckTypeId ?? 0,
+                TruckTypeName = r.TruckTypeName ?? string.Empty
+            } : null,
+
+            Cost = r.Cost,
+            CommissionVisibleToDriver = r.CommissionVisibleToDriver,
+            DriverCommissionRatePercent = null,
+            DriverCommissionEstimate = null,
+            PaymentStatus = string.IsNullOrWhiteSpace(r.PaymentStatus) ? "Unpaid" : r.PaymentStatus,
+            PaymentMethod = r.PaymentMethod,
+            PaidAt = r.PaidAt,
+            BillingPaymentMode = string.IsNullOrWhiteSpace(r.BillingPaymentMode) ? JobBillingModes.Standard : r.BillingPaymentMode,
+            InsuranceCoveredAmount = r.InsuranceCoveredAmount,
+            ClientCoveredAmount = r.ClientCoveredAmount,
+            InsurancePortionBilled = r.InsurancePortionBilled,
+            ClientPortionPaid = r.ClientPortionPaid,
+            DriverCashCollectedAmount = r.DriverCashCollectedAmount,
+            PayrollDeductionAmount = r.PayrollDeductionAmount,
+            PayrollDeductionRecorded = r.PayrollDeductionRecorded,
+            Notes = r.Notes,
+            BillingNotes = r.BillingNotes,
+            IncludeBillingNotesOnReceipt = r.IncludeBillingNotesOnReceipt,
+            InvoiceCharges = invoiceCharges,
+
+            PhotoCount = r.PhotoCount,
+            // Photo URLs are intentionally omitted from list responses — the dispatcher
+            // table never renders them, and the details modal calls GetJobById to load
+            // the full photo list on demand.
+            Photos = new List<JobPhotoDto>(),
+            CreatedAt = r.CreatedAt,
+            CompletedAt = r.CompletedAt,
+            StatusUpdatedById = r.StatusUpdatedById,
+            StatusUpdatedByName = r.StatusUpdatedByName,
+            StatusUpdatedAt = r.StatusUpdatedAt
+        };
     }
 }
 

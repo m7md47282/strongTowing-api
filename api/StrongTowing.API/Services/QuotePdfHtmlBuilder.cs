@@ -1,3 +1,4 @@
+using System.IO;
 using System.Net;
 using System.Text;
 using StrongTowing.Application.DTOs.Requests;
@@ -8,6 +9,24 @@ namespace StrongTowing.API.Services;
 public static class QuotePdfHtmlBuilder
 {
     private static string H(string? s) => WebUtility.HtmlEncode(s ?? "");
+
+    private static string ResolveImage(string? webRootPath, string assetBase, string fileName, string contentType)
+    {
+        // Prefer reading the file from disk and emitting a data: URI so the
+        // headless Chromium render does not depend on server loopback DNS,
+        // SSL self-trust, NAT hairpinning, or CDN reachability.
+        if (!string.IsNullOrEmpty(webRootPath))
+        {
+            var fullPath = Path.Combine(webRootPath, "quote-assets", fileName);
+            if (File.Exists(fullPath))
+            {
+                var bytes = File.ReadAllBytes(fullPath);
+                return $"data:{contentType};base64,{Convert.ToBase64String(bytes)}";
+            }
+        }
+
+        return $"{assetBase}/quote-assets/{fileName}";
+    }
 
     public static string ServiceLocationLabel(QuotePdfRequest d)
     {
@@ -22,11 +41,13 @@ public static class QuotePdfHtmlBuilder
         return "Within Service Area";
     }
 
-    public static string Build(QuotePdfRequest d, string assetBase)
+    public static string Build(QuotePdfRequest d, string assetBase, string? webRootPath = null)
     {
-        assetBase = assetBase.TrimEnd('/');
-        var qa = assetBase + "/quote-assets";
+        assetBase = (assetBase ?? string.Empty).TrimEnd('/');
         var svcLoc = ServiceLocationLabel(d);
+
+        string Img(string fileName, string contentType = "image/svg+xml") =>
+            ResolveImage(webRootPath, assetBase, fileName, contentType);
 
         var sb = new StringBuilder(48_000);
         sb.AppendLine("<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"/>");
@@ -39,7 +60,7 @@ public static class QuotePdfHtmlBuilder
 
         // Header
         sb.AppendLine("<header class=\"qs__header\"><div class=\"qs__brand\"><div class=\"qs__brand-top\">");
-        sb.Append("<img class=\"qs__logo\" src=\"").Append(qa).Append("/logo.svg\" alt=\"")
+        sb.Append("<img class=\"qs__logo\" src=\"").Append(Img("logo.svg")).Append("\" alt=\"")
             .Append(H(d.CompanyName)).Append("\"/>");
         sb.AppendLine("<div class=\"qs__powered\"><span class=\"qs__powered-label\">POWERED BY</span>");
         sb.AppendLine("<i class=\"fab fa-swift qs__powered-icon\"></i><span class=\"qs__powered-name\">SWIFT</span></div></div>");
@@ -111,7 +132,7 @@ public static class QuotePdfHtmlBuilder
         sb.Append("<div class=\"qs__loc-addr\">").Append(H(string.IsNullOrWhiteSpace(d.Pickup) ? "—" : d.Pickup)).AppendLine("</div></div>");
         sb.AppendLine("<div class=\"qs__loc-route-column\"><div class=\"qs__loc-route-track\">");
         sb.AppendLine("<i class=\"fas fa-fw fa-location-dot qs__route-pin\"></i><span class=\"qs__route-dash\"></span>");
-        sb.Append("<img class=\"qs__route-truck\" src=\"").Append(qa).Append("/towing-icon.jpg\" alt=\"\"/>");
+        sb.Append("<img class=\"qs__route-truck\" src=\"").Append(Img("towing-icon.jpg", "image/jpeg")).Append("\" alt=\"\"/>");
         sb.AppendLine("<span class=\"qs__route-dash\"></span><i class=\"fas fa-fw fa-location-dot qs__route-pin\"></i></div>");
         sb.AppendLine("<div class=\"qs__loc-mileage\"><span class=\"qs__mileage-icon-cell\"><i class=\"fas fa-fw fa-road qs__mileage-fa\"></i></span>");
         sb.Append("<span class=\"qs__mileage-copy\"><span class=\"qs__mileage-label\">ESTIMATED LOADED MILEAGE:</span><strong>")
@@ -169,7 +190,7 @@ public static class QuotePdfHtmlBuilder
         void Pay(string file, string title)
         {
             sb.Append("<div class=\"qs__payment-card\" title=\"").Append(H(title)).Append("\"><img src=\"")
-                .Append(qa).Append('/').Append(file).Append("\" alt=\"").Append(H(title)).AppendLine("\" loading=\"eager\"/></div>");
+                .Append(Img(file)).Append("\" alt=\"").Append(H(title)).AppendLine("\" loading=\"eager\"/></div>");
         }
         Pay("visa.svg", "Visa");
         Pay("mastercard.svg", "Mastercard");

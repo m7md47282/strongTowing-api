@@ -4,6 +4,14 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!--
+      The production server (api.strongtowing.net) is Windows / IIS in-process.
+      Force Microsoft.Playwright to ship the Windows node binary even when we
+      `dotnet publish` from macOS or Linux. Override on the CLI with
+      `-p:PlaywrightPlatform=all` if you need a multi-OS bundle.
+    -->
+    <PlaywrightPlatform Condition="'$(PlaywrightPlatform)' == ''">win</PlaywrightPlatform>
+    <RuntimeIdentifiers>win-x64;linux-x64;osx-arm64</RuntimeIdentifiers>
   </PropertyGroup>
 
 <ItemGroup>
