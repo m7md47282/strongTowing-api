@@ -21,6 +21,7 @@ public class QuotesController : ControllerBase
     private readonly ApplicationDbContext _db;
     private readonly IEncryptionService _encryption;
     private readonly IEmailSender _emailSender;
+    private readonly IStaffSmsService _staffSmsService;
     private readonly ILogger<QuotesController> _logger;
 
     public QuotesController(
@@ -28,12 +29,14 @@ public class QuotesController : ControllerBase
         ApplicationDbContext db,
         IEncryptionService encryption,
         IEmailSender emailSender,
+        IStaffSmsService staffSmsService,
         ILogger<QuotesController> logger)
     {
         _quotePdfGenerator = quotePdfGenerator;
         _db = db;
         _encryption = encryption;
         _emailSender = emailSender;
+        _staffSmsService = staffSmsService;
         _logger = logger;
     }
 
@@ -204,6 +207,39 @@ public class QuotesController : ControllerBase
             ToEmail = to,
             PostmarkMessageId = result.PostmarkMessageId
         });
+    }
+
+    /// <summary>
+    /// Sends a service quote to a recipient via Twilio using credentials stored in system settings.
+    /// </summary>
+    [HttpPost("sms")]
+    [Authorize(Roles = $"{UserRoles.SuperAdmin},{UserRoles.Administrator},{UserRoles.Dispatcher}")]
+    public async Task<ActionResult<StaffSmsResponse>> SmsQuote(
+        [FromBody] QuoteSmsRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request is null)
+            return BadRequest(new StaffSmsResponse { Success = false, ErrorMessage = "Request body is required." });
+
+        if (string.IsNullOrWhiteSpace(request.ToPhone))
+            return BadRequest(new StaffSmsResponse { Success = false, ErrorMessage = "A recipient phone number is required." });
+
+        if (string.IsNullOrWhiteSpace(request.Message))
+            return BadRequest(new StaffSmsResponse { Success = false, ErrorMessage = "Message is required." });
+
+        var result = await _staffSmsService.SendAsync(request.ToPhone, request.Message, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (result.Success)
+        {
+            _logger.LogInformation(
+                "Quote SMS sent for {QuoteRef} to {To} TwilioSid={Sid}",
+                request.QuoteRef ?? "(unknown)",
+                result.ToE164,
+                result.TwilioMessageSid);
+        }
+
+        return Ok(result);
     }
 
     private static QuoteEmailResponse Fail(string message) => new()

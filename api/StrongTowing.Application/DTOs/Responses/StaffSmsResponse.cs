@@ -1,6 +1,6 @@
 namespace StrongTowing.Application.DTOs.Responses;
 
-public class TestSmsResponse
+public sealed class StaffSmsResponse
 {
     public bool Success { get; set; }
     public string? ToE164 { get; set; }

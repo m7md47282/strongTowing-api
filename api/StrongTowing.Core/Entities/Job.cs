@@ -28,6 +28,13 @@ namespace StrongTowing.Core.Entities
         // Contact Information
         public string? ContactName { get; set; }
         public string? ContactPhoneNumber { get; set; }
+
+        /// <summary>
+        /// True when the guest/customer explicitly opted in to receive SMS about this job
+        /// (separate, optional, unbundled checkbox on the public request form).
+        /// Client-facing SMS notifications must respect this flag for Twilio/CTIA compliance.
+        /// </summary>
+        public bool ContactSmsOptIn { get; set; }
         
         // Location
         public string? PickupLocation { get; set; }

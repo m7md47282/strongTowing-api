@@ -59,4 +59,12 @@ public class CreateOrderRequest
     public string? PaymentMethod { get; set; }
 
     public string Currency { get; set; } = "usd";
+
+    /// <summary>
+    /// Required for Twilio/CTIA compliance. True when the requester ticked the dedicated,
+    /// optional SMS-consent checkbox on the public request form. Persisted on the Job and,
+    /// for new guest customers, on the created ApplicationUser. Client SMS notifications are
+    /// suppressed when this is false.
+    /// </summary>
+    public bool SmsOptIn { get; set; }
 }

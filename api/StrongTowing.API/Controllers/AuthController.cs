@@ -300,6 +300,7 @@ public class AuthController : ControllerBase
                 FullName = request.FullName.Trim(),
                 PhoneNumber = string.IsNullOrWhiteSpace(request.PhoneNumber) ? null : request.PhoneNumber.Trim(),
                 RoleId = role.Id,
+                SmsOptIn = request.SmsOptIn,
                 CreatedAtUtc = DateTime.UtcNow
             });
 
@@ -427,7 +428,9 @@ public class AuthController : ControllerBase
                 PhoneNumber = pending.PhoneNumber,
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow,
-                RoleId = pending.RoleId
+                RoleId = pending.RoleId,
+                SmsOptIn = pending.SmsOptIn,
+                SmsOptInUpdatedAtUtc = pending.SmsOptIn ? DateTime.UtcNow : (DateTime?)null
             };
 
             var createResult = await _userManager.CreateAsync(newUser, password);

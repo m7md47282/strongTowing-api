@@ -57,26 +57,29 @@ public sealed class SmsNotificationService : ISmsNotificationService
 
     public Task NotifyClientJobCreatedAsync(int jobId, string? contactPhone, string? ownerPhone, CancellationToken cancellationToken = default) =>
         SendClientAsync(
+            jobId,
             contactPhone,
             ownerPhone,
             s => s.SmsClientJobCreated,
-            $"Strong Towing: We received your request. Job #{jobId}. We'll update you shortly.",
+            $"Strong Towing: We received your request. Job #{jobId}. We'll update you shortly. Reply STOP to opt out.",
             cancellationToken);
 
     public Task NotifyClientFraudUnderReviewAsync(int jobId, string? contactPhone, string? ownerPhone, CancellationToken cancellationToken = default) =>
         SendClientAsync(
+            jobId,
             contactPhone,
             ownerPhone,
             s => s.SmsClientFraudUnderReview,
-            $"Strong Towing: Job #{jobId} is under review. We'll contact you shortly.",
+            $"Strong Towing: Job #{jobId} is under review. We'll contact you shortly. Reply STOP to opt out.",
             cancellationToken);
 
     public Task NotifyClientDriverAssignedAsync(int jobId, string? contactPhone, string? ownerPhone, CancellationToken cancellationToken = default) =>
         SendClientAsync(
+            jobId,
             contactPhone,
             ownerPhone,
             s => s.SmsClientDriverAssigned,
-            $"Strong Towing: A driver is assigned to job #{jobId}.",
+            $"Strong Towing: A driver is assigned to job #{jobId}. Reply STOP to opt out.",
             cancellationToken);
 
     public Task NotifyClientJobStatusAsync(
@@ -99,13 +102,13 @@ public sealed class SmsNotificationService : ISmsNotificationService
 
         var msg = status switch
         {
-            JobStatus.OnRoute => $"Strong Towing: Driver en route for job #{jobId}.",
-            JobStatus.OnScene => $"Strong Towing: Driver on scene for job #{jobId}.",
-            JobStatus.Loaded => $"Strong Towing: Vehicle loaded for job #{jobId}.",
+            JobStatus.OnRoute => $"Strong Towing: Driver en route for job #{jobId}. Reply STOP to opt out.",
+            JobStatus.OnScene => $"Strong Towing: Driver on scene for job #{jobId}. Reply STOP to opt out.",
+            JobStatus.Loaded => $"Strong Towing: Vehicle loaded for job #{jobId}. Reply STOP to opt out.",
             _ => ""
         };
 
-        return SendClientAsync(contactPhone, ownerPhone, toggle, msg, cancellationToken);
+        return SendClientAsync(jobId, contactPhone, ownerPhone, toggle, msg, cancellationToken);
     }
 
     public Task NotifyClientPaymentLinkCreatedAsync(
@@ -116,10 +119,11 @@ public sealed class SmsNotificationService : ISmsNotificationService
         string? ownerPhone,
         CancellationToken cancellationToken = default) =>
         SendClientAsync(
+            jobId,
             contactPhone,
             ownerPhone,
             s => s.SmsClientPaymentLinkCreated,
-            $"Strong Towing: Pay ${amount:0.00} for job #{jobId}: {linkUrl}",
+            $"Strong Towing: Pay ${amount:0.00} for job #{jobId}: {linkUrl} Reply STOP to opt out.",
             cancellationToken);
 
     public Task NotifyClientPaymentSucceededAsync(
@@ -131,19 +135,21 @@ public sealed class SmsNotificationService : ISmsNotificationService
     {
         var amt = amount.HasValue ? $" ${amount:0.00}" : "";
         return SendClientAsync(
+            jobId,
             contactPhone,
             ownerPhone,
             s => s.SmsClientPaymentSucceeded,
-            $"Strong Towing: Payment{amt} received for job #{jobId}. Thank you.",
+            $"Strong Towing: Payment{amt} received for job #{jobId}. Thank you. Reply STOP to opt out.",
             cancellationToken);
     }
 
     public Task NotifyClientPaymentFailedAsync(int jobId, string? contactPhone, string? ownerPhone, CancellationToken cancellationToken = default) =>
         SendClientAsync(
+            jobId,
             contactPhone,
             ownerPhone,
             s => s.SmsClientPaymentFailed,
-            $"Strong Towing: Payment could not be completed for job #{jobId}. Please try again or contact us.",
+            $"Strong Towing: Payment could not be completed for job #{jobId}. Please try again or contact us. Reply STOP to opt out.",
             cancellationToken);
 
     public Task NotifyClientJobCancelledAsync(
@@ -157,19 +163,21 @@ public sealed class SmsNotificationService : ISmsNotificationService
             ? $" A cancellation fee of ${feeAmount:0.00} may apply."
             : "";
         return SendClientAsync(
+            jobId,
             contactPhone,
             ownerPhone,
             s => s.SmsClientJobCancelled,
-            $"Strong Towing: Job #{jobId} was cancelled.{fee}",
+            $"Strong Towing: Job #{jobId} was cancelled.{fee} Reply STOP to opt out.",
             cancellationToken);
     }
 
     public Task NotifyClientJobCompletedAsync(int jobId, string? contactPhone, string? ownerPhone, CancellationToken cancellationToken = default) =>
         SendClientAsync(
+            jobId,
             contactPhone,
             ownerPhone,
             s => s.SmsClientJobCompleted,
-            $"Strong Towing: Job #{jobId} is completed. Thank you.",
+            $"Strong Towing: Job #{jobId} is completed. Thank you. Reply STOP to opt out.",
             cancellationToken);
 
     private async Task SendDriverAsync(
@@ -197,6 +205,7 @@ public sealed class SmsNotificationService : ISmsNotificationService
     }
 
     private async Task SendClientAsync(
+        int jobId,
         string? contactPhone,
         string? ownerPhone,
         Func<SystemSettings, bool> toggle,
@@ -213,11 +222,60 @@ public sealed class SmsNotificationService : ISmsNotificationService
         var phone = ResolveClientPhone(contactPhone, ownerPhone);
         if (phone == null)
         {
-            _logger.LogDebug("SMS skipped: no client phone for message.");
+            _logger.LogDebug("SMS skipped: no client phone for message (job {JobId}).", jobId);
+            return;
+        }
+
+        if (!await HasClientConsentAsync(jobId, contactPhone, ownerPhone, cancellationToken).ConfigureAwait(false))
+        {
+            _logger.LogInformation(
+                "SMS skipped: client has not opted in (job {JobId}, phone {Phone}). Skipping per Twilio/CTIA compliance.",
+                jobId,
+                phone);
             return;
         }
 
         await DispatchSendAsync(settings, phone, body, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Returns true only when we can prove a client has opted in to SMS for this job
+    /// (either via the per-job flag captured on the request form, or via a registered
+    /// ApplicationUser whose <see cref="ApplicationUser.SmsOptIn"/> is true and whose phone
+    /// number matches the contact / vehicle-owner phone).
+    /// </summary>
+    private async Task<bool> HasClientConsentAsync(
+        int jobId,
+        string? contactPhone,
+        string? ownerPhone,
+        CancellationToken cancellationToken)
+    {
+        if (jobId > 0)
+        {
+            var jobOptIn = await _db.Jobs
+                .AsNoTracking()
+                .Where(j => j.Id == jobId)
+                .Select(j => (bool?)j.ContactSmsOptIn)
+                .FirstOrDefaultAsync(cancellationToken)
+                .ConfigureAwait(false);
+            if (jobOptIn == true)
+                return true;
+        }
+
+        foreach (var raw in new[] { contactPhone, ownerPhone })
+        {
+            if (string.IsNullOrWhiteSpace(raw))
+                continue;
+
+            var optedIn = await _db.Users
+                .AsNoTracking()
+                .AnyAsync(u => u.PhoneNumber == raw && u.SmsOptIn, cancellationToken)
+                .ConfigureAwait(false);
+            if (optedIn)
+                return true;
+        }
+
+        return false;
     }
 
     private static bool CanSend(SystemSettings settings)

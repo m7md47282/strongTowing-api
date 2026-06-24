@@ -20,5 +20,11 @@ public class PendingDriverSignup
     /// <summary>AspNetRoles.Id for the Driver role.</summary>
     public string RoleId { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Captured at signup-form submit so we can carry the SMS opt-in choice onto the new
+    /// ApplicationUser after the user verifies their email OTP.
+    /// </summary>
+    public bool SmsOptIn { get; set; }
+
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 }

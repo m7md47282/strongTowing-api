@@ -417,25 +417,34 @@ public class SettingsController : ControllerBase
             settings.SmsTwilioMessagingServiceSid,
             toE164,
             body,
-            HttpContext.RequestAborted);
+            HttpContext.RequestAborted,
+            waitForDeliveryAttempt: true);
 
         if (!result.Success)
         {
-            _logger.LogWarning("Test SMS failed: {Error}", result.ErrorMessage);
+            _logger.LogWarning(
+                "Test SMS failed: Code={Code} Status={Status} Error={Error}",
+                result.ErrorCode, result.Status, result.ErrorMessage);
             return Ok(new TestSmsResponse
             {
                 Success = false,
                 ToE164 = toE164,
-                ErrorMessage = result.ErrorMessage
+                TwilioMessageSid = result.TwilioMessageSid,
+                ErrorMessage = result.ErrorMessage,
+                ErrorCode = result.ErrorCode,
+                Status = result.Status
             });
         }
 
-        _logger.LogInformation("Test SMS sent to {To} Sid={Sid}", toE164, result.TwilioMessageSid);
+        _logger.LogInformation(
+            "Test SMS sent to {To} Sid={Sid} Status={Status}",
+            toE164, result.TwilioMessageSid, result.Status);
         return Ok(new TestSmsResponse
         {
             Success = true,
             ToE164 = toE164,
-            TwilioMessageSid = result.TwilioMessageSid
+            TwilioMessageSid = result.TwilioMessageSid,
+            Status = result.Status
         });
     }
 

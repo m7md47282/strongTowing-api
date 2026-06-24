@@ -16,7 +16,8 @@ public sealed class RecordingSmsSender : ISmsSender
         string? messagingServiceSid,
         string toE164,
         string body,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool waitForDeliveryAttempt = false)
     {
         Calls.Add((toE164, body));
         return Task.FromResult(new SmsSendResult(true, null, "SM_test"));

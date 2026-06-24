@@ -128,6 +128,7 @@ builder.Services.AddScoped<IFcmNotificationService, FcmNotificationService>();
 builder.Services.AddScoped<ISmsSender, TwilioSmsSender>();
 builder.Services.AddHttpClient<IEmailSender, PostmarkEmailSender>();
 builder.Services.AddScoped<ISmsNotificationService, SmsNotificationService>();
+builder.Services.AddScoped<IStaffSmsService, StaffSmsService>();
 builder.Services.AddScoped<IEmailEventTemplateService, EmailEventTemplateService>();
 builder.Services.AddScoped<IEmailNotificationService, EmailNotificationService>();
 builder.Services.AddScoped<IPricingCalculatorService, PricingCalculatorService>();
@@ -202,6 +203,23 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+// Apply pending EF Core migrations on startup (production DB must stay in sync with deployed code).
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var migrateLogger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    try
+    {
+        await db.Database.MigrateAsync();
+        migrateLogger.LogInformation("Database migrations applied successfully.");
+    }
+    catch (Exception ex)
+    {
+        migrateLogger.LogError(ex, "Failed to apply database migrations on startup.");
+        throw;
+    }
+}
 
 // Firebase Admin (server-side send only; optional until service account is configured)
 {

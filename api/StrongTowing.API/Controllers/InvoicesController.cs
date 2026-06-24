@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using StrongTowing.API.Services;
+using StrongTowing.Application.Abstractions;
 using StrongTowing.Application.DTOs.Requests;
 using StrongTowing.Application.DTOs.Responses;
 using StrongTowing.Core.Constants;
@@ -22,17 +24,20 @@ public class InvoicesController : ControllerBase
     private readonly ApplicationDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IWebHostEnvironment _environment;
+    private readonly IStaffSmsService _staffSmsService;
     private readonly ILogger<InvoicesController> _logger;
 
     public InvoicesController(
         ApplicationDbContext context,
         UserManager<ApplicationUser> userManager,
         IWebHostEnvironment environment,
+        IStaffSmsService staffSmsService,
         ILogger<InvoicesController> logger)
     {
         _context = context;
         _userManager = userManager;
         _environment = environment;
+        _staffSmsService = staffSmsService;
         _logger = logger;
     }
 
@@ -500,6 +505,47 @@ public class InvoicesController : ControllerBase
             .FirstAsync(i => i.Id == id);
 
         return Ok(MapToDto(refreshed));
+    }
+
+    /// <summary>Sends an invoice summary to a recipient via Twilio using credentials stored in system settings.</summary>
+    [HttpPost("{id:int}/sms")]
+    [Authorize(Roles = $"{UserRoles.SuperAdmin},{UserRoles.Administrator},{UserRoles.Dispatcher}")]
+    public async Task<ActionResult<StaffSmsResponse>> SmsInvoice(
+        int id,
+        [FromBody] InvoiceSmsRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request is null)
+            return BadRequest(new StaffSmsResponse { Success = false, ErrorMessage = "Request body is required." });
+
+        if (string.IsNullOrWhiteSpace(request.ToPhone))
+            return BadRequest(new StaffSmsResponse { Success = false, ErrorMessage = "A recipient phone number is required." });
+
+        var invoice = await _context.Invoices
+            .AsNoTracking()
+            .Include(i => i.LineItems)
+            .FirstOrDefaultAsync(i => i.Id == id, cancellationToken);
+
+        if (invoice is null)
+            return NotFound(new StaffSmsResponse { Success = false, ErrorMessage = "Invoice not found." });
+
+        var body = string.IsNullOrWhiteSpace(request.Message)
+            ? InvoiceSmsTextBuilder.Build(invoice)
+            : request.Message.Trim();
+
+        var result = await _staffSmsService.SendAsync(request.ToPhone, body, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (result.Success)
+        {
+            _logger.LogInformation(
+                "Invoice SMS sent for {InvoiceNumber} to {To} TwilioSid={Sid}",
+                invoice.InvoiceNumber,
+                result.ToE164,
+                result.TwilioMessageSid);
+        }
+
+        return Ok(result);
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

@@ -20,5 +20,12 @@ public class SignupRequest
 
     [Phone(ErrorMessage = "Invalid phone number format")]
     public string? PhoneNumber { get; set; }
+
+    /// <summary>
+    /// Optional SMS opt-in captured during account creation (separate, optional, unbundled
+    /// checkbox on the registration form). Persisted on the created ApplicationUser after OTP
+    /// verification. Required for Twilio/CTIA compliance.
+    /// </summary>
+    public bool SmsOptIn { get; set; }
 }
 

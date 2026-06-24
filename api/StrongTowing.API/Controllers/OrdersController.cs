@@ -68,6 +68,15 @@ public class OrdersController : ControllerBase
             var customer = await FindOrCreateGuestCustomerAsync(request, contactName);
             var vehicle = await FindOrCreateVehicleAsync(customer, request);
 
+            // Promote consent onto the customer record so future jobs from the same user
+            // inherit it. We never downgrade an existing opt-in — only upgrade to true.
+            if (request.SmsOptIn && !customer.SmsOptIn)
+            {
+                customer.SmsOptIn = true;
+                customer.SmsOptInUpdatedAtUtc = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+            }
+
             var job = new Job
             {
                 VehicleId = vehicle.Id,
@@ -80,6 +89,7 @@ public class OrdersController : ControllerBase
                 CallType = "Web App Guest No Login",
                 ContactName = contactName,
                 ContactPhoneNumber = request.ContactPhone,
+                ContactSmsOptIn = request.SmsOptIn,
                 PickupLocation = BuildAddress(request.PickupAddress, request.PickupCity, request.PickupState, request.PickupZipCode),
                 DestinationAddress = BuildAddress(request.DestinationAddress, request.DestinationCity, request.DestinationState, request.DestinationZipCode),
                 LicensePlate = request.LicensePlate,
@@ -314,7 +324,9 @@ public class OrdersController : ControllerBase
             PhoneNumber = request.ContactPhone,
             RoleId = userRoleId,
             IsActive = true,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            SmsOptIn = request.SmsOptIn,
+            SmsOptInUpdatedAtUtc = request.SmsOptIn ? DateTime.UtcNow : (DateTime?)null
         };
 
         var result = await _userManager.CreateAsync(customer, GenerateRandomPassword());
